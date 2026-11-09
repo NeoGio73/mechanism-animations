@@ -43,3 +43,4 @@ Every ORCA job, its wall time, and what changed when a job failed. Times are wal
 | 2026-11-09 08:37 | `01_ts/diagnostics/DLPNO-CCSD(T)_ma-def2-TZVP/propene/propene` | `DLPNO-CCSD(T) TightPNO ma-def2-TZVP AutoAux RIJCOSX TightSCF CPCM(ethanol)` | 84 s | E = -117.67007411 Eh | diagnostic DLPNO-CCSD(T)_ma-def2-TZVP |
 | 2026-11-09 08:39 | `01_ts/diagnostics/DLPNO-CCSD(T)_ma-def2-TZVP/ethanol/ethanol` | `DLPNO-CCSD(T) TightPNO ma-def2-TZVP AutoAux RIJCOSX TightSCF CPCM(ethanol)` | 78 s | E = -154.79220953 Eh | diagnostic DLPNO-CCSD(T)_ma-def2-TZVP |
 | 2026-11-09 08:39 | `01_ts/diagnostics/DLPNO-CCSD(T)_ma-def2-TZVP/bromide/bromide` | `DLPNO-CCSD(T) TightPNO ma-def2-TZVP AutoAux RIJCOSX TightSCF CPCM(ethanol)` | 43 s | E = -2572.86891805 Eh | diagnostic DLPNO-CCSD(T)_ma-def2-TZVP |
+| 2026-11-09 09:02 | — | — | — | — | IBO single points at 146 IRC frames (`03_orbitals/frames/`, per-frame log in `03_orbitals/run_log_frames.md`): 5282 s in total this run. |
