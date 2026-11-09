@@ -9,6 +9,13 @@ rather than recomputed.
 
 Make a folder `reactions/<reaction_id>/00_inputs/` with two files.
 
+**Standard level of theory (decided 2026-11-09 after the SN2 pilot):** geometries, TS, IRC and
+orbitals at B3LYP-D3(BJ)/def2-SVP in SMD solvent; energies along the path recomputed at
+DLPNO-CCSD(T)/ma-def2-TZVP, and that curve shown by default. For SN2 the working level alone
+put the TS below separated reactants, while coupled cluster gave ΔG‡ = 95.6 kJ/mol
+(22.9 kcal/mol) against 95.0 kJ/mol (22.7 kcal/mol) measured. So every new reaction keeps
+`path_levels` (with the DLPNO-CCSD(T) level) and `default_curve = "DLPNO-CCSD(T)_ma-def2-TZVP"`.
+
 **`reaction.toml`** (copy `reactions/sn2_hydroxide_bromomethane/00_inputs/reaction.toml`).
 TOML rule: put all plain settings before the first `[section]` line; anything after a
 section header belongs to that section. Optionally add `card_notes.toml` (course mapping,
