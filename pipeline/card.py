@@ -24,7 +24,10 @@ def card(rx: Reaction) -> None:
     tz, svp = bar["sp"], bar["working"]
     wb, sb = rx.basis(), rx.basis(sp=True)
     changing = [t for t in tr["tracked"] if t["changes"]]
-    orb_txt = "; ".join(f"{t['label_start']} → {t['label_end']}" for t in changing)
+    if tr.get("expected_changes"):       # the names given in reaction.toml, in that order
+        ids = [e["tracked_id"] for e in tr["expected_changes"]["items"] if e["found"]]
+        changing = [next(t for t in tr["tracked"] if t["id"] == j) for j in ids]
+    orb_txt = "; ".join(t.get("label") or f"{t['label_start']} → {t['label_end']}" for t in changing)
     min_ovl = min(t["min_overlap"] for t in changing) if changing else float("nan")
 
     lines = [
