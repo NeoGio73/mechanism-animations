@@ -1,0 +1,179 @@
+"""Isosurface meshes for the viewer and the renderer.
+
+Output (reactions/<id>/04_meshes/):
+  manifest.json   frames (atoms, s, energy), orbital list, byte offsets into meshes.bin
+  meshes.bin      for each orbital/frame/lobe: int16 xyz positions (quantized in a global
+                  box) followed by uint16 triangle indices; little-endian.
+"""
+from __future__ import annotations
+
+import gzip
+import io
+import json
+from pathlib import Path
+
+import numpy as np
+
+from .geometry import read_xyz_frames
+from .steps import Reaction, _read_json, _write_json
+
+BOHR_TO_A = 0.529177210903
+QUANT = 32767
+
+
+def read_cube_gz(path: Path):
+    from .orbitals import read_cube
+    import tempfile, os
+    data = gzip.open(path, "rb").read()
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".cube") as fh:
+        fh.write(data)
+        tmp = fh.name
+    try:
+        return read_cube(Path(tmp))
+    finally:
+        os.unlink(tmp)
+
+
+def lobes(values, origin, axes, iso: float, max_tris: int):
+    """Marching cubes at +iso and -iso, decimated; returns [(verts Å, faces), (verts, faces)]."""
+    from skimage.measure import marching_cubes
+    import fast_simplification
+
+    out = []
+    for sgn in (1, -1):
+        v = sgn * values
+        if v.max() <= iso:
+            out.append((np.zeros((0, 3)), np.zeros((0, 3), dtype=np.int64)))
+            continue
+        # pad so surfaces close at the box edge
+        vp = np.pad(v, 1, constant_values=v.min())
+        verts, faces, _, _ = marching_cubes(vp, level=iso)
+        verts -= 1.0
+        xyz = (origin + verts @ axes) * BOHR_TO_A
+        if len(faces) > max_tris:
+            xyz, faces = fast_simplification.simplify(xyz.astype(np.float32), faces.astype(np.int32),
+                                                      target_reduction=1 - max_tris / len(faces))
+        out.append((np.asarray(xyz, dtype=np.float64), np.asarray(faces, dtype=np.int64)))
+    return out
+
+
+def _pretty(label: str) -> str:
+    """'M06-2X_ma-def2-TZVP' -> 'M06-2X/ma-def2-TZVP'"""
+    return label.replace("_", "/")
+
+
+def _curves(rx: Reaction, rows, meta) -> list[dict]:
+    """Energy curves along the path: working level first, then any path_singlepoints levels."""
+    curves = [{"key": "working", "label": "B3LYP-D3(BJ)/def2-SVP (working level, IRC)",
+               "E_kJ": [round(float(r["E_kJ_per_mol"]), 3) for r in rows],
+               "E_separated_products_kJ": meta["E_separated_products_kJ"]}]
+    for label in rx.cfg.get("path_levels", []):
+        csv = rx.root / "02_irc" / f"energies_{label}.csv"
+        if not csv.exists():
+            continue
+        lines = csv.read_text().splitlines()[1:]
+        info = _read_json(rx.root / "02_irc" / f"energies_{label}.json")
+        curves.append({"key": label, "label": f"{_pretty(label)} single points on the same path",
+                       "E_kJ": [round(float(ln.split(",")[2]), 3) for ln in lines],
+                       "E_separated_products_kJ": info["E_separated_products_kJ"]})
+    return curves
+
+
+def default_curve(rx: Reaction, curves: list[dict]) -> str:
+    """Curve shown first (reaction.toml `default_curve`); falls back to the working level."""
+    want = rx.cfg.get("default_curve", "working")
+    if want not in {c["key"] for c in curves}:
+        print(f"WARNING default_curve '{want}' not available (run path_singlepoints); using working level")
+        return "working"
+    return want
+
+
+def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) -> None:
+    iso = iso if iso is not None else rx.cfg.get("isovalue", 0.05)
+    tr = _read_json(rx.root / "03_orbitals" / "tracking.json")
+    frames = read_xyz_frames(rx.root / "02_irc" / "irc_full_trj.xyz")
+    csv = (rx.root / "02_irc" / "energies.csv").read_text().splitlines()
+    hdr = csv[0].split(",")
+    rows = [dict(zip(hdr, ln.split(","))) for ln in csv[1:]]
+    show = [t for t in tr["tracked"] if t["changes"]]
+    # one hue per orbital; phase = dark (+) vs light (−) shade of that hue.
+    # Nucleophile-side orbital first (blue), then the bond that breaks (orange).
+    def atoms_of(carriers: str) -> set[int]:          # "Br1–C0" -> {1, 0}
+        return {int("".join(ch for ch in a if ch.isdigit())) for a in carriers.split("–")}
+    show.sort(key=lambda t: 0 if rx.key("nucleophile") in atoms_of(t["start"]) else 1)
+    loc_colors = [["#2f6db5", "#9cc3ea"], ["#d9661f", "#f4c08e"], ["#2e8b57", "#a8dcbc"],
+                  ["#8e44ad", "#d7b5e6"]]
+    orbitals = [{"key": f"ibo{t['id']}", "kind": "localized",
+                 "label": f"{t['label_start']} → {t['label_end']}", "tracked_id": t["id"],
+                 "colors": loc_colors[i % len(loc_colors)]}
+                for i, t in enumerate(show)]
+    orbitals += [{"key": "homo", "kind": "canonical", "label": "canonical HOMO",
+                  "colors": ["#7b3fa0", "#d4b8e6"]},
+                 {"key": "lumo", "kind": "canonical", "label": "canonical LUMO",
+                  "colors": ["#2e8b57", "#a8dcbc"]}]
+
+    # global box for quantization: atoms ± 6 Å covers every lobe at this isovalue
+    allxyz = np.concatenate([f.coords for f in frames])
+    lo, hi = allxyz.min(0) - 6.0, allxyz.max(0) + 6.0
+    scale = (hi - lo) / (2 * QUANT)
+    mid = (hi + lo) / 2
+
+    # Overall sign is arbitrary: choose it once per orbital (from frame 0) so the larger lobe is
+    # the + (dark) shade. Tracking already keeps the phase continuous from frame to frame.
+    def frame_sign(o, k):
+        if o["kind"] == "localized":
+            return tr["per_frame"][k]["sign"][o["tracked_id"]]
+        return tr["canonical"][o["key"].upper()]["sign"][k]
+
+    flip = {}
+    for o in orbitals:
+        v0, _, _ = read_cube_gz(rx.root / "03_orbitals/cubes/f000" / f"{o['key']}.cube.gz")
+        skew = float(np.sum((frame_sign(o, 0) * v0.astype(np.float64)) ** 3))
+        flip[o["key"]] = 1.0 if skew >= 0 else -1.0
+
+    buf = io.BytesIO()
+    index = {o["key"]: [] for o in orbitals}
+    sizes = {o["key"]: 0 for o in orbitals}
+    for k in range(len(frames)):
+        cd = rx.root / f"03_orbitals/cubes/f{k:03d}"
+        pf = tr["per_frame"][k]
+        for o in orbitals:
+            vals, origin, axes = read_cube_gz(cd / f"{o['key']}.cube.gz")
+            sign = frame_sign(o, k) * flip[o["key"]]
+            entry = []
+            for verts, faces in lobes(sign * vals, origin, axes, iso, max_tris):
+                q = np.round((verts - mid) / scale).astype("<i2")
+                off_v = buf.tell(); buf.write(q.tobytes())
+                off_f = buf.tell(); buf.write(faces.astype("<u2").tobytes())
+                pad = (-buf.tell()) % 4
+                buf.write(b"\0" * pad)
+                entry.append({"v": [off_v, int(len(q))], "f": [off_f, int(len(faces))]})
+                sizes[o["key"]] += q.nbytes + faces.size * 2
+            index[o["key"]].append({"pos": entry[0], "neg": entry[1]})
+    od = rx.d("04_meshes")
+    (od / "meshes.bin").write_bytes(buf.getvalue())
+    meta = _read_json(rx.root / "02_irc" / "irc_meta.json")
+    ts = _read_json(rx.root / "01_ts" / "ts.json")
+    manifest = {
+        "id": rx.cfg["id"], "title": rx.cfg["title"], "equation": rx.cfg["equation"],
+        "level": "B3LYP-D3(BJ)/def2-SVP, RIJCOSX, SMD(" + rx.cfg["solvent"] + ")",
+        "isovalue": iso, "isovalue_units": "e^1/2 bohr^-3/2 (orbital amplitude)",
+        "quant": {"mid": mid.tolist(), "scale": scale.tolist()},
+        "key_atoms": rx.cfg["key_atoms"],
+        "ts_frame": meta["ts_frame"],
+        "imaginary_frequency_cm": ts["imaginary_cm"][0],
+        "energy_reference": "separated reactants",
+        "E_separated_products_kJ": meta["E_separated_products_kJ"],
+        "frames": [{"s": float(r["s_bohr_amu05"]), "E_kJ": float(r["E_kJ_per_mol"]),
+                    "xyz": np.round(f.coords, 4).tolist()} for r, f in zip(rows, frames)],
+        "curves": (curves := _curves(rx, rows, meta)),
+        "default_curve": default_curve(rx, curves),
+        "symbols": frames[0].symbols,
+        "orbitals": orbitals,
+        "mesh_index": index,
+        "bytes_per_orbital": sizes,
+    }
+    _write_json(od / "manifest.json", manifest)
+    tot = (od / "meshes.bin").stat().st_size
+    print(f"meshes.bin {tot / 1e6:.2f} MB for {len(frames)} frames × {len(orbitals)} orbitals "
+          f"({tot / len(frames) / len(orbitals) / 1e3:.1f} kB per orbital per frame)")

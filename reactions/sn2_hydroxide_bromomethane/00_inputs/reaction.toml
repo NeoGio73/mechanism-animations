@@ -1,0 +1,73 @@
+# SN2: HO⁻ + CH₃Br → CH₃OH + Br⁻
+id = "sn2_hydroxide_bromomethane"
+title = "SN2, hydroxide + bromomethane"
+equation = "HO⁻ + CH₃Br → CH₃OH + Br⁻"
+charge = -1          # total charge of the reacting system
+mult = 1
+solvent = "water"    # SMD solvent name (ORCA)
+
+# Working level (geometries, TS, IRC, orbitals) and the single-point level for the barrier
+method = "B3LYP D3BJ def2-SVP def2/J RIJCOSX TightSCF"
+sp_method = "B3LYP D3BJ def2-TZVP def2/J RIJCOSX TightSCF"
+
+nprocs = 4           # 4 cores was fastest for this 7-atom system (docs/environment_checks.md)
+maxcore_mb = 3000    # MB of memory per core
+
+ts_guess = "ts_guess.xyz"
+
+# Orbital isosurface value (e^1/2 bohr^-3/2). 0.05 hid the ball-and-stick model behind the
+# lobes; 0.08 keeps the bond-forming/breaking region readable (judged visually, 2026-11-09).
+isovalue = 0.08
+
+# IRC step (ORCA Scale_Displ_SD). The default gave 37 frames with only 7 across the
+# steep central region (02_irc/attempts/run1_default_step); 0.05 gives a smoother path.
+irc_scale_displ_sd = 0.05
+
+# Energy recomputed at every IRC frame at these levels (labels from [[diagnostic_levels]]),
+# offered in the viewer as alternative energy curves along the same path. Added 2026-11-09
+# because the working level puts the TS below separated reactants (01_ts/diagnostics.md).
+path_levels = ["M06-2X_ma-def2-TZVP", "DLPNO-CCSD(T)_ma-def2-TZVP"]
+
+# Energy curve shown first in the viewer and in the main video (<id>.mp4): "working" or one
+# of path_levels. Coupled cluster chosen by J. Picione, 2026-11-09 (closest to experiment).
+default_curve = "DLPNO-CCSD(T)_ma-def2-TZVP"
+
+# Atoms that define the reaction (0-based indices in ts_guess.xyz)
+# (TOML: keep all plain settings above this line; everything after a [section] belongs to it)
+[key_atoms]
+nucleophile = 2      # O of hydroxide
+center = 0           # C
+leaving_group = 1    # Br
+
+# Extra single points on the working-level geometries, reported next to the protocol
+# numbers so the level of theory can be judged. They do not change the pictures.
+[[diagnostic_levels]]
+label = "B3LYP_ma-def2-TZVP"
+why = "same functional, diffuse functions on heavy atoms (anions)"
+method = "B3LYP D3BJ ma-def2-TZVP def2/J RIJCOSX TightSCF"
+
+[[diagnostic_levels]]
+label = "M06-2X_ma-def2-TZVP"
+why = "meta-GGA hybrid known to do better on SN2 barriers"
+method = "M062X D3ZERO ma-def2-TZVP def2/J RIJCOSX TightSCF"
+
+[[diagnostic_levels]]
+label = "DLPNO-CCSD(T)_ma-def2-TZVP"
+why = "coupled-cluster reference"
+method = "DLPNO-CCSD(T) TightPNO ma-def2-TZVP AutoAux RIJCOSX TightSCF"
+
+[[reactants]]
+name = "hydroxide"
+smiles = "[OH-]"
+
+[[reactants]]
+name = "bromomethane"
+smiles = "CBr"
+
+[[products]]
+name = "methanol"
+smiles = "CO"
+
+[[products]]
+name = "bromide"
+smiles = "[Br-]"
