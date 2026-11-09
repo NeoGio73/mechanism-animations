@@ -113,7 +113,9 @@ Web: three.js r160, static files; ball-and-stick model linearly interpolated bet
 frames, orbitals shown per nearest frame. The forming and breaking bonds are drawn solid
 below 1.15 × their equilibrium length (taken from the path ends) and dashed up to 1.6 ×.
 
-Video: Blender 5.2 (EEVEE, headless Python), 1920 × 1080, 30 fps, 20 s. Playback moves at
+Video: Blender 5.2 (EEVEE, headless Python), 1920 × 1080, 30 fps, 20 s. EEVEE renders on the GPU
+(NVIDIA GeForce RTX 5080, OpenGL; E2: 0.33 s per frame), and every render log records the engine,
+graphics backend and GPU (`RENDER_DEVICE` line in `05_render/blender.log`). Playback moves at
 constant speed in s for the SN2 pilot. From E2 on, playback time is allotted in proportion to the
 summed change in the key bond lengths (for E2: Cβ–H, O–H, Cα–Br, Cα–Cβ), with a floor of about
 0.3 s per bohr·amu^1/2 of path and the tail after the last bond change compressed to 1 s (decided

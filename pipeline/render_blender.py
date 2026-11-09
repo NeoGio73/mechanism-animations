@@ -315,6 +315,7 @@ cam.matrix_world = Matrix.Translation(cam.location) @ Matrix((right, up2, -forwa
 png = ODIR / ("png_preview" if PREVIEW else "png")
 png.mkdir(parents=True, exist_ok=True)
 only = SETTINGS.get("only_frames")
+gpu_logged = False
 for n, t in enumerate(TIMELINE):
     if only is not None and n not in only:
         continue
@@ -325,6 +326,15 @@ for n, t in enumerate(TIMELINE):
     set_orbitals(t)
     scene.render.filepath = str(out)
     bpy.ops.render.render(write_still=True)
+    if not gpu_logged:
+        # the GPU context only exists after the first render; record what EEVEE ran on
+        gpu_logged = True
+        try:
+            import gpu
+            print(f"RENDER_DEVICE engine={scene.render.engine} backend={gpu.platform.backend_type_get()} "
+                  f"gpu={gpu.platform.renderer_get()}", flush=True)
+        except Exception as e:
+            print(f"RENDER_DEVICE engine={scene.render.engine} gpu=unknown ({e})", flush=True)
     if n % 25 == 0:
         print(f"RENDERED {n}/{len(TIMELINE)}", flush=True)
 print("RENDER_DONE", flush=True)
