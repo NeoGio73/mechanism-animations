@@ -101,6 +101,10 @@ def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) ->
     excluded = {e["frame"] for e in meta.get("display_excluded_frames", [])}
     keep = [k for k in range(len(frames)) if k not in excluded]
     show = [t for t in tr["tracked"] if t["changes"]]
+    exp = tr.get("expected_changes")
+    if exp:      # reaction.toml lists the orbitals to show: exactly those, in that order
+        ids = [e["tracked_id"] for e in exp["items"] if e["found"]]
+        show = [next(t for t in tr["tracked"] if t["id"] == j) for j in ids]
     # one hue per orbital; phase = dark (+) vs light (−) shade of that hue.
     # Nucleophile-side orbital first (blue), then the bond that breaks (orange).
     def atoms_of(carriers: str) -> set[int]:          # "Br1–C0" -> {1, 0}
@@ -136,31 +140,43 @@ def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) ->
         skew = float(np.sum((frame_sign(o, 0) * v0.astype(np.float64)) ** 3))
         flip[o["key"]] = 1.0 if skew >= 0 else -1.0
 
-    buf = io.BytesIO()
-    index = {o["key"]: [] for o in orbitals}
-    sizes = {o["key"]: 0 for o in orbitals}
-    for k in keep:
-        cd = rx.root / f"03_orbitals/cubes/f{k:03d}"
-        pf = tr["per_frame"][k]
-        for o in orbitals:
-            vals, origin, axes = read_cube_gz(cd / f"{o['key']}.cube.gz")
-            sign = frame_sign(o, k) * flip[o["key"]]
-            entry = []
-            for verts, faces in lobes(sign * vals, origin, axes, iso, max_tris):
-                q = np.round((verts - mid) / scale).astype("<i2")
-                off_v = buf.tell(); buf.write(q.tobytes())
-                off_f = buf.tell(); buf.write(faces.astype("<u2").tobytes())
-                pad = (-buf.tell()) % 4
-                buf.write(b"\0" * pad)
-                entry.append({"v": [off_v, int(len(q))], "f": [off_f, int(len(faces))]})
-                sizes[o["key"]] += q.nbytes + faces.size * 2
-            index[o["key"]].append({"pos": entry[0], "neg": entry[1]})
+    def encode(max_tris):
+        buf = io.BytesIO()
+        index = {o["key"]: [] for o in orbitals}
+        sizes = {o["key"]: 0 for o in orbitals}
+        for k in keep:
+            cd = rx.root / f"03_orbitals/cubes/f{k:03d}"
+            for o in orbitals:
+                vals, origin, axes = read_cube_gz(cd / f"{o['key']}.cube.gz")
+                sign = frame_sign(o, k) * flip[o["key"]]
+                entry = []
+                for verts, faces in lobes(sign * vals, origin, axes, iso, max_tris):
+                    q = np.round((verts - mid) / scale).astype("<i2")
+                    off_v = buf.tell(); buf.write(q.tobytes())
+                    off_f = buf.tell(); buf.write(faces.astype("<u2").tobytes())
+                    pad = (-buf.tell()) % 4
+                    buf.write(b"\0" * pad)
+                    entry.append({"v": [off_v, int(len(q))], "f": [off_f, int(len(faces))]})
+                    sizes[o["key"]] += q.nbytes + faces.size * 2
+                index[o["key"]].append({"pos": entry[0], "neg": entry[1]})
+        return buf, index, sizes
+
+    # the web page must stay under 10 MB: lower the triangle budget until meshes.bin fits
+    budget = float(rx.cfg.get("mesh_budget_mb", 8.5)) * 1e6
+    buf, index, sizes = encode(max_tris)
+    while buf.tell() > budget and max_tris > 200:
+        new = int(max_tris * budget / buf.tell() * 0.97)
+        print(f"meshes.bin {buf.tell() / 1e6:.2f} MB > {budget / 1e6:.1f} MB at max_tris {max_tris}; "
+              f"retrying with {new}")
+        max_tris = new
+        buf, index, sizes = encode(max_tris)
     od = rx.d("04_meshes")
     (od / "meshes.bin").write_bytes(buf.getvalue())
     ts = _read_json(rx.root / "01_ts" / "ts.json")
     manifest = {
         "id": rx.cfg["id"], "title": rx.cfg["title"], "equation": rx.cfg["equation"],
         "level": f"{rx.level()}, RIJCOSX, SMD({rx.cfg['solvent']})",
+        "max_triangles_per_lobe": max_tris,
         "isovalue": iso, "isovalue_units": "e^1/2 bohr^-3/2 (orbital amplitude)",
         "quant": {"mid": mid.tolist(), "scale": scale.tolist()},
         "key_atoms": rx.cfg["key_atoms"],
