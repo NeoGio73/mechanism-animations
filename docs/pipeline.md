@@ -21,7 +21,10 @@ computed at def2-SVP and is due to be rerun at ma-def2-SVP; see `docs/tasks.md`.
 **`reaction.toml`** (copy `reactions/sn2_hydroxide_bromomethane/00_inputs/reaction.toml`).
 TOML rule: put all plain settings before the first `[section]` line; anything after a
 section header belongs to that section. Optionally add `card_notes.toml` (course mapping,
-experimental comparison, extra limitations) for the hand-written parts of the card.
+experimental comparison, extra limitations) for the hand-written parts of the card. Cite the
+primary paper with its DOI and add every source to `docs/references.md`. Leave
+`experimental_confirmed = false` (the card then says "Value to be confirmed against the primary
+paper by J. Picione") until he has checked the value.
 
 | Field | Meaning |
 |---|---|

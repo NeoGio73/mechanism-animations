@@ -76,8 +76,9 @@ with TightOpt.
 Barrier heights were recomputed by single points on the working-level geometries at
 B3LYP-D3(BJ)/def2-TZVP (protocol), B3LYP-D3(BJ)/ma-def2-TZVP, M06-2X-D3(0)/ma-def2-TZVP and
 DLPNO-CCSD(T)/ma-def2-TZVP (TightPNO, AutoAux), all in SMD water. Free-energy barriers add
-the working-level thermal corrections (298.15 K, rigid rotor/harmonic oscillator as
-implemented in ORCA) and the 1 atm → 1 M standard-state correction (RT ln 24.47 =
+the working-level thermal corrections (298.15 K, 1 atm, ideal gas, rigid rotor/harmonic
+oscillator with Grimme's quasi-RRHO vibrational entropy, reference frequency 100 cm⁻¹, ORCA's
+default) and the 1 atm → 1 M standard-state correction (RT ln 24.47 =
 7.92 kJ/mol per species). The M06-2X and DLPNO-CCSD(T) energies were also computed at every IRC
 frame, giving energy curves at those levels along the working-level path. The viewer and the
 main video show the DLPNO-CCSD(T) curve by default; the working-level and M06-2X curves are
@@ -113,9 +114,11 @@ frames, orbitals shown per nearest frame. The forming and breaking bonds are dra
 below 1.15 × their equilibrium length (taken from the path ends) and dashed up to 1.6 ×.
 
 Video: Blender 5.2 (EEVEE, headless Python), 1920 × 1080, 30 fps, 20 s. Playback moves at
-constant speed in s for the SN2 pilot; from E2 on it moves at constant summed atomic
-displacement between IRC points (decided by J. Picione, 2026-11-09), so the bond-changing region
-gets the time and a long drifting-fragment tail passes quickly; the interactive viewer keeps every
-frame. Start and stop are eased; orbital surfaces cross-fade between
+constant speed in s for the SN2 pilot. From E2 on, playback time is allotted in proportion to the
+summed change in the key bond lengths (for E2: Cβ–H, O–H, Cα–Br, Cα–Cβ), with a floor of about
+0.3 s per bohr·amu^1/2 of path and the tail after the last bond change compressed to 1 s (decided
+by J. Picione, 2026-11-09), so the bond-changing region gets the time and a long drifting-fragment
+tail passes quickly. Timing by summed atomic displacement is kept as a selectable alternative
+(`video_timing` in `reaction.toml`); the interactive viewer keeps every frame. Start and stop are eased; orbital surfaces cross-fade between
 neighbouring IRC frames. The energy inset and labels are composited in Python (Pillow,
 matplotlib) and encoded with H.264 (ffmpeg, CRF 18).

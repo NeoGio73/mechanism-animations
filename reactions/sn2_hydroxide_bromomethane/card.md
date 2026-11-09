@@ -29,7 +29,9 @@
 
 ΔG‡ adds the working-level thermal corrections (298.15 K) and the 1 atm → 1 M standard-state correction to each level's electronic barrier.
 
-Experiment: k(HO⁻ + CH₃Br, water, 25 °C) ≈ 1.4 × 10⁻⁴ M⁻¹ s⁻¹ (extrapolated from higher-temperature data; Ea = 96.3 kJ/mol), from the critical review W. Mabey and T. Mill, J. Phys. Chem. Ref. Data 1978, 7, 383–415, doi:10.1063/1.555572, Tables 4.2 and 5.1. Eyring at 298.15 K (1 M standard state) gives ΔG‡ ≈ 95.0 kJ/mol (22.7 kcal/mol). The primary measurements are Moelwyn-Hughes and co-workers (J. Chem. Soc. 1959), not re-checked here.
+Experiment: k(HO⁻ + CH₃Br, water, 25 °C) ≈ 1.4 × 10⁻⁴ M⁻¹ s⁻¹ (extrapolated from higher-temperature data; Ea = 96.3 kJ/mol (23.0 kcal/mol)). Eyring at 298.15 K (1 M standard state) gives ΔG‡ ≈ 95.0 kJ/mol (22.7 kcal/mol). Sources: W. Mabey and T. Mill, J. Phys. Chem. Ref. Data 1978, 7, 383–415, doi:10.1063/1.555572 (critical review, Tables 4.2 and 5.1; free reprint at srd.nist.gov). The review's source for the methyl halide data (its ref. 7) is I. Fells and E. A. Moelwyn-Hughes, J. Chem. Soc. 1959, 398, doi:10.1039/JR9590000398. That paper's title concerns the chlorinated methanes, so the CH₃Br coefficients may come from a companion paper, R. H. Bathgate and E. A. Moelwyn-Hughes, J. Chem. Soc. 1959, 2642, doi:10.1039/JR9590002642.
+
+*Value to be confirmed against the primary paper by J. Picione.*
 
 ## Known artifacts and limitations
 

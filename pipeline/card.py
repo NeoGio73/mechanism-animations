@@ -71,6 +71,9 @@ def card(rx: Reaction) -> None:
                   "standard-state correction to each level's electronic barrier.", ""]
     if notes.get("experimental"):
         lines += [notes["experimental"], ""]
+        # stays on the card until the value has been checked in the primary paper
+        if not notes.get("experimental_confirmed", False):
+            lines += ["*Value to be confirmed against the primary paper by J. Picione.*", ""]
     lines += ["## Known artifacts and limitations", ""]
     lines += [f"- {x}" for x in _auto_limitations(rx, tz, svp, ts, diag, tr)]
     lines += [f"- {x}" for x in notes.get("limitations", [])]
