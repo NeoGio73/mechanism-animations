@@ -1,5 +1,48 @@
 # Computational protocol (draft methods text)
 
+## Standard for the reaction set (decided by J. Picione, 2026-11-09)
+
+From E2 onward, every reaction uses one working level for geometries, the TS, the IRC and the
+orbitals: **B3LYP-D3(BJ)/ma-def2-SVP**, RIJCOSX (def2/J), TightSCF, SMD solvent. The minimally
+augmented basis adds diffuse functions to the heavy atoms, which the anions in most of these
+reactions need. Barrier single points use B3LYP-D3(BJ)/ma-def2-TZVP. Energies at every IRC frame are
+recomputed at DLPNO-CCSD(T)/ma-def2-TZVP (TightPNO), and that curve is the default in the viewer and
+the main video; M06-2X-D3(0)/ma-def2-TZVP is also computed along the path for comparison.
+
+Why: in the SN2 pilot the def2-SVP working level (no diffuse functions) put the TS 10.9 kJ/mol
+(2.6 kcal/mol) below separated reactants. The barrier needed rescuing with coupled-cluster single
+points, which gave ΔG‡ = 95.6 kJ/mol (22.9 kcal/mol) against 95.0 kJ/mol (22.7 kcal/mol) measured.
+The SN2 pilot below was computed at def2-SVP. It will be rerun at ma-def2-SVP so the whole set shares
+one working level (`docs/tasks.md`); the def2-SVP results stay until then.
+
+### Points next to the TS that lie above it (decided by J. Picione, 2026-11-09)
+
+ORCA's first IRC step leaves the TS along a straight line. On a strongly curved path (a hydrogen
+transfer) that point can lie slightly above the TS. Any IRC point within two steps of s = 0 that
+lies above the TS energy is flagged by `profile`, kept in the data files, left out of the viewer
+path and the video so the displayed maximum is the TS, and stated on the card with its energy.
+E2: the first reactant-side point is 1.3 kJ/mol (0.3 kcal/mol) above the TS.
+
+### IRC stopping rule (decided by J. Picione, 2026-11-09)
+
+Each IRC direction is ended when the energy has changed by less than **0.05 kJ/mol
+(0.012 kcal/mol) per step for 20 consecutive steps** after the last bond-forming or
+bond-breaking event. A forming or breaking key bond counts as bonded at ≤ 1.25 × the sum of the
+covalent radii and as not bonded at ≥ 1.5 ×. The last event is the first point from which every
+such bond keeps its final state to the end. Past that point the fragments only drift apart
+through the solvent, and ORCA's gradient criteria can take hundreds of steps to be met. The pipeline
+runs the two directions as separate jobs, checks the rule every 30 s, cuts the path at the step
+where the rule was met, and logs the stop in `run_log.md`. The end complex is then optimized from
+that last point (Opt Freq, TightOpt if an imaginary mode remains), and the card states the s value
+where the path was cut.
+
+First use: E2 (2026-11-09). The product-side IRC was stopped by hand at step 115, before the rule
+existed. Products had formed by step 56 (O–H 0.98 Å, C=C 1.34 Å). Each step changed the energy by
+less than 0.05 kJ/mol only from step 79 on, and the rule would have stopped that direction at
+step 98.
+
+## SN2 pilot
+
 Settings as actually used for the SN2 pilot (`reactions/sn2_hydroxide_bromomethane`). Every
 job, its wall time and every rerun are in that folder's `run_log.md`.
 
@@ -70,6 +113,9 @@ frames, orbitals shown per nearest frame. The forming and breaking bonds are dra
 below 1.15 × their equilibrium length (taken from the path ends) and dashed up to 1.6 ×.
 
 Video: Blender 5.2 (EEVEE, headless Python), 1920 × 1080, 30 fps, 20 s. Playback moves at
-constant speed in s, with eased start and stop; orbital surfaces cross-fade between
+constant speed in s for the SN2 pilot; from E2 on it moves at constant summed atomic
+displacement between IRC points (decided by J. Picione, 2026-11-09), so the bond-changing region
+gets the time and a long drifting-fragment tail passes quickly; the interactive viewer keeps every
+frame. Start and stop are eased; orbital surfaces cross-fade between
 neighbouring IRC frames. The energy inset and labels are composited in Python (Pillow,
 matplotlib) and encoded with H.264 (ffmpeg, CRF 18).

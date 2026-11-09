@@ -31,6 +31,7 @@ class OrcaResult:
     gibbs_eh: float | None = None
     opt_converged: bool | None = None
     freqs_cm: list[float] = field(default_factory=list)
+    stopped: str | None = None      # reason, when a watch rule ended the job early
 
     @property
     def out(self) -> Path:
@@ -49,24 +50,52 @@ def make_input(keywords: str, geom: Geometry, charge: int, mult: int,
 
 
 def run(workdir: Path, name: str, inp: str, log: "RunLog", note: str = "",
-        reuse: bool = True) -> OrcaResult:
-    """Run one ORCA job in workdir/name.inp. Reuses a finished job unless reuse=False."""
+        reuse: bool = True, watch=None, poll_s: float = 30.0) -> OrcaResult:
+    """Run one ORCA job in workdir/name.inp. Reuses a finished job unless reuse=False.
+
+    watch: optional function called every poll_s seconds while ORCA runs; when it returns a
+    reason (string), the job is ended and the reason goes to <name>.stopped.txt and the run log.
+    A job ended that way is reused like a finished one."""
     workdir.mkdir(parents=True, exist_ok=True)
     inp_path, out_path = workdir / f"{name}.inp", workdir / f"{name}.out"
-    if reuse and out_path.exists() and inp_path.exists() and inp_path.read_text() == inp \
-            and "ORCA TERMINATED NORMALLY" in out_path.read_text(errors="replace"):
-        res = parse(workdir, name, wall_s=float("nan"))
-        print(f"[reuse] {workdir.name}/{name}: finished earlier")
-        return res
+    stop_path = workdir / f"{name}.stopped.txt"
+    if reuse and out_path.exists() and inp_path.exists() and inp_path.read_text() == inp:
+        if "ORCA TERMINATED NORMALLY" in out_path.read_text(errors="replace"):
+            res = parse(workdir, name, wall_s=float("nan"))
+            print(f"[reuse] {workdir.name}/{name}: finished earlier")
+            return res
+        if stop_path.exists():
+            res = parse(workdir, name, wall_s=float("nan"))
+            res.stopped = stop_path.read_text(encoding="utf-8").strip()
+            print(f"[reuse] {workdir.name}/{name}: stopped earlier ({res.stopped})")
+            return res
     inp_path.write_text(inp)
+    stop_path.unlink(missing_ok=True)
     env = os.environ.copy()
     env["PATH"] = f"{MSMPI_BIN};{ORCA_DIR};" + env.get("PATH", "")
     print(f"[run] {workdir.name}/{name} ...", flush=True)
     t0 = time.time()
+    reason = None
     with open(out_path, "w") as fh:
-        subprocess.run([str(ORCA_DIR / "orca.exe"), inp_path.name], cwd=workdir,
-                       stdout=fh, stderr=subprocess.STDOUT, env=env)
+        proc = subprocess.Popen([str(ORCA_DIR / "orca.exe"), inp_path.name], cwd=workdir,
+                                stdout=fh, stderr=subprocess.STDOUT, env=env)
+        while True:
+            try:
+                proc.wait(timeout=poll_s if watch else None)
+                break
+            except subprocess.TimeoutExpired:
+                reason = watch()
+                if reason:
+                    # ORCA starts MPI child processes: end the whole process tree
+                    subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                                   capture_output=True)
+                    proc.wait()
+                    break
     res = parse(workdir, name, wall_s=time.time() - t0)
+    if reason:
+        res.stopped = reason
+        stop_path.write_text(reason + "\n", encoding="utf-8")
+        note = f"{note}; stopped early: {reason}" if note else f"stopped early: {reason}"
     log.add(res, inp.splitlines()[0], note)
     print(f"[done] {workdir.name}/{name}: ok={res.ok} wall={res.wall_s:.0f} s "
           f"E={res.energy_eh}", flush=True)
@@ -130,7 +159,9 @@ class RunLog:
 
     def add(self, res: OrcaResult, keyword_line: str, note: str = "") -> None:
         when = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
-        if not res.ok:
+        if res.stopped:
+            result = "stopped early (see note)"
+        elif not res.ok:
             result = "FAILED"
         else:
             parts = [f"E = {res.energy_eh:.8f} Eh"] if res.energy_eh is not None else []

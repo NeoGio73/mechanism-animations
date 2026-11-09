@@ -14,9 +14,73 @@ BLENDER = Path(r"C:\Program Files\Blender Foundation\Blender 5.2\blender.exe")
 FPS = 30
 
 
-def timeline(s: list[float], hold0=1.5, path=16.0, hold1=2.5) -> list[float]:
-    """Fractional IRC-frame positions per video frame. Constant speed along the mass-weighted
-    path length s (IRC frames bunch up where the path flattens), eased at start and stop."""
+PATH_S = 16.0      # seconds of motion between the start and end holds
+
+
+def timing_coordinate(rx: Reaction, M: dict) -> list[float]:
+    """Progress coordinate the video moves along at constant speed (reaction.toml `video_timing`):
+    "key_bonds" (default): seconds allocated by the summed change in the key bond lengths (see
+      _key_bond_seconds), with a floor and a compressed drifting-fragment tail;
+    "displacement": cumulative summed atomic displacement between displayed frames (Å);
+    "path_length": the mass-weighted IRC path length s (as used for the SN2 pilot)."""
+    mode = rx.cfg.get("video_timing", "key_bonds")
+    if mode == "path_length":
+        return [f["s"] for f in M["frames"]]
+    if mode == "key_bonds":
+        return _key_bond_seconds(rx, M).tolist()
+    if mode != "displacement":
+        raise ValueError(f"video_timing must be 'key_bonds', 'displacement' or 'path_length', not {mode!r}")
+    xyz = [np.array(f["xyz"]) for f in M["frames"]]
+    steps = [0.0] + [float(np.linalg.norm(b - a, axis=1).sum()) for a, b in zip(xyz[:-1], xyz[1:])]
+    return np.cumsum(steps).tolist()
+
+
+def _key_bond_seconds(rx: Reaction, M: dict) -> np.ndarray:
+    """Cumulative seconds at each displayed frame (decided by J. Picione, 2026-11-09).
+
+    Each stretch between frames gets time in proportion to the summed change of all key bond
+    lengths, but at least `video_floor_s` (default 0.3 s) per bohr·amu½ of path length s, so no part
+    of the path flashes by. The product-side tail, from the first frame after the TS at which every
+    forming/breaking bond has reached its final state (bonded / not bonded, as for the IRC stopping
+    rule), is compressed to `video_tail_s` (default 1 s) in total."""
+    from .geometry import Geometry
+    from .steps import _bond_states
+
+    xyz = [np.array(f["xyz"]) for f in M["frames"]]
+    s = np.array([f["s"] for f in M["frames"]])
+    pairs = [b["atoms"] for b in M["key_bonds"]]
+    d = np.array([[np.linalg.norm(x[a] - x[b]) for a, b in pairs] for x in xyz])
+    w = np.abs(np.diff(d, axis=0)).sum(axis=1)            # Å of key-bond change per stretch
+    ds = np.diff(s)
+    n = len(w)
+    states = [_bond_states(rx, Geometry(M["symbols"], x)) for x in xyz]
+    ts, last = M["ts_frame"], len(xyz) - 1
+    tail0 = last
+    if None not in states[-1]:
+        tail0 = max((k for k in range(ts, last + 1) if states[k] != states[-1]), default=ts) + 1
+    tail = np.arange(n) >= tail0                         # stretch k runs from frame k to k + 1
+    t = np.zeros(n)
+    tail_s = float(rx.cfg.get("video_tail_s", 1.0)) if tail.any() else 0.0
+    if tail.any():
+        wt = w[tail] if w[tail].sum() > 0 else ds[tail]
+        t[tail] = tail_s * wt / wt.sum()
+    body = ~tail
+    budget = PATH_S - tail_s
+    floor = float(rx.cfg.get("video_floor_s", 0.3)) * ds[body]
+    if floor.sum() > budget:                             # cannot honour the floor: scale it down
+        floor *= budget / floor.sum()
+    lo, hi = 0.0, budget / max(w[body].sum(), 1e-12)     # find c: sum(max(floor, c·w)) = budget
+    for _ in range(100):
+        c = (lo + hi) / 2
+        lo, hi = (c, hi) if np.maximum(floor, c * w[body]).sum() < budget else (lo, c)
+    t[body] = np.maximum(floor, c * w[body])
+    t *= PATH_S / t.sum()
+    return np.concatenate([[0.0], np.cumsum(t)])
+
+
+def timeline(s: list[float], hold0=1.5, path=PATH_S, hold1=2.5) -> list[float]:
+    """Fractional frame positions per video frame: constant speed along the progress
+    coordinate s (see timing_coordinate), eased at start and stop."""
     s = np.asarray(s, dtype=float)
     n_frames = len(s)
     T = []
@@ -46,10 +110,11 @@ def render(rx: Reaction, preview: bool = False, only: list[int] | None = None) -
     mdir = rx.root / "04_meshes"
     odir = rx.d("05_render")
     M = _read_json(mdir / "manifest.json")
-    (odir / "timeline.json").write_text(json.dumps(timeline([f["s"] for f in M["frames"]])))
+    (odir / "timeline.json").write_text(json.dumps(timeline(timing_coordinate(rx, M))))
     (odir / "render_settings.json").write_text(json.dumps(
         {"width": 1920, "height": 1080, "samples": 48, "orbital_kind": "localized",
-         "shift_y": -0.02, "margin_A": 3.4, "only_frames": only}))
+         "shift_y": -0.02, "margin_A": 3.4, "only_frames": only,
+         "video_timing": rx.cfg.get("video_timing", "key_bonds")}))
     script = Path(__file__).with_name("render_blender.py")
     cmd = [str(BLENDER), "-b", "--factory-startup", "--python", str(script), "--", str(mdir), str(odir)]
     if preview:
@@ -133,6 +198,9 @@ def composite(rx: Reaction, png_dir: Path, out_mp4: Path, curve_key: str = "work
     E = np.array(curve["E_kJ"])
     xyz = [np.array(f["xyz"]) for f in M["frames"]]
     ka, sy = M["key_atoms"], M["symbols"]
+    kb = M.get("key_bonds") or [
+        {"atoms": [ka["center"], ka["nucleophile"]], "label": f"{sy[ka['center']]}–{sy[ka['nucleophile']]}"},
+        {"atoms": [ka["center"], ka["leaving_group"]], "label": f"{sy[ka['center']]}–{sy[ka['leaving_group']]}"}]
     inset, to_px = _inset_background(M, curve)
     orbs = [o for o in M["orbitals"] if o["kind"] == "localized"]
 
@@ -157,8 +225,7 @@ def composite(rx: Reaction, png_dir: Path, out_mp4: Path, curve_key: str = "work
         w = t - f0
         st, Et = s[f0] + (s[f1] - s[f0]) * w, E[f0] + (E[f1] - E[f0]) * w
         p = xyz[f0] + (xyz[f1] - xyz[f0]) * w
-        dn = np.linalg.norm(p[ka["nucleophile"]] - p[ka["center"]])
-        dl = np.linalg.norm(p[ka["center"]] - p[ka["leaving_group"]])
+        ds = [(b["label"], float(np.linalg.norm(p[b["atoms"][0]] - p[b["atoms"][1]]))) for b in kb]
 
         im = Image.open(fp).convert("RGB")
         dr = ImageDraw.Draw(im)
@@ -188,11 +255,15 @@ def composite(rx: Reaction, png_dir: Path, out_mp4: Path, curve_key: str = "work
         r = 8 * sc
         pd.ellipse([px - r, py - r, px + r, py + r], fill="#c0392b", outline="white", width=max(1, int(2 * sc)))
         im.paste(panel, (ix, iy), panel)
-        nu = f"{sy[ka['center']]}–{sy[ka['nucleophile']]}"
-        lgl = f"{sy[ka['center']]}–{sy[ka['leaving_group']]}"
-        txt = (f"E = {Et:.1f} kJ/mol ({Et / 4.184:.1f} kcal/mol)    {nu} {dn:.2f} Å    "
-               f"{lgl} {dl:.2f} Å").replace("-", "−")
-        dr.text((ix + int(10 * sc), iy - int(30 * sc)), txt, fill="#1d2733", font=_font(int(20 * sc)))
+        etxt = f"E = {Et:.1f} kJ/mol ({Et / 4.184:.1f} kcal/mol)".replace("-", "−")
+        btxt = "    ".join(f"{lab} {d:.2f} Å" for lab, d in ds)
+        if len(ds) <= 2:          # one line: energy and the two bonds
+            rows = [etxt + "    " + btxt]
+        else:                     # several bonds: energy on the line above the distances
+            rows = [etxt, btxt]
+        for i, row in enumerate(rows):
+            dr.text((ix + int(10 * sc), iy - int((30 + 28 * (len(rows) - 1 - i)) * sc)), row,
+                    fill="#1d2733", font=_font(int(20 * sc)))
         writer.send(np.asarray(im).tobytes())
         vf = int(fp.stem[1:])
         if stills and vf in stills:
@@ -254,7 +325,7 @@ def video_composite(rx: Reaction) -> None:
 def video_preview(rx: Reaction) -> None:
     """Half-resolution stills of a few key frames, to check framing before the full render."""
     M = _read_json(rx.root / "04_meshes" / "manifest.json")
-    T = timeline([f["s"] for f in M["frames"]])
+    T = timeline(timing_coordinate(rx, M))
     want = [0, int(np.argmin([abs(t - M["ts_frame"] * 0.6) for t in T])),
             int(np.argmin([abs(t - M["ts_frame"]) for t in T])), len(T) - 1]
     png = render(rx, preview=True, only=want)

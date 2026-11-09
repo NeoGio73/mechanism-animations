@@ -88,6 +88,7 @@ def orbital_track(rx: Reaction) -> None:
                         "changes": set(start.split("–")) != set(end.split("–")),
                         "min_overlap": float(min(best[k][j] for k in range(n))),
                         "frame_of_min_overlap": int(np.argmin([best[k][j] for k in range(n)]))})
+    expected = _check_expected(rx, tracked, pops, best, syms)
     # canonical HOMO / LUMO: fixed index, sign from overlap with the previous frame
     nocc = int((Fc[0].occ > 1.0).sum())
     can = {"HOMO": nocc - 1, "LUMO": nocc}
@@ -103,6 +104,7 @@ def orbital_track(rx: Reaction) -> None:
         "population_cut_e": POP_CUT,
         "n_frames": n,
         "tracked": tracked,
+        "expected_changes": expected,
         "per_frame": [{"frame": k,
                        "orbital_index": [int(v) for v in perm[k]],
                        "sign": sign[k],
@@ -128,10 +130,55 @@ def orbital_track(rx: Reaction) -> None:
     flags = [(k, j, best[k][j]) for k in range(n) for j in range(m) if best[k][j] < 0.7]
     lines += ["", f"Frames with a match below 0.7: {len(flags)}"]
     lines += [f"- frame {k}, orbital {j}: overlap {v:.3f}" for k, j, v in flags[:60]]
+    if expected:
+        lines += ["", "## Expected orbital changes (reaction.toml)", "",
+                  "| Expected | Tracked orbital | Lowest overlap | Found? |", "|---|---|---|---|"]
+        for e in expected["items"]:
+            lines.append(f"| {e['label']} | {e['tracked_id'] if e['tracked_id'] is not None else '—'} | "
+                         f"{e['min_overlap'] if e['min_overlap'] is not None else '—'} | "
+                         f"{'yes' if e['found'] else '**NO**'} |")
+        lines += ["", f"Orbitals that change but were not expected: {expected['unexpected'] or 'none'}",
+                  f"Frames where an unexpected orbital changes its atoms: {expected['flagged_frames'] or 'none'}"]
     lines += ["", "Canonical orbitals (sign tracking only): lowest overlap "
               f"HOMO {min(can_ovl['HOMO']):.3f}, LUMO {min(can_ovl['LUMO']):.3f}"]
     (rx.root / "03_orbitals" / "tracking_log.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines[:12 + m]))
+
+
+def _check_expected(rx: Reaction, tracked, pops, best, syms):
+    """Compare the orbitals that change with `[[expected_orbital_changes]]` in reaction.toml
+    (start/end = atom indices carrying the orbital at the reactant/product end).
+
+    Each expected change must be ONE tracked orbital (continuous from end to end). Any frame
+    where another orbital's set of atoms differs from its reactant-end set is flagged."""
+    exp = rx.cfg.get("expected_orbital_changes")
+    if not exp:
+        return None
+    n, m = pops.shape[0], pops.shape[1]
+    atoms = lambda row: frozenset(int(a) for a in np.where(row > POP_CUT)[0])
+    items, used = [], set()
+    for e in exp:
+        s, f = frozenset(e["start"]), frozenset(e["end"])
+        hit = [j for j in range(m) if atoms(pops[0, j]) == s and atoms(pops[-1, j]) == f]
+        j = hit[0] if len(hit) == 1 else None
+        if j is not None:
+            used.add(j)
+            tracked[j]["label"] = e["label"]
+        items.append({"label": e["label"], "start": sorted(s), "end": sorted(f), "found": j is not None,
+                      "tracked_id": j, "candidates": hit,
+                      "min_overlap": round(float(min(best[k][j] for k in range(n))), 3) if j is not None else None})
+    unexpected = [t["id"] for t in tracked if t["changes"] and t["id"] not in used]
+    flagged = [k for k in range(n)
+               if any(atoms(pops[k, j]) != atoms(pops[0, j]) for j in range(m) if j not in used)]
+    for e in items:
+        if not e["found"]:
+            print(f"WARNING expected orbital change not found as one tracked orbital: {e['label']} "
+                  f"(candidates {e['candidates']})")
+    if unexpected:
+        print(f"WARNING orbitals change that were not expected: {unexpected}")
+    if flagged:
+        print(f"WARNING frames where an unexpected orbital changes its atoms: {flagged}")
+    return {"items": items, "unexpected": unexpected, "flagged_frames": flagged}
 
 
 def orbital_cubes(rx: Reaction, grid: int = 70) -> None:

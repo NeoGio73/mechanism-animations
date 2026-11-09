@@ -109,10 +109,10 @@ function buildMolecule() {
   });
   // The forming and breaking bonds are judged against their own equilibrium lengths, taken from
   // the path ends (forming bond: product end; breaking bond: reactant end).
-  const ka = M.key_atoms;
+  // A bond that only shortens (C–C → C=C) stays an ordinary bond.
   const dist = (f, a, b) => Math.hypot(...[0, 1, 2].map((k) => M.frames[f].xyz[a][k] - M.frames[f].xyz[b][k]));
-  const eq = new Map([[pairKey(ka.nucleophile, ka.center), dist(N - 1, ka.nucleophile, ka.center)],
-                      [pairKey(ka.center, ka.leaving_group), dist(0, ka.center, ka.leaving_group)]]);
+  const eq = new Map(keyBonds().filter((b) => b.role !== 'shortens').map((b) =>
+    [pairKey(...b.atoms), dist(b.role === 'forms' ? N - 1 : 0, ...b.atoms)]));
   for (let i = 0; i < M.symbols.length; i++) {
     for (let j = i + 1; j < M.symbols.length; j++) {
       const solid = new THREE.Mesh(cylGeo, bondMat);
@@ -129,6 +129,14 @@ function buildMolecule() {
   }
 }
 const pairKey = (a, b) => (a < b ? `${a}-${b}` : `${b}-${a}`);
+
+// Bonds that change along the path; older manifests only name nucleophile, center, leaving group.
+function keyBonds() {
+  if (M.key_bonds) return M.key_bonds;
+  const ka = M.key_atoms, sy = M.symbols;
+  return [{ atoms: [ka.center, ka.nucleophile], role: 'forms', label: `${sy[ka.center]}–${sy[ka.nucleophile]}` },
+          { atoms: [ka.center, ka.leaving_group], role: 'breaks', label: `${sy[ka.center]}–${sy[ka.leaving_group]}` }];
+}
 
 function framePositions(t) {
   const f0 = Math.floor(t), f1 = Math.min(N - 1, f0 + 1), w = t - f0;
@@ -360,19 +368,17 @@ function update() {
   const f = Math.round(state.t);
   updateOrbitals(f);
   placeMarker();
-  const ka = M.key_atoms, sy = M.symbols;
-  const dn = pos[ka.nucleophile].distanceTo(pos[ka.center]);
-  const dl = pos[ka.center].distanceTo(pos[ka.leaving_group]);
   const E = interp(eArr, state.t);
-  const nu = `${sy[ka.center]}–${sy[ka.nucleophile]}`, lg = `${sy[ka.center]}–${sy[ka.leaving_group]}`;
+  const ds = keyBonds().map((b) => [b.label, pos[b.atoms[0]].distanceTo(pos[b.atoms[1]])]);
   $('readout').textContent =
     `frame ${f} of ${N - 1}   s = ${interp(sArr, state.t).toFixed(2)} bohr·amu½\n` +
     `E = ${E.toFixed(1)} kJ/mol (${(E / KCAL).toFixed(1)} kcal/mol)\n` +
-    `${nu} ${dn.toFixed(2)} Å   ${lg} ${dl.toFixed(2)} Å`;
+    ds.map(([l, d]) => `${l} ${d.toFixed(2)} Å`).join('   ');
   svg.setAttribute('aria-valuemax', N - 1);
   svg.setAttribute('aria-valuenow', f);
   svg.setAttribute('aria-valuetext',
-    `frame ${f} of ${N - 1}, energy ${E.toFixed(1)} kilojoules per mole, ${nu} ${dn.toFixed(2)} angstrom, ${lg} ${dl.toFixed(2)} angstrom`);
+    `frame ${f} of ${N - 1}, energy ${E.toFixed(1)} kilojoules per mole, ` +
+    ds.map(([l, d]) => `${l} ${d.toFixed(2)} angstrom`).join(', '));
 }
 
 let lastNow = null;
@@ -400,6 +406,7 @@ function togglePlay(on = !state.playing) {
 }
 
 function setupControls() {
+  if (M.view_axis_label) document.querySelector('[data-cam=axis]').textContent = M.view_axis_label;
   $('orbOn').addEventListener('change', (e) => { state.orbOn = e.target.checked; update(); });
   $('labelsOn').addEventListener('change', (e) => { state.labels = e.target.checked; update(); });
   $('dashOn').addEventListener('change', (e) => { state.dash = e.target.checked; update(); });
@@ -437,13 +444,27 @@ function setCamera(mode) {
   let side = new THREE.Vector3(0, 0, 1).cross(axis);
   if (side.lengthSq() < 1e-3) side = new THREE.Vector3(1, 0, 0).cross(axis);
   side.normalize();
+  // Several changing bonds (not all on one line): look straight at the plane they lie in.
+  const kat = [...new Set(keyBonds().filter((b) => b.role !== 'shortens').flatMap((b) => b.atoms))];
+  if (kat.length >= 4) {
+    const n = planeNormal(kat.map((a) => v(ts[a])));
+    if (n) {
+      n.addScaledVector(axis, -n.dot(axis));
+      if (n.lengthSq() > 1e-6) side = n.normalize().multiplyScalar(n.dot(side) >= 0 ? 1 : -1);
+    }
+  }
   const third = new THREE.Vector3().crossVectors(axis, side).normalize();
   let r = 0;
   for (const f of [M.frames[0], M.frames[N - 1], M.frames[M.ts_frame]])
     for (const p of f.xyz) r = Math.max(r, v(p).distanceTo(c));
   const dist = (r + 1.6) / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * 0.9;
   let dir, up;
-  if (mode === 'axis') { dir = axis.clone().negate(); up = third; }
+  if (mode === 'axis' && M.view_axis) {          // look down a chosen bond (Newman-style)
+    const [a, b] = M.view_axis.map((i) => v(ts[i]));
+    dir = new THREE.Vector3().subVectors(a, b).normalize();
+    up = third.clone().addScaledVector(dir, -third.dot(dir)).normalize();
+  }
+  else if (mode === 'axis') { dir = axis.clone().negate(); up = third; }
   else if (mode === 'top') { dir = third.clone(); up = axis.clone(); }
   else { dir = side.clone(); up = third.clone().negate(); }   // nucleophile left, leaving group right
   camera.position.copy(c).addScaledVector(dir, dist);
@@ -451,4 +472,32 @@ function setCamera(mode) {
   controls.target.copy(c);
   camera.lookAt(c);
   controls.update();
+}
+
+// Normal of the best-fit plane through points (null if they are nearly on one line).
+function planeNormal(P) {
+  const c = P.reduce((s, p) => s.add(p), new THREE.Vector3()).divideScalar(P.length);
+  const m = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  for (const p of P) {
+    const d = [p.x - c.x, p.y - c.y, p.z - c.z];
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) m[i][j] += d[i] * d[j];
+  }
+  // smallest-eigenvalue direction of the scatter matrix: power iteration on (trace·I − m)
+  const tr = m[0][0] + m[1][1] + m[2][2];
+  let x = [0.3, 0.5, 0.8];
+  for (let it = 0; it < 300; it++) {
+    const y = [0, 1, 2].map((i) => tr * x[i] - (m[i][0] * x[0] + m[i][1] * x[1] + m[i][2] * x[2]));
+    const n = Math.hypot(...y);
+    x = y.map((q) => q / n);
+  }
+  const rq = (u) => [0, 1, 2].reduce((s, i) => s + u[i] * (m[i][0] * u[0] + m[i][1] * u[1] + m[i][2] * u[2]), 0);
+  let z = [0.8, -0.3, 0.5];                    // largest eigenvalue: power iteration on m
+  for (let it = 0; it < 300; it++) {
+    const y = [0, 1, 2].map((i) => m[i][0] * z[0] + m[i][1] * z[1] + m[i][2] * z[2]);
+    const n = Math.hypot(...y);
+    z = y.map((q) => q / n);
+  }
+  const lamMin = rq(x), lamMax = rq(z), lamMid = tr - lamMin - lamMax;
+  // a real plane: points spread in two directions (not on one line), flat in the third
+  return lamMid > 0.06 * lamMax && lamMin < 0.5 * lamMid ? new THREE.Vector3(...x) : null;
 }

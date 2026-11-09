@@ -9,12 +9,14 @@ rather than recomputed.
 
 Make a folder `reactions/<reaction_id>/00_inputs/` with two files.
 
-**Standard level of theory (decided 2026-11-09 after the SN2 pilot):** geometries, TS, IRC and
-orbitals at B3LYP-D3(BJ)/def2-SVP in SMD solvent; energies along the path recomputed at
-DLPNO-CCSD(T)/ma-def2-TZVP, and that curve shown by default. For SN2 the working level alone
-put the TS below separated reactants, while coupled cluster gave ΔG‡ = 95.6 kJ/mol
-(22.9 kcal/mol) against 95.0 kJ/mol (22.7 kcal/mol) measured. So every new reaction keeps
-`path_levels` (with the DLPNO-CCSD(T) level) and `default_curve = "DLPNO-CCSD(T)_ma-def2-TZVP"`.
+**Standard level of theory (decided by J. Picione, 2026-11-09; details in `docs/protocol.md`):**
+geometries, TS, IRC and orbitals at B3LYP-D3(BJ)/**ma-def2-SVP** in SMD solvent (diffuse
+functions on the heavy atoms, because most of these systems are anions); energies along the path
+recomputed at DLPNO-CCSD(T)/ma-def2-TZVP, and that curve shown by default. Every new reaction
+uses `method = "B3LYP D3BJ ma-def2-SVP def2/J RIJCOSX TightSCF"`,
+`sp_method = "B3LYP D3BJ ma-def2-TZVP def2/J RIJCOSX TightSCF"`, `path_levels` with the
+DLPNO-CCSD(T) level, and `default_curve = "DLPNO-CCSD(T)_ma-def2-TZVP"`. (The SN2 pilot was
+computed at def2-SVP and is due to be rerun at ma-def2-SVP; see `docs/tasks.md`.)
 
 **`reaction.toml`** (copy `reactions/sn2_hydroxide_bromomethane/00_inputs/reaction.toml`).
 TOML rule: put all plain settings before the first `[section]` line; anything after a
@@ -31,10 +33,18 @@ experimental comparison, extra limitations) for the hand-written parts of the ca
 | `nprocs`, `maxcore_mb` | cores per ORCA job and memory per core (MB) |
 | `ts_guess` | file name of the transition-state guess (XYZ, Å) |
 | `irc_scale_displ_sd` | optional IRC step; smaller gives more frames (0.05 gave 60 for SN2) |
+| `irc_stop_dE_kJ`, `irc_stop_steps` | optional: IRC stopping rule, default 0.05 kJ/mol per step for 20 steps after the last bond change |
 | `isovalue` | orbital isosurface value, e^1/2 bohr^-3/2 (0.08 for SN2) |
 | `path_levels` | optional: levels (labels from `[[diagnostic_levels]]`) to recompute at every IRC frame |
+| `video_timing` | optional: `"displacement"` (default) moves the video at constant summed atomic displacement between IRC points, so bond changes get the time and a drifting-fragment tail passes quickly; `"path_length"` moves at constant s (SN2 pilot) |
 | `default_curve` | energy curve shown first in the viewer and in `<id>.mp4`: `"working"` or one of `path_levels` (SN2: DLPNO-CCSD(T)) |
-| `[key_atoms]` | 0-based indices in the TS guess: `nucleophile`, `center`, `leaving_group` |
+| `ts_preopt` | optional: relax the guess with every changing bond frozen before the TS search |
+| `view_axis`, `view_axis_label` | optional: the "down the axis" camera looks along this bond instead (E2: Newman view along Cβ–Cα) |
+| `[key_atoms]` | 0-based indices in the TS guess: `nucleophile`, `center`, `leaving_group` (also set the camera: nucleophile/base left, leaving group right) |
+| `[[key_bonds]]` | optional: every bond that changes, `atoms`, `role` (`forms`, `breaks`, `shortens`), `label`; without it, nucleophile–center forms and center–leaving group breaks |
+| `[ts_dihedrals]` | optional: dihedrals to report at the TS (label = four atom indices) |
+| `[ts_mode]` | optional: `dominant_atom` must move most in the imaginary mode; `reject_atom` moving along `reject_axis` marks the TS as the SN2 competitor and rejects it |
+| `[ts_expected]` | optional: expected ranges per bond (Å) or dihedral (°); outside gives a warning |
 | `[[reactants]]`, `[[products]]` | `name` + `smiles` of each separated species |
 | `[[diagnostic_levels]]` | optional extra single points reported next to the protocol numbers |
 
@@ -58,8 +68,8 @@ All commands run from the repository folder with the project Python:
 |---|---|---|
 | `fragments` | optimizes each separated reactant and product (Opt Freq) | `01_ts/fragments/`, `01_ts/fragments.json` |
 | `ts` | OptTS + Freq from the guess; checks for exactly one imaginary frequency and that it is the bond-forming/breaking motion | `01_ts/ts/`, `01_ts/ts.json` |
-| `irc` | IRC in both directions from the TS, reading the TS Hessian | `02_irc/irc*.xyz`, `02_irc/irc.out` |
-| `profile` | orders frames reactant → product, mass-weighted path length s, energies relative to separated reactants | `02_irc/energies.csv`, `02_irc/irc_full_trj.xyz`, `02_irc/energy_profile.png` |
+| `irc` | IRC from the TS, reading the TS Hessian: one job per direction (`irc_f`, `irc_b`), each ended by the IRC stopping rule (docs/protocol.md), then joined (backward reversed + TS + forward). Older one-job runs (`irc.out`) are reused; one stopped by decision is joined from `02_irc/irc_stop.json` | `02_irc/irc_IRC_Full_trj.xyz`, `02_irc/irc_IRC_F.xyz`, `02_irc/irc_IRC_B.xyz`, `02_irc/irc_path.json` |
+| `profile` | orders frames reactant → product, mass-weighted path length s, energies relative to separated reactants; flags any point within two steps of the TS that lies above it (kept in the data, left out of viewer and video, stated on the card) | `02_irc/energies.csv`, `02_irc/irc_full_trj.xyz`, `02_irc/energy_profile.png` |
 | `endpoints` | optimizes both IRC ends into the reactant and product complexes (Opt Freq) | `02_irc/endpoints/`, `02_irc/endpoints.json` |
 | `singlepoints` | `sp_method` single points on all stationary points | `01_ts/sp_tzvp.json` |
 | `barriers` | barrier and reaction energies at both levels | `02_irc/barriers.json` |

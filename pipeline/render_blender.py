@@ -162,8 +162,12 @@ def _d(f, a, b):
 
 
 # forming/breaking bonds judged against their own equilibrium lengths (same rule as the viewer)
-key_eq = {tuple(sorted((ka["nucleophile"], ka["center"]))): _d(N - 1, ka["nucleophile"], ka["center"]),
-          tuple(sorted((ka["center"], ka["leaving_group"]))): _d(0, ka["center"], ka["leaving_group"])}
+# (forming bond: product end; breaking bond: reactant end). A bond that only shortens (C–C → C=C)
+# stays an ordinary bond.
+KB = M.get("key_bonds") or [{"atoms": [ka["center"], ka["nucleophile"]], "role": "forms"},
+                            {"atoms": [ka["center"], ka["leaving_group"]], "role": "breaks"}]
+key_eq = {tuple(sorted(b["atoms"])): _d(N - 1 if b["role"] == "forms" else 0, *b["atoms"])
+          for b in KB if b["role"] in ("forms", "breaks")}
 bonds = []
 for i in range(len(atoms)):
     for j in range(i + 1, len(atoms)):
@@ -275,6 +279,16 @@ side = Vector((0, 0, 1)).cross(axis)
 if side.length < 1e-3:
     side = Vector((1, 0, 0)).cross(axis)
 side.normalize()
+# Several changing bonds (not all on one line): look straight at the plane they lie in.
+kat = sorted({a for b in KB if b["role"] in ("forms", "breaks") for a in b["atoms"]})
+P = np.array([ts[a] for a in kat])
+if len(kat) >= 4:
+    sv = np.linalg.svd(P - P.mean(0))
+    if sv[1][1] > 0.25 * sv[1][0]:
+        n = Vector(sv[2][2].tolist())
+        n = n - axis * n.dot(axis)
+        if n.length > 1e-3:
+            side = n.normalized() if n.dot(side) >= 0 else -n.normalized()
 third = axis.cross(side).normalized()
 view_dir = side                     # camera sits on +side, looks back at the molecule
 up = -third                         # nucleophile appears on the left, leaving group on the right

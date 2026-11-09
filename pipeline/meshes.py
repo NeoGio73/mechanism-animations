@@ -62,10 +62,11 @@ def _pretty(label: str) -> str:
     return label.replace("_", "/")
 
 
-def _curves(rx: Reaction, rows, meta) -> list[dict]:
-    """Energy curves along the path: working level first, then any path_singlepoints levels."""
-    curves = [{"key": "working", "label": "B3LYP-D3(BJ)/def2-SVP (working level, IRC)",
-               "E_kJ": [round(float(r["E_kJ_per_mol"]), 3) for r in rows],
+def _curves(rx: Reaction, rows, meta, keep) -> list[dict]:
+    """Energy curves along the displayed path (IRC frames in `keep`): working level first, then
+    any path_singlepoints levels."""
+    curves = [{"key": "working", "label": f"{rx.level()} (working level, IRC)",
+               "E_kJ": [round(float(rows[k]["E_kJ_per_mol"]), 3) for k in keep],
                "E_separated_products_kJ": meta["E_separated_products_kJ"]}]
     for label in rx.cfg.get("path_levels", []):
         csv = rx.root / "02_irc" / f"energies_{label}.csv"
@@ -74,7 +75,7 @@ def _curves(rx: Reaction, rows, meta) -> list[dict]:
         lines = csv.read_text().splitlines()[1:]
         info = _read_json(rx.root / "02_irc" / f"energies_{label}.json")
         curves.append({"key": label, "label": f"{_pretty(label)} single points on the same path",
-                       "E_kJ": [round(float(ln.split(",")[2]), 3) for ln in lines],
+                       "E_kJ": [round(float(lines[k].split(",")[2]), 3) for k in keep],
                        "E_separated_products_kJ": info["E_separated_products_kJ"]})
     return curves
 
@@ -95,6 +96,10 @@ def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) ->
     csv = (rx.root / "02_irc" / "energies.csv").read_text().splitlines()
     hdr = csv[0].split(",")
     rows = [dict(zip(hdr, ln.split(","))) for ln in csv[1:]]
+    meta = _read_json(rx.root / "02_irc" / "irc_meta.json")
+    # IRC points flagged by `profile` (above the TS right next to it) are not displayed
+    excluded = {e["frame"] for e in meta.get("display_excluded_frames", [])}
+    keep = [k for k in range(len(frames)) if k not in excluded]
     show = [t for t in tr["tracked"] if t["changes"]]
     # one hue per orbital; phase = dark (+) vs light (−) shade of that hue.
     # Nucleophile-side orbital first (blue), then the bond that breaks (orange).
@@ -104,7 +109,7 @@ def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) ->
     loc_colors = [["#2f6db5", "#9cc3ea"], ["#d9661f", "#f4c08e"], ["#2e8b57", "#a8dcbc"],
                   ["#8e44ad", "#d7b5e6"]]
     orbitals = [{"key": f"ibo{t['id']}", "kind": "localized",
-                 "label": f"{t['label_start']} → {t['label_end']}", "tracked_id": t["id"],
+                 "label": t.get("label") or f"{t['label_start']} → {t['label_end']}", "tracked_id": t["id"],
                  "colors": loc_colors[i % len(loc_colors)]}
                 for i, t in enumerate(show)]
     orbitals += [{"key": "homo", "kind": "canonical", "label": "canonical HOMO",
@@ -134,7 +139,7 @@ def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) ->
     buf = io.BytesIO()
     index = {o["key"]: [] for o in orbitals}
     sizes = {o["key"]: 0 for o in orbitals}
-    for k in range(len(frames)):
+    for k in keep:
         cd = rx.root / f"03_orbitals/cubes/f{k:03d}"
         pf = tr["per_frame"][k]
         for o in orbitals:
@@ -152,21 +157,25 @@ def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) ->
             index[o["key"]].append({"pos": entry[0], "neg": entry[1]})
     od = rx.d("04_meshes")
     (od / "meshes.bin").write_bytes(buf.getvalue())
-    meta = _read_json(rx.root / "02_irc" / "irc_meta.json")
     ts = _read_json(rx.root / "01_ts" / "ts.json")
     manifest = {
         "id": rx.cfg["id"], "title": rx.cfg["title"], "equation": rx.cfg["equation"],
-        "level": "B3LYP-D3(BJ)/def2-SVP, RIJCOSX, SMD(" + rx.cfg["solvent"] + ")",
+        "level": f"{rx.level()}, RIJCOSX, SMD({rx.cfg['solvent']})",
         "isovalue": iso, "isovalue_units": "e^1/2 bohr^-3/2 (orbital amplitude)",
         "quant": {"mid": mid.tolist(), "scale": scale.tolist()},
         "key_atoms": rx.cfg["key_atoms"],
-        "ts_frame": meta["ts_frame"],
+        "key_bonds": rx.key_bonds(frames[0].symbols),
+        "view_axis": rx.cfg.get("view_axis"),            # optional [a, b]: "down the bond" camera
+        "view_axis_label": rx.cfg.get("view_axis_label"),
+        "ts_frame": keep.index(meta["ts_frame"]),
+        "irc_frames_not_shown": meta.get("display_excluded_frames", []),
         "imaginary_frequency_cm": ts["imaginary_cm"][0],
         "energy_reference": "separated reactants",
         "E_separated_products_kJ": meta["E_separated_products_kJ"],
-        "frames": [{"s": float(r["s_bohr_amu05"]), "E_kJ": float(r["E_kJ_per_mol"]),
-                    "xyz": np.round(f.coords, 4).tolist()} for r, f in zip(rows, frames)],
-        "curves": (curves := _curves(rx, rows, meta)),
+        "frames": [{"irc_frame": k, "s": float(rows[k]["s_bohr_amu05"]),
+                    "E_kJ": float(rows[k]["E_kJ_per_mol"]),
+                    "xyz": np.round(frames[k].coords, 4).tolist()} for k in keep],
+        "curves": (curves := _curves(rx, rows, meta, keep)),
         "default_curve": default_curve(rx, curves),
         "symbols": frames[0].symbols,
         "orbitals": orbitals,
@@ -175,5 +184,5 @@ def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) ->
     }
     _write_json(od / "manifest.json", manifest)
     tot = (od / "meshes.bin").stat().st_size
-    print(f"meshes.bin {tot / 1e6:.2f} MB for {len(frames)} frames × {len(orbitals)} orbitals "
-          f"({tot / len(frames) / len(orbitals) / 1e3:.1f} kB per orbital per frame)")
+    print(f"meshes.bin {tot / 1e6:.2f} MB for {len(keep)} frames × {len(orbitals)} orbitals "
+          f"({tot / len(keep) / len(orbitals) / 1e3:.1f} kB per orbital per frame)")
