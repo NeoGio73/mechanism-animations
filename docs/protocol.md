@@ -21,7 +21,10 @@ ORCA's first IRC step leaves the TS along a straight line. On a strongly curved 
 transfer) that point can lie slightly above the TS. Any IRC point within two steps of s = 0 that
 lies above the TS energy is flagged by `profile`, kept in the data files, left out of the viewer
 path and the video so the displayed maximum is the TS, and stated on the card with its energy.
-E2: the first reactant-side point is 1.3 kJ/mol (0.3 kcal/mol) above the TS.
+E2: the first reactant-side point is 1.3 kJ/mol (0.3 kcal/mol) above the TS. On E2 the M06-2X/ma-def2-TZVP
+curve peaks one frame from the working-level TS (that same point, 0.6 kJ/mol (0.1 kcal/mol) above the TS
+frame) because the single points sit on a path optimized at another level, while the
+DLPNO-CCSD(T)/ma-def2-TZVP maximum falls on the TS frame.
 
 ### IRC stopping rule (decided by J. Picione, 2026-11-09)
 

@@ -42,6 +42,7 @@ Experiment: 2-bromopropane + NaOEt in ethanol, 25 °C: overall second-order k �
 - The IRC point 1 step from the TS on the reactant side (s = -0.37 bohr·amu½) lies 1.3 kJ/mol (0.3 kcal/mol) above the TS: a straight-line first step off a curved hydrogen-transfer path. It is kept in the data files (02_irc/energies.csv) but left out of the viewer path and the video, so the displayed maximum is the TS.
 - The product end of the path was truncated where the energy had flattened: the IRC was stopped by decision at s = 20.58 bohr·amu½ (IRC step 115), after the bonds had finished changing; beyond it only the separating fragments drift apart. The product complex was optimized from that last point.
 - One conformer only: the path starts from a single hand-built TS guess; other rotamers of the reactants were not searched.
+- The M06-2X/ma-def2-TZVP curve peaks one frame from the working-level transition state (frame 28, s = -0.37 bohr·amu½, 0.6 kJ/mol (0.1 kcal/mol) above the TS frame) because the single points sit on a path optimized at another level, while the DLPNO-CCSD(T)/ma-def2-TZVP maximum falls on the TS frame.
 - Only the anti-periplanar E2 path is computed; the competing SN2 path (about 20 % of the product in experiment) is not shown.
 
 ## Files
