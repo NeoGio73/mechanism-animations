@@ -1,0 +1,81 @@
+# Carbocation 1,2-hydride shift, fallback (J. Picione, 2026-11-10): the degenerate shift in the
+# 2,3-dimethyl-2-butyl cation, tertiary → tertiary, (CH₃)₂C⁺–CH(CH₃)₂ ⇌ (CH₃)₂CH–C⁺(CH₃)₂.
+# Used if the 3-methyl-2-butyl cation is not a true minimum or its shift has no barrier
+# (reactions/hshift_3_methyl_2_butyl). Expected: a symmetric TS, the hydrogen bridging the two
+# carbons at equal C–H distances, one imaginary mode moving the hydrogen between them.
+id = "hshift_2_3_dimethyl_2_butyl"
+title = "1,2-Hydride shift, 2,3-dimethyl-2-butyl cation (degenerate)"
+equation = "(CH₃)₂C⁺–CH(CH₃)₂ → (CH₃)₂CH–C⁺(CH₃)₂"
+charge = 1
+mult = 1
+# Experiments on these cations are in superacid media, which SMD has no parameters for;
+# dichloromethane is a polar, non-nucleophilic stand-in (J. Picione, 2026-11-10). Gas phase is
+# run alongside for comparison.
+solvent = "dichloromethane"
+
+# Standard protocol (docs/protocol.md)
+method = "B3LYP D3BJ ma-def2-SVP def2/J RIJCOSX TightSCF"
+sp_method = "B3LYP D3BJ ma-def2-TZVP def2/J RIJCOSX TightSCF"
+
+nprocs = 4
+maxcore_mb = 3000
+
+ts_guess = "ts_guess.xyz"
+ts_preopt = true
+
+isovalue = 0.08
+irc_scale_displ_sd = 0.05
+
+path_levels = ["M06-2X_ma-def2-TZVP", "DLPNO-CCSD(T)_ma-def2-TZVP"]
+default_curve = "DLPNO-CCSD(T)_ma-def2-TZVP"
+path_sp_sampling = [6, 40]
+
+# Atoms (0-based): 0 C2, 1 C3, 2 the migrating H, 3–4 methyl C on C2, 5–6 methyl C on C3.
+# The hydrogen moves from C3 to C2. Camera: C3 (origin) on the right, C2 (destination) on the left.
+[key_atoms]
+nucleophile = 0
+center = 2
+leaving_group = 1
+
+[[key_bonds]]
+atoms = [0, 2]
+role = "forms"
+label = "C2–H"
+
+[[key_bonds]]
+atoms = [1, 2]
+role = "breaks"
+label = "C3–H"
+
+[ts_angles]
+"C2–H–C3 angle" = [0, 2, 1]
+
+[ts_expected]
+"C2–H" = [1.20, 1.45]
+"C3–H" = [1.20, 1.45]
+
+[[expected_orbital_changes]]
+label = "σ(C3–H) → σ(C2–H) (three-centre at the TS)"
+start = [1, 2]
+end = [0, 2]
+
+[[diagnostic_levels]]
+label = "M06-2X_ma-def2-TZVP"
+why = "meta-GGA hybrid known to do better on barriers"
+method = "M062X D3ZERO ma-def2-TZVP def2/J RIJCOSX TightSCF"
+
+[[diagnostic_levels]]
+label = "DLPNO-CCSD(T)_ma-def2-TZVP"
+why = "coupled-cluster reference"
+method = "DLPNO-CCSD(T) TightPNO ma-def2-TZVP AutoAux RIJCOSX TightSCF"
+
+# Degenerate: reactant and product are the same cation (both optimized; same start structure).
+[[reactants]]
+name = "dimethylbutyl_cation"
+smiles = "CC(C)[C+](C)C"
+start_xyz = "cation_start.xyz"
+
+[[products]]
+name = "dimethylbutyl_cation_shifted"
+smiles = "CC(C)[C+](C)C"
+start_xyz = "cation_start.xyz"
