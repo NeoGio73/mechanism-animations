@@ -10,11 +10,13 @@ import numpy as np
 
 from . import orca
 from .geometry import read_xyz_frames
-from .orbitals import (export_json, load_npz, localized_range, overlap, plot_cubes, track)
+from .orbitals import (ao_labels, export_json, load_npz, localized_range, overlap, plot_cubes,
+                       s_character, track)
 from .steps import Reaction, _read_json, _write_json
 
 LOC_BLOCK = "%loc\n  LocMet IAOIBO\nend"
 POP_CUT = 0.15      # e; an atom "carries" an orbital when its Mulliken population exceeds this
+PI_MAX_S = 0.10     # a two-centre orbital with less s-character than this is a π bond
 
 
 def _frames(rx: Reaction):
@@ -51,8 +53,13 @@ def _carriers(pop_row: np.ndarray, symbols: list[str]) -> str:
     return "–".join(f"{symbols[a]}{a}" for a in idx)
 
 
-def _label(pop_row: np.ndarray, symbols: list[str]) -> str:
-    """Chemical label from atomic populations: lone pair / bond between heavy atoms."""
+def _label(pop_row: np.ndarray, symbols: list[str], s_frac: float | None = None,
+           partner_s: list[float] = ()) -> str:
+    """Chemical label from atomic populations: lone pair / σ, π or bent bond between two atoms.
+
+    s_frac: s-character of this orbital; partner_s: s-character of the other orbitals on the
+    same two atoms in the same frame. π: s-character below PI_MAX_S. A multiple bond whose
+    orbitals all have s-character above PI_MAX_S has been localized as equivalent bent bonds."""
     idx = [a for a in np.argsort(-pop_row) if pop_row[a] > POP_CUT]
     # organic convention: carbon first, hydrogen last, others alphabetical (σ(C–Br), σ(O–H))
     rank = lambda s: (0 if s == "C" else 2 if s == "H" else 1, s)
@@ -60,8 +67,22 @@ def _label(pop_row: np.ndarray, symbols: list[str]) -> str:
     if len(idx) == 1:
         return f"lone pair on {names[0]}"
     if len(idx) == 2:
+        if s_frac is not None and s_frac < PI_MAX_S:
+            return f"π({names[0]}={names[1]})"
+        if s_frac is not None and partner_s and min(partner_s) >= PI_MAX_S:
+            return f"bent bond ({names[0]}={names[1]})"
         return f"σ({names[0]}–{names[1]})"
     return "delocalized over " + "–".join(names)
+
+
+def _end_labels(F, perm_k, pops_k, syms, is_s) -> list[str]:
+    """Labels for every tracked orbital in one frame (s-character decides σ / π / bent)."""
+    m = len(perm_k)
+    atoms = [frozenset(int(a) for a in np.where(pops_k[j] > POP_CUT)[0]) for j in range(m)]
+    sfrac = [s_character(F, perm_k[j], is_s) for j in range(m)]
+    return [_label(pops_k[j], syms, sfrac[j],
+                   [sfrac[i] for i in range(m) if i != j and atoms[i] == atoms[j]])
+            for j in range(m)]
 
 
 def orbital_track(rx: Reaction) -> None:
@@ -79,12 +100,16 @@ def orbital_track(rx: Reaction) -> None:
     n = len(frames)
     m = len(idx[0])
     pops = np.array([[F[k].populations([perm[k][j]])[0] for j in range(m)] for k in range(n)])
+    labs = ao_labels(_fdir(rx, 0) / "f.loc", rx.d("03_orbitals") / "ao_labels.json")
+    is_s = np.array([lab.split()[1].endswith("s") for lab in labs])
+    lab0 = _end_labels(F[0], perm[0], pops[0], syms, is_s)
+    lab1 = _end_labels(F[-1], perm[-1], pops[-1], syms, is_s)
     tracked = []
     for j in range(m):
         start, end = _carriers(pops[0, j], syms), _carriers(pops[-1, j], syms)
         tracked.append({"id": j, "start": start, "end": end,
-                        "label_start": _label(pops[0, j], syms),
-                        "label_end": _label(pops[-1, j], syms),
+                        "label_start": lab0[j],
+                        "label_end": lab1[j],
                         "changes": set(start.split("–")) != set(end.split("–")),
                         "min_overlap": float(min(best[k][j] for k in range(n))),
                         "frame_of_min_overlap": int(np.argmin([best[k][j] for k in range(n)]))})
@@ -120,7 +145,10 @@ def orbital_track(rx: Reaction) -> None:
     lines = ["# Orbital tracking log", "",
              f"{n} IRC frames, {m} localized valence IBOs per frame, matched by maximum |overlap| "
              "between neighbouring frames (C_k^T S C_k+1). Signs fixed so matched overlaps are "
-             "positive. Frames where a best match falls below 0.7 are flagged.", "",
+             "positive. Frames where a best match falls below 0.7 are flagged.",
+             f"Bond type from the s-character of each two-atom orbital: π below {PI_MAX_S:.2f}; when "
+             "every orbital on a multiple bond is above it, the bond was localized as equivalent "
+             "bent bonds. Atom numbers in brackets are 0-based.", "",
              "| Tracked orbital | Reactant end | Product end | Changes? | Lowest overlap (frame) |",
              "|---|---|---|---|---|"]
     for t in tracked:

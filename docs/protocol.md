@@ -99,11 +99,22 @@ O = C_k^T S C_{k+1}, S = (S_k + S_{k+1})/2 (Hungarian assignment), propagating f
 reactant end. Each match's sign is fixed so that the overlap is positive, so phases never
 flip between frames. Matches with |O| < 0.7 are flagged (none occurred for SN2; the two
 orbitals shown never fell below 0.99). Each tracked orbital is labelled from its Mulliken
-atomic populations (atoms above 0.15 e) at both ends of the path. The orbitals whose set of
+atomic populations (atoms above 0.15 e) at both ends of the path; a two-atom orbital with
+less than 0.10 of its population in s-type basis functions is labelled π, otherwise σ, and a
+multiple bond whose orbitals are all above 0.10 is labelled as bent bonds (IBO localization
+sometimes gives two equivalent bent bonds instead of σ + π). The orbitals whose set of
 atoms changes between the ends are the ones shown by default: for SN2, an O lone pair →
 σ(C–O), and σ(C–Br) → a Br lone pair. The overall sign of each orbital is chosen once, at
 the first frame, so that its larger lobe is the + phase. Canonical HOMO and LUMO are tracked
 for sign only (their identity is fixed by energy order).
+
+Arrow direction in pericyclic reactions (decided by J. Picione, 2026-11-10): in a pericyclic
+reaction the clockwise and counter-clockwise curved-arrow drawings are mirror images of the
+same mechanism, and a mirror-symmetric transition state favours neither. The direction shown
+is the one the orbital localization settled on, not a physical preference; `reaction.toml`
+lists that assignment, and where `[mirror]` is set the viewer can show the mirror-image set,
+made by reflecting the computed orbital surfaces through the TS mirror plane at every frame
+(no new calculation).
 
 Cube files (70 points per axis, orca_plot) were contoured at ±0.08 e^1/2 bohr^-3/2 by marching
 cubes (scikit-image) and decimated to at most 900 triangles per lobe (fast-simplification).

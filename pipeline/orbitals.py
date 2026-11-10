@@ -71,6 +71,33 @@ def export_json(wavefile: Path) -> FrameOrbitals:
     return FrameOrbitals(C, occ, S, ao_atom, symbols)
 
 
+def ao_labels(wavefile: Path, cache: Path) -> list[str]:
+    """Basis-function labels ('0C   2s', '0C   1pz', ...) in coefficient order, read once with
+    orca_2json and cached as JSON (same basis and atom order at every frame)."""
+    if cache.exists():
+        return json.loads(cache.read_text())
+    wd = wavefile.parent
+    gbw = wd / "_labels.gbw"
+    shutil.copy(wavefile, gbw)
+    (wd / "_labels.json.conf").write_text(json.dumps({"MOCoefficients": True, "Basisset": True,
+                                                      "JSONFormats": ["json"]}))
+    subprocess.run([str(orca.ORCA_DIR / "orca_2json.exe"), gbw.name, "-json"], cwd=wd,
+                   env=_env(), stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT, check=True)
+    labels = json.loads((wd / "_labels.json").read_text())["Molecule"]["MolecularOrbitals"]["OrbitalLabels"]
+    for p in wd.glob("_labels*"):
+        p.unlink()
+    cache.write_text(json.dumps(labels))
+    return labels
+
+
+def s_character(F: FrameOrbitals, i: int, is_s: np.ndarray) -> float:
+    """Fraction of orbital i's Mulliken population in s-type basis functions
+    (π bonds ≈ 0; C–C σ bonds ≈ 0.3–0.45)."""
+    c = F.C[:, i]
+    p = c * (F.S @ c)
+    return float(p[is_s].sum() / p.sum())
+
+
 def load_npz(path: Path, symbols: list[str]) -> FrameOrbitals:
     z = np.load(path)
     return FrameOrbitals(z["C"], z["occ"], z["S"], z["ao_atom"], symbols)

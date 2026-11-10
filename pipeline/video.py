@@ -114,6 +114,10 @@ def render(rx: Reaction, preview: bool = False, only: list[int] | None = None) -
     (odir / "render_settings.json").write_text(json.dumps(
         {"width": 1920, "height": 1080, "samples": 48, "orbital_kind": "localized",
          "shift_y": -0.02, "margin_A": 3.4, "only_frames": only,
+         # rows free of overlays (below the subtitle, above the inset and its readout)
+         # free areas for a tall molecule: rows [top, bottom above the inset, bottom above the
+         # orbital legend]; columns left of the inset (inset 700 px wide, 30 px from the edge)
+         "fit_rows": [130, 650, 900], "fit_cols_left": [60, 1920 - 700 - 30 - 40], "fit_pad_A": 1.6,
          "video_timing": rx.cfg.get("video_timing", "key_bonds")}))
     script = Path(__file__).with_name("render_blender.py")
     cmd = [str(BLENDER), "-b", "--factory-startup", "--python", str(script), "--", str(mdir), str(odir)]
@@ -259,8 +263,17 @@ def composite(rx: Reaction, png_dir: Path, out_mp4: Path, curve_key: str = "work
         btxt = "    ".join(f"{lab} {d:.2f} Å" for lab, d in ds)
         if len(ds) <= 2:          # one line: energy and the two bonds
             rows = [etxt + "    " + btxt]
-        else:                     # several bonds: energy on the line above the distances
-            rows = [etxt, btxt]
+        else:                     # several bonds: energy, then as many lines as the inset width needs
+            rows, line = [etxt], ""
+            for lab, d in ds:
+                item = f"{lab} {d:.2f} Å"
+                trial = (line + "    " + item) if line else item
+                if line and _font(int(20 * sc)).getlength(trial) > ins.width - int(20 * sc):
+                    rows.append(line)
+                    line = item
+                else:
+                    line = trial
+            rows.append(line)
         for i, row in enumerate(rows):
             dr.text((ix + int(10 * sc), iy - int((30 + 28 * (len(rows) - 1 - i)) * sc)), row,
                     fill="#1d2733", font=_font(int(20 * sc)))

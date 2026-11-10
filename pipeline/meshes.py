@@ -89,6 +89,71 @@ def default_curve(rx: Reaction, curves: list[dict]) -> str:
     return want
 
 
+def _mirror_label(label: str, perm: list[int]) -> str:
+    """Relabel atom numbers (1-based, as in 'π(C1=C2) → σ(C1–C6)') through the mirror permutation,
+    keeping each bond's atoms in ascending order: 'π(C3=C4) → σ(C4–C5)'."""
+    import re
+
+    def bond(m):
+        parts = re.split(r"([–=])", m.group(1))
+        atoms = [re.sub(r"\d+", lambda d: str(perm[int(d.group()) - 1] + 1), a) for a in parts[::2]]
+        seps = parts[1::2]
+        if len(atoms) == 2 and all(re.search(r"\d", a) for a in atoms):
+            atoms.sort(key=lambda a: int(re.search(r"\d+", a).group()))
+        out = atoms[0]
+        for sep, a in zip(seps, atoms[1:]):
+            out += sep + a
+        return f"({out})"
+    return re.sub(r"\(([^()]*)\)", bond, label)
+
+
+def mirror_data(rx: Reaction, frames, keep, ts_frame: int, orbitals: list[dict]) -> dict | None:
+    """Mirror plane of a symmetric TS at every displayed frame (reaction.toml [mirror]).
+
+    pairs: heavy atoms the plane swaps (0-based); hydrogens are matched by reflecting the TS.
+    Each plane is [nx, ny, nz, d] with n·x = d on the plane, fitted to the atom pairs of that
+    frame; rms_A is how far the reflected frame is from the frame itself (0 = exactly symmetric)."""
+    cfg = rx.cfg.get("mirror")
+    if not cfg:
+        return None
+
+    def plane(X, perm):
+        diffs = [X[perm[i]] - X[i] for i in range(len(X)) if perm[i] > i]
+        ref = max(diffs, key=np.linalg.norm)
+        n = sum(d if d @ ref >= 0 else -d for d in diffs)
+        n = n / np.linalg.norm(n)
+        d = float(np.mean([(X[i] + X[perm[i]]) @ n / 2 for i in range(len(X))]))
+        return n, d
+
+    reflect = lambda X, n, d: X - 2 * ((X @ n) - d)[:, None] * n
+    X = frames[ts_frame].coords
+    perm = list(range(len(X)))
+    for a, b in cfg["pairs"]:
+        perm[a], perm[b] = b, a
+    n, d = plane(X, perm)
+    R = reflect(X, n, d)
+    heavy = {i for pr in cfg["pairs"] for i in pr}
+    for i, sym in enumerate(frames[0].symbols):
+        if i in heavy:
+            continue
+        cand = [j for j, s in enumerate(frames[0].symbols) if s == sym and j not in heavy]
+        perm[i] = min(cand, key=lambda j: np.linalg.norm(R[i] - X[j]))
+    if sorted(perm) != list(range(len(X))) or any(perm[perm[i]] != i for i in range(len(X))):
+        raise ValueError(f"[mirror] pairs do not give a mirror permutation: {perm}")
+    planes, rms = [], []
+    for k in keep:
+        Xk = frames[k].coords
+        n, d = plane(Xk, perm)
+        planes.append([round(float(v), 6) for v in n] + [round(d, 6)])
+        rms.append(float(np.sqrt(np.mean(np.sum((reflect(Xk, n, d) - Xk[perm]) ** 2, axis=1)))))
+    print(f"mirror plane: largest deviation from mirror symmetry along the path {max(rms):.3f} Å (rms)")
+    return {"perm": perm, "planes": planes, "max_rms_A": round(max(rms), 4),
+            "labels": {o["key"]: _mirror_label(o["label"], perm) for o in orbitals if o["kind"] == "localized"},
+            "note": cfg.get("note", "Mirror image of the orbital set through the TS mirror plane: the "
+                    "same mechanism drawn with the arrows the other way round the ring. Built by "
+                    "reflecting the computed orbital surfaces; no new calculation.")}
+
+
 def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) -> None:
     iso = iso if iso is not None else rx.cfg.get("isovalue", 0.05)
     tr = _read_json(rx.root / "03_orbitals" / "tracking.json")
@@ -197,6 +262,7 @@ def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) ->
         "orbitals": orbitals,
         "mesh_index": index,
         "bytes_per_orbital": sizes,
+        "mirror": mirror_data(rx, frames, keep, meta["ts_frame"], orbitals),
     }
     _write_json(od / "manifest.json", manifest)
     tot = (od / "meshes.bin").stat().st_size

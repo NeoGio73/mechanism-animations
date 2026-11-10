@@ -19,7 +19,7 @@ const el = (s) => ELEM[s] || { c: 0xff66cc, r: 0.35, cov: 0.8 };
 
 const $ = (id) => document.getElementById(id);
 const state = { t: 0, kind: 'localized', orbOn: true, labels: false, dash: true, playing: false,
-                hidden: new Set() };
+                hidden: new Set(), mirror: false };
 
 let M, BIN, N;
 let scene, camera, renderer, labelRenderer, controls;
@@ -185,27 +185,43 @@ function materialsFor(o) {
   return lobeMats.get(o.key);
 }
 
-function lobeGeometry(entry) {
+// plane = [nx, ny, nz, d] (n·x = d): reflect the surface through it (mirror-direction view)
+function lobeGeometry(entry, plane = null) {
   const [ov, nv] = entry.v, [of, nf] = entry.f;
   if (!nv) return null;
   const q = new Int16Array(BIN, ov, nv * 3);
   const p = new Float32Array(nv * 3);
   const { mid, scale } = M.quant;
   for (let i = 0; i < nv; i++) for (let k = 0; k < 3; k++) p[3 * i + k] = mid[k] + q[3 * i + k] * scale[k];
+  const idx = new Uint16Array(BIN, of, nf * 3).slice();
+  if (plane) {
+    const [nx, ny, nz, d] = plane;
+    for (let i = 0; i < nv; i++) {
+      const h = 2 * (nx * p[3 * i] + ny * p[3 * i + 1] + nz * p[3 * i + 2] - d);
+      p[3 * i] -= h * nx; p[3 * i + 1] -= h * ny; p[3 * i + 2] -= h * nz;
+    }
+    // a reflection turns the surface inside out: reverse each triangle so normals point outward
+    for (let t = 0; t < nf; t++) { const a = idx[3 * t + 1]; idx[3 * t + 1] = idx[3 * t + 2]; idx[3 * t + 2] = a; }
+  }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(p, 3));
-  g.setIndex(new THREE.BufferAttribute(new Uint16Array(BIN, of, nf * 3).slice(), 1));
+  g.setIndex(new THREE.BufferAttribute(idx, 1));
   g.computeVertexNormals();
   return g;
 }
 
+const mirrored = (o) => state.mirror && !!M.mirror && o.kind === 'localized';
+const orbLabel = (o) => (mirrored(o) ? M.mirror.labels[o.key] || o.label : o.label);
+
 function orbitalObject(o, f) {
-  const ck = `${o.key}:${f}`;
+  const mir = mirrored(o);
+  const ck = `${o.key}:${f}${mir ? ':m' : ''}`;
   if (orbCache.has(ck)) return orbCache.get(ck);
   const e = M.mesh_index[o.key][f];
   const grp = new THREE.Group();
   const [posMat, negMat] = materialsFor(o);
-  const gp = lobeGeometry(e.pos), gn = lobeGeometry(e.neg);
+  const plane = mir ? M.mirror.planes[f] : null;
+  const gp = lobeGeometry(e.pos, plane), gn = lobeGeometry(e.neg, plane);
   if (gp) grp.add(new THREE.Mesh(gp, posMat));
   if (gn) grp.add(new THREE.Mesh(gn, negMat));
   orbCache.set(ck, grp);
@@ -234,7 +250,7 @@ function buildOrbitalList() {
     sw.className = 'pair';
     sw.title = '+ phase / − phase';
     sw.innerHTML = `<i style="background:${p}"></i><i style="background:${n}"></i>`;
-    lab.append(cb, ' ', sw, ' ' + o.label);
+    lab.append(cb, ' ', sw, ' ' + orbLabel(o));
     box.appendChild(lab);
   }
 }
@@ -410,6 +426,12 @@ function setupControls() {
   $('orbOn').addEventListener('change', (e) => { state.orbOn = e.target.checked; update(); });
   $('labelsOn').addEventListener('change', (e) => { state.labels = e.target.checked; update(); });
   $('dashOn').addEventListener('change', (e) => { state.dash = e.target.checked; update(); });
+  if (M.mirror) {        // symmetric TS: show the mirror-image orbital set (same mechanism)
+    $('mirrorRow').hidden = false;
+    $('mirrorNote').hidden = false;
+    $('mirrorNote').textContent = M.mirror.note;
+    $('mirrorOn').addEventListener('change', (e) => { state.mirror = e.target.checked; buildOrbitalList(); update(); });
+  }
   document.querySelectorAll('input[name=kind]').forEach((r) => r.addEventListener('change', (e) => {
     state.kind = e.target.value; buildOrbitalList(); update();
   }));

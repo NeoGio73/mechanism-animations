@@ -37,6 +37,8 @@ def card(rx: Reaction) -> None:
                    + ". See 03_orbitals/tracking_log.md; awaiting J. Picione's decision.")
         changing = moved
     min_ovl = min(t["min_overlap"] for t in changing) if changing else None
+    if notes.get("orbital_note"):
+        orb_txt += ". " + notes["orbital_note"]
 
     lines = [
         f"# Reaction card: {rx.cfg['title']}", "",
@@ -96,7 +98,7 @@ def card(rx: Reaction) -> None:
               "- `02_irc/energy_profile.png`: energy profile",
               "- `03_orbitals/tracking_log.md`: orbital matching along the path",
               f"- `05_render/{rx.cfg['id']}.mp4`: rendered video, energy inset at "
-              f"{'the working level' if rx.cfg.get('default_curve', 'working') == 'working' else rx.cfg['default_curve'].replace('_', '/')}"
+              f"{'the working level' if man.get('default_curve', 'working') == 'working' else man['default_curve'].replace('_', '/')}"
               f" (`{rx.cfg['id']}_<level>.mp4`: same video with the other energy curves)",
               f"- `web/viewer/index.html?r={rx.cfg['id']}`: interactive viewer",
               "- `run_log.md`: every ORCA job, wall time, and reruns", "",

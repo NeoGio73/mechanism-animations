@@ -1,6 +1,7 @@
 # Orbital tracking log
 
 146 IRC frames, 28 localized valence IBOs per frame, matched by maximum |overlap| between neighbouring frames (C_k^T S C_k+1). Signs fixed so matched overlaps are positive. Frames where a best match falls below 0.7 are flagged.
+Bond type from the s-character of each two-atom orbital: π below 0.10; when every orbital on a multiple bond is above it, the bond was localized as equivalent bent bonds. Atom numbers in brackets are 0-based.
 
 | Tracked orbital | Reactant end | Product end | Changes? | Lowest overlap (frame) |
 |---|---|---|---|---|
@@ -19,7 +20,7 @@
 | 12 | σ(C–C) (C1–C2) | σ(C–C) (C1–C2) | no | 1.000 (30) |
 | 13 | σ(C–Br) (Br3–C1) | lone pair on Br (Br3) | **yes** | 0.997 (30) |
 | 14 | σ(C–H) (C0–H4) | σ(C–H) (C0–H4) | no | 0.999 (30) |
-| 15 | σ(C–H) (C0–H5) | σ(C–C) (C0–C1) | **yes** | 0.991 (30) |
+| 15 | σ(C–H) (C0–H5) | π(C=C) (C0–C1) | **yes** | 0.991 (30) |
 | 16 | σ(C–H) (C0–H6) | σ(C–H) (C0–H6) | no | 0.999 (30) |
 | 17 | σ(C–H) (C1–H7) | σ(C–H) (C1–H7) | no | 1.000 (30) |
 | 18 | σ(C–H) (C2–H8) | σ(C–H) (C2–H8) | no | 1.000 (30) |

@@ -308,6 +308,36 @@ extent = max(max((Vector(p) - center).dot(axis) for p in M["frames"][k]["xyz"]) 
 half_w = extent / 2 + SETTINGS.get("margin_A", 2.4)
 fov_h = 2 * math.atan(cam_data.sensor_width / (2 * cam_data.lens))
 dist = half_w / math.tan(fov_h / 2)
+# Tall molecules (e.g. a diene below a dienophile): if the atoms plus room for orbital lobes
+# would reach the title above or the energy inset (bottom right), move back and recentre, in
+# whichever free area shows the molecule larger: centred above the inset, or in the left part of
+# the frame beside the inset and above the orbital legend.
+fr = SETTINGS.get("fit_rows")
+if fr:
+    Wpx, Hpx = SETTINGS["width"], SETTINGS["height"]
+    pad = SETTINGS.get("fit_pad_A", 1.6)
+    allp = [Vector(p) - center for f in M["frames"] for p in f["xyz"]]
+    u_hi = max(q.dot(up2) for q in allp) + pad
+    u_lo = min(q.dot(up2) for q in allp) - pad
+    v_hi = max(q.dot(right) for q in allp) + pad
+    v_lo = min(q.dot(right) for q in allp) - pad
+    tanh = math.tan(fov_h / 2)
+    ppa0 = (Wpx / 2) / (dist * tanh)                                   # pixels per Å now
+    top, bot_centre, bot_left = fr
+    c0, c1 = SETTINGS["fit_cols_left"]
+    y_hi = Hpx / 2 - u_hi * ppa0 + cam_data.shift_y * Wpx
+    y_lo = Hpx / 2 - u_lo * ppa0 + cam_data.shift_y * Wpx
+    if y_hi < top or y_lo > bot_centre:
+        side = 2 * max(v_hi, -v_lo)
+        opts = {"centre": (min(ppa0, (bot_centre - top) / (u_hi - u_lo), (Wpx - 80) / side), Wpx / 2, (top + bot_centre) / 2),
+                "left": (min(ppa0, (bot_left - top) / (u_hi - u_lo), (c1 - c0) / (v_hi - v_lo)), (c0 + c1) / 2, (top + bot_left) / 2)}
+        name, (ppa, xc, yc) = max(opts.items(), key=lambda kv: kv[1][0])
+        dist = (Wpx / 2) / (ppa * tanh)
+        vc = 0.0 if name == "centre" else (v_hi + v_lo) / 2
+        cam_data.shift_x = (Wpx / 2 + vc * ppa - xc) / Wpx
+        cam_data.shift_y = (yc - Hpx / 2 + (u_hi + u_lo) / 2 * ppa) / Wpx
+        print(f"FRAMING: {name}; {ppa:.0f} px/Å (was {ppa0:.0f}); shift_x {cam_data.shift_x:.3f}, "
+              f"shift_y {cam_data.shift_y:.3f}")
 cam.location = center + view_dir * dist
 cam.matrix_world = Matrix.Translation(cam.location) @ Matrix((right, up2, -forward)).transposed().to_4x4()
 

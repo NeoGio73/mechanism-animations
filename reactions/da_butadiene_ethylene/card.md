@@ -13,7 +13,7 @@
 | TS geometry | C1–C6 2.27 Å (forming), C4–C5 2.26 Å (forming), C2–C3 1.41 Å (becoming double), C1–C2 1.39 Å (becoming single), C3–C4 1.39 Å (becoming single), C5–C6 1.39 Å (becoming single), C1=C2–C3=C4 dihedral 0.0° |
 | IRC frames | 110; reaction coordinate s from -5.72 to 5.78 bohr·amu^1/2 (TS at s = 0) |
 | Orbitals shown | IBOs (IAO/IBO localization, occupied valence), isovalue ±0.08 e^1/2 bohr^-3/2 (orbital amplitude); tracked frame to frame by maximum overlap with fixed phase (lowest frame-to-frame overlap of the shown orbitals 0.83); canonical HOMO/LUMO optional in the viewer |
-| Orbitals that change | **Expected assignment not matched** (reaction.toml: π(C1=C2) → π(C2=C3); π(C3=C4) → σ(C4–C5); π(C5=C6) → σ(C1–C6)). Tracked orbitals that change: C0–C1 → C5–C0; C3–C2 → C1–C2; C4–C5 → C4–C3 (0-based atom indices). See 03_orbitals/tracking_log.md; awaiting J. Picione's decision. |
+| Orbitals that change | π(C1=C2) → σ(C1–C6); π(C5=C6) → σ(C4–C5); π(C3=C4) → π(C2=C3). In this pericyclic reaction the clockwise and counter-clockwise arrow drawings are mirror images of the same mechanism, and the mirror-symmetric transition state favours neither. The direction shown is the one the orbital localization settled on, not a physical preference (the viewer's "mirror direction" switch shows the other one). |
 | What this is | The minimum-energy path, not a trajectory: no temperature, no dynamics, no explicit solvent molecules |
 | Course mapping | McMurry chapter __ (to be filled in by J. Picione) |
 
@@ -67,7 +67,7 @@ Experiment (gas phase): butadiene + ethylene → cyclohexene, Ea ≈ 115 kJ/mol 
 - `02_irc/irc_full_trj.xyz`: IRC frames, reactant → product
 - `02_irc/energy_profile.png`: energy profile
 - `03_orbitals/tracking_log.md`: orbital matching along the path
-- `05_render/da_butadiene_ethylene.mp4`: rendered video, energy inset at DLPNO-CCSD(T)/ma-def2-TZVP (`da_butadiene_ethylene_<level>.mp4`: same video with the other energy curves)
+- `05_render/da_butadiene_ethylene.mp4`: rendered video, energy inset at the working level (`da_butadiene_ethylene_<level>.mp4`: same video with the other energy curves)
 - `web/viewer/index.html?r=da_butadiene_ethylene`: interactive viewer
 - `run_log.md`: every ORCA job, wall time, and reruns
 
