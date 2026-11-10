@@ -108,6 +108,16 @@ atoms changes between the ends are the ones shown by default: for SN2, an O lone
 the first frame, so that its larger lobe is the + phase. Canonical HOMO and LUMO are tracked
 for sign only (their identity is fixed by energy order).
 
+Display rotation of bent bonds (decided by J. Picione, 2026-11-10; first use: Diels–Alder): where
+IBO localization gives an isolated double bond as two bent bonds (for ethylene at the Diels–Alder
+reactant end, two non-equivalent ones, s-character 0.18 and 0.24), the pair is rotated within itself,
+for display only, into the σ + π pair that spans the same two orbitals, and the π orbital is shown.
+This applies from the reactant end at every frame where the computed orbital is more than 0.5° from
+that split (π = the pair's combination with the least s-character), so the rotated frames join the
+unrotated ones smoothly (Diels–Alder: IRC frames 0–47, join overlap 0.9998); a rotation inside an
+occupied pair changes no energy or density, and the unrotated orbitals stay in the data files
+(`03_orbitals/display_rotation.json` records the frames, angles and overlaps).
+
 Arrow direction in pericyclic reactions (decided by J. Picione, 2026-11-10): in a pericyclic
 reaction the clockwise and counter-clockwise curved-arrow drawings are mirror images of the
 same mechanism, and a mirror-symmetric transition state favours neither. The direction shown

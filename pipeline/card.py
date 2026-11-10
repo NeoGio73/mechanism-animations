@@ -4,6 +4,7 @@ Free-text fields that need the chemist (course mapping, extra limitations) are r
 00_inputs/card_notes.toml when present, so a rerun never overwrites his wording."""
 from __future__ import annotations
 
+import json
 import tomllib
 
 from .steps import Reaction, _read_json, level_name
@@ -107,6 +108,7 @@ def card(rx: Reaction) -> None:
         f"{man['isovalue_units']}; tracked frame to frame by maximum overlap with fixed phase "
         f"({_overlap_text(rx, tr, man, changing, min_ovl)}); canonical HOMO/LUMO "
         f"optional in the viewer |",
+        *([f"| Display rotation | {_display_rotation_text(rx)} |"] if _display_rotation_text(rx) else []),
         f"| Orbitals that change | {orb_txt} |",
         "| What this is | The minimum-energy path, not a trajectory: no temperature, no dynamics, "
         "no explicit solvent molecules |",
@@ -150,6 +152,27 @@ def card(rx: Reaction) -> None:
               "Content CC-BY 4.0; code MIT. Computed with ORCA 6.1.1.", ""]
     (r / "card.md").write_text("\n".join(lines), encoding="utf-8")
     print("\n".join(lines))
+
+
+def _display_rotation_text(rx: Reaction) -> str | None:
+    """One sentence on the display-only σ/π rotation (orbital_steps.orbital_display), or None."""
+    p = rx.root / "03_orbitals" / "display_rotation.json"
+    if not p.exists():
+        return None
+    d = _read_json(p)
+    sym = json.loads((rx.root / "04_meshes" / "manifest.json").read_text(encoding="utf-8"))["symbols"]
+    a, b = d["atoms"]
+    bond = f"{sym[a]}{a + 1}={sym[b]}{b + 1}"
+    f0, fr = d["frames"][0], d["rotated_frames"]
+    return (f"Near the reactant end the IBO localization gave the isolated {bond} double bond as two "
+            f"bent bonds, not equivalent (s-character {f0['s_character_shown']:.2f} and "
+            f"{f0['s_character_partner']:.2f} at IRC frame 0); for display only, the pair was rotated "
+            f"within itself into the σ + π pair that spans the same two orbitals, and the π orbital is "
+            f"shown, in IRC frames {fr[0]}–{fr[-1]} (where the computed orbital is more than "
+            f"{d['max_angle_deg']:g}° from that split; {f0['bend_angle_deg']:.0f}° at frame 0), joining "
+            f"the unrotated frames with overlap {d['overlap_across_join']:.4f}; a rotation inside an "
+            f"occupied pair changes no energy or density, and the unrotated orbitals are kept in the "
+            f"data files (`03_orbitals/display_rotation.json`)")
 
 
 def _level(method: str) -> str:

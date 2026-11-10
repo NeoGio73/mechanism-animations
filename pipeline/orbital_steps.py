@@ -11,7 +11,7 @@ import numpy as np
 from . import orca
 from .geometry import read_xyz_frames
 from .orbitals import (ao_labels, export_json, load_npz, localized_range, overlap, plot_cubes,
-                       s_character, track)
+                       read_cube, s_character, track)
 from .steps import Reaction, _read_json, _write_json
 
 LOC_BLOCK = "%loc\n  LocMet IAOIBO\nend"
@@ -231,3 +231,110 @@ def orbital_cubes(rx: Reaction, grid: int = 70) -> None:
             for p in made:
                 p.unlink()
     print(f"cubes written for {len(tr['per_frame'])} frames: {['ibo%d' % j for j in show]} + homo, lumo")
+    orbital_display(rx, grid=grid)
+
+
+DISPLAY_FILE = "display_rotation.json"
+
+
+def orbital_display(rx: Reaction, grid: int = 70) -> None:
+    """Display-only σ/π rotation of a double bond that IBO localized as two bent bonds.
+
+    `[display_rotation]` in reaction.toml names the two atoms (`atoms`) and a threshold angle
+    (`max_angle_deg`). The two tracked orbitals that sit on exactly those atoms at the reactant
+    end are a 2×2 orthonormal pair; the combination with the least s-character is the π
+    orbital, the other the σ orbital. Bend angle = angle between the shown orbital and that π
+    combination. From the reactant end, every frame with a bend angle above the threshold is
+    shown as the π combination instead, until the angle first comes within the threshold.
+
+    A rotation inside an occupied pair leaves the total density, and so every energy, exactly
+    unchanged. tracking.json, the .loc files and the as-computed cubes are not modified: the
+    rotated orbital is written next to them as `cubes/fNNN/ibo<id>_display.npz`, and the
+    choice, angles and overlaps go to `03_orbitals/display_rotation.json`."""
+    from .meshes import read_cube_gz
+    cfg = rx.cfg.get("display_rotation")
+    out = rx.root / "03_orbitals" / DISPLAY_FILE
+    if not cfg:
+        if out.exists():
+            out.unlink()
+        return
+    tr = _read_json(rx.root / "03_orbitals" / "tracking.json")
+    syms = _frames(rx)[0].symbols
+    want = frozenset(cfg["atoms"])
+    on_pair = [t["id"] for t in tr["tracked"]
+               if frozenset(int(a[1:]) for a in tr["per_frame"][0]["populations"][str(t["id"])]
+                            if tr["per_frame"][0]["populations"][str(t["id"])][a] > POP_CUT) == want]
+    shown_ids = {e["tracked_id"] for e in (tr.get("expected_changes") or {}).get("items", [])}
+    shown = [j for j in on_pair if j in shown_ids]
+    if len(on_pair) != 2 or len(shown) != 1:
+        raise ValueError(f"display_rotation: expected 2 tracked orbitals on atoms {sorted(want)} "
+                         f"with 1 shown, found {on_pair} (shown {shown})")
+    sh, pa = shown[0], next(j for j in on_pair if j != shown[0])
+    labs = ao_labels(_fdir(rx, 0) / "f.loc", rx.d("03_orbitals") / "ao_labels.json")
+    is_s = np.array([lab.split()[1].endswith("s") for lab in labs])
+    Ds = np.diag(is_s.astype(float))
+    limit = float(cfg["max_angle_deg"])
+
+    def pair(k):
+        pf = tr["per_frame"][k]
+        F = load_npz(_fdir(rx, k) / "f_loc.npz", syms)
+        sg = np.array([pf["sign"][sh], pf["sign"][pa]])
+        C = F.C[:, [pf["orbital_index"][sh], pf["orbital_index"][pa]]] * sg
+        Q = C.T @ (0.5 * (Ds @ F.S + F.S @ Ds)) @ C          # s-character matrix of the pair
+        w, v = np.linalg.eigh(Q)
+        u = v[:, 0] * np.sign(v[0, 0])                        # π combination, same phase as shown
+        ang = float(np.degrees(np.arccos(min(1.0, abs(v[0, 0])))))
+        return F, C, u, ang, Q
+
+    rows, rotated, P = [], [], {}
+    k = 0
+    while True:
+        F, C, u, ang, Q = pair(k)
+        P[k] = (F, C, u)
+        rot = ang > limit
+        rows.append({"frame": k, "bend_angle_deg": round(ang, 2),
+                     "s_character_shown": round(float(Q[0, 0]), 3),
+                     "s_character_partner": round(float(Q[1, 1]), 3),
+                     "rotated": rot,
+                     "coefficients_shown_partner": [round(float(x), 6) for x in u] if rot else None})
+        if not rot:
+            break
+        rotated.append(k)
+        k += 1
+    vec = lambda k: P[k][1] @ (P[k][2] if k in rotated else np.array([1.0, 0.0]))
+    ov = lambda a, b: float(vec(a) @ (0.5 * (P[a][0].S + P[b][0].S)) @ vec(b))
+    steps = [round(ov(k, k + 1), 5) for k in rotated]
+    # cubes: rotated = a·(shown) + b·(partner) with tracking signs, stored in the shown orbital's
+    # raw phase so meshes applies the same per-frame sign as before
+    for k in rotated:
+        pf = tr["per_frame"][k]
+        cd = rx.root / f"03_orbitals/cubes/f{k:03d}"
+        made = plot_cubes(_fdir(rx, k) / "f.loc", [pf["orbital_index"][pa]], grid=grid)
+        vp, op_, ap = read_cube(made[0])
+        for p in made:
+            p.unlink()
+        vs, os_, as_ = read_cube_gz(cd / f"ibo{sh}.cube.gz")
+        if not (np.allclose(os_, op_) and np.allclose(as_, ap)):
+            raise ValueError(f"frame {k}: partner cube is on a different grid")
+        a, b = P[k][2]
+        disp = pf["sign"][sh] * (a * pf["sign"][sh] * vs + b * pf["sign"][pa] * vp)
+        np.savez_compressed(cd / f"ibo{sh}_display.npz", values=disp.astype(np.float32),
+                            origin=os_, axes=as_)
+    res = {
+        "what": "display-only rotation of one bent-bond pair into σ + π; data files unchanged",
+        "atoms": sorted(want), "shown_tracked_id": sh, "partner_tracked_id": pa,
+        "criterion": (f"bend angle (shown orbital vs. the least-s-character combination of the "
+                      f"pair) above {limit:g}°, from the reactant end until it first comes within "
+                      f"{limit:g}°"),
+        "max_angle_deg": limit,
+        "rotated_frames": rotated,
+        "first_unrotated_frame": rows[-1]["frame"],
+        "lowest_overlap_between_rotated_frames": min(steps[:-1]) if len(steps) > 1 else None,
+        "overlap_across_join": steps[-1] if steps else None,
+        "join": [rotated[-1], rows[-1]["frame"]] if rotated else None,
+        "frames": rows,
+    }
+    _write_json(out, res)
+    print(f"display rotation: frames {rotated[0]}–{rotated[-1]} rotated (bend "
+          f"{rows[0]['bend_angle_deg']}° at frame 0); join {res['join']} overlap "
+          f"{res['overlap_across_join']}; lowest step inside {res['lowest_overlap_between_rotated_frames']}")

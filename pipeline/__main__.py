@@ -7,6 +7,7 @@ from . import card, gas_phase, meshes, orbital_steps, video
 STEPS.update({"orbital_sps": orbital_steps.orbital_sps,
               "orbital_track": orbital_steps.orbital_track,
               "orbital_cubes": orbital_steps.orbital_cubes,
+              "orbital_display": orbital_steps.orbital_display,
               "meshes": meshes.build_meshes,
               "video_preview": video.video_preview,
               "video": video.video,

@@ -205,14 +205,26 @@ def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) ->
         skew = float(np.sum((frame_sign(o, 0) * v0.astype(np.float64)) ** 3))
         flip[o["key"]] = 1.0 if skew >= 0 else -1.0
 
+    # display-only σ/π rotation of a bent-bond pair (orbital_steps.orbital_display): the listed
+    # frames of that one orbital are read from the rotated copy; everything else as computed
+    disp_path = rx.root / "03_orbitals" / "display_rotation.json"
+    disp = _read_json(disp_path) if disp_path.exists() else None
+    disp_frames = set(disp["rotated_frames"]) if disp else set()
+
+    def values(k, o):
+        cd = rx.root / f"03_orbitals/cubes/f{k:03d}"
+        if disp and o["kind"] == "localized" and o["tracked_id"] == disp["shown_tracked_id"]                 and k in disp_frames:
+            z = np.load(cd / f"{o['key']}_display.npz")
+            return z["values"], z["origin"], z["axes"]
+        return read_cube_gz(cd / f"{o['key']}.cube.gz")
+
     def encode(max_tris):
         buf = io.BytesIO()
         index = {o["key"]: [] for o in orbitals}
         sizes = {o["key"]: 0 for o in orbitals}
         for k in keep:
-            cd = rx.root / f"03_orbitals/cubes/f{k:03d}"
             for o in orbitals:
-                vals, origin, axes = read_cube_gz(cd / f"{o['key']}.cube.gz")
+                vals, origin, axes = values(k, o)
                 sign = frame_sign(o, k) * flip[o["key"]]
                 entry = []
                 for verts, faces in lobes(sign * vals, origin, axes, iso, max_tris):
@@ -263,6 +275,9 @@ def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) ->
         "mesh_index": index,
         "bytes_per_orbital": sizes,
         "mirror": mirror_data(rx, frames, keep, meta["ts_frame"], orbitals),
+        "display_rotation": ({k_: disp[k_] for k_ in ("atoms", "shown_tracked_id", "criterion",
+                                                     "rotated_frames", "overlap_across_join")}
+                             if disp else None),
     }
     _write_json(od / "manifest.json", manifest)
     tot = (od / "meshes.bin").stat().st_size

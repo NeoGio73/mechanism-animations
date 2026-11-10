@@ -85,6 +85,7 @@ All commands run from the repository folder with the project Python:
 | `orbital_sps` | single point with IBO localization at every IRC frame | `03_orbitals/frames/` |
 | `orbital_track` | matches orbitals frame to frame by overlap, fixes signs, finds the orbitals that change | `03_orbitals/tracking.json`, `03_orbitals/tracking_log.md` |
 | `orbital_cubes` | cube files (gzipped) for the changing IBOs and canonical HOMO/LUMO | `03_orbitals/cubes/` |
+| `orbital_display` | (runs at the end of `orbital_cubes`; only with `[display_rotation]`) display-only σ + π rotation of a bent-bond pair; data files unchanged | `03_orbitals/display_rotation.json`, `03_orbitals/cubes/f*/ibo*_display.npz` |
 | `meshes` | isosurfaces (± `isovalue`), decimated, packed for the web | `04_meshes/manifest.json`, `04_meshes/meshes.bin` |
 | `video_preview` | four half-resolution test frames | `05_render/preview.mp4` |
 | `video` | full 1920 × 1080, 30 fps Blender render, then `video_composite` | `05_render/png/` |
