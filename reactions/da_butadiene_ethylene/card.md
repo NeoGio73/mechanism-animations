@@ -67,7 +67,7 @@ Experiment (gas phase): butadiene + ethylene → cyclohexene, Ea ≈ 115 kJ/mol 
 - `02_irc/irc_full_trj.xyz`: IRC frames, reactant → product
 - `02_irc/energy_profile.png`: energy profile
 - `03_orbitals/tracking_log.md`: orbital matching along the path
-- `05_render/da_butadiene_ethylene.mp4`: rendered video, energy inset at the working level (`da_butadiene_ethylene_<level>.mp4`: same video with the other energy curves)
+- `05_render/da_butadiene_ethylene.mp4`: rendered video, energy inset at DLPNO-CCSD(T)/ma-def2-TZVP (`da_butadiene_ethylene_<level>.mp4`: same video with the other energy curves)
 - `web/viewer/index.html?r=da_butadiene_ethylene`: interactive viewer
 - `run_log.md`: every ORCA job, wall time, and reruns
 
