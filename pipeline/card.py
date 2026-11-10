@@ -28,7 +28,15 @@ def card(rx: Reaction) -> None:
         ids = [e["tracked_id"] for e in tr["expected_changes"]["items"] if e["found"]]
         changing = [next(t for t in tr["tracked"] if t["id"] == j) for j in ids]
     orb_txt = "; ".join(t.get("label") or f"{t['label_start']} → {t['label_end']}" for t in changing)
-    min_ovl = min(t["min_overlap"] for t in changing) if changing else float("nan")
+    ec = tr.get("expected_changes") or {}
+    if ec and not all(e["found"] for e in ec["items"]):
+        moved = [t for t in tr["tracked"] if t["changes"]]
+        orb_txt = ("**Expected assignment not matched** (reaction.toml: "
+                   + "; ".join(e["label"] for e in ec["items"]) + "). Tracked orbitals that change: "
+                   + "; ".join(f"{t['start']} → {t['end']}" for t in moved) + " (0-based atom indices)"
+                   + ". See 03_orbitals/tracking_log.md; awaiting J. Picione's decision.")
+        changing = moved
+    min_ovl = min(t["min_overlap"] for t in changing) if changing else None
 
     lines = [
         f"# Reaction card: {rx.cfg['title']}", "",
@@ -50,7 +58,7 @@ def card(rx: Reaction) -> None:
         f"{meta['s_max']:.2f} bohr·amu^1/2 (TS at s = 0) |",
         f"| Orbitals shown | IBOs (IAO/IBO localization, occupied valence), isovalue ±{man['isovalue']} "
         f"{man['isovalue_units']}; tracked frame to frame by maximum overlap with fixed phase "
-        f"(lowest frame-to-frame overlap of the shown orbitals {min_ovl:.2f}); canonical HOMO/LUMO "
+        f"(lowest frame-to-frame overlap of the shown orbitals {f'{min_ovl:.2f}' if min_ovl is not None else '—'}); canonical HOMO/LUMO "
         f"optional in the viewer |",
         f"| Orbitals that change | {orb_txt} |",
         "| What this is | The minimum-energy path, not a trajectory: no temperature, no dynamics, "
@@ -69,13 +77,18 @@ def card(rx: Reaction) -> None:
                          f"{fmt_kj(g) if g is not None else '—'} |")
         lines += ["", "ΔG‡ adds the working-level thermal corrections (298.15 K) and the 1 atm → 1 M "
                   "standard-state correction to each level's electronic barrier.", ""]
+    gp_path = r / "01_ts/gas_phase.json"
+    if gp_path.exists():
+        lines += _gas_phase_section(rx, _read_json(gp_path))
     if notes.get("experimental"):
         lines += [notes["experimental"], ""]
         # stays on the card until the value has been checked in the primary paper
         if not notes.get("experimental_confirmed", False):
             lines += ["*Value to be confirmed against the primary paper by J. Picione.*", ""]
     lines += ["## Known artifacts and limitations", ""]
-    lines += [f"- {x}" for x in _auto_limitations(rx, tz, svp, ts, diag, tr)]
+    lines += [f"- {x}" for x in _auto_limitations(rx, tz, svp, ts, diag, tr,
+                                                  has_exp=bool(notes.get("experimental")),
+                                                  gas=gp_path.exists())]
     lines += [f"- {x}" for x in notes.get("limitations", [])]
     lines += ["", "## Files", "",
               "- `02_irc/energies.csv`: frame, s (bohr·amu^1/2), E (Eh, kJ/mol, kcal/mol), key distances (Å)",
@@ -135,7 +148,36 @@ def _bond(rx: Reaction, end: str) -> str:
     return f"{sy[b] if end == 'nucleophile' else sy[a]}–{sy[a] if end == 'nucleophile' else sy[b]}"
 
 
-def _auto_limitations(rx, tz, svp, ts, diag, tr) -> list[str]:
+def _gas_phase_section(rx, gp: dict) -> list[str]:
+    """Card section: gas phase against solution at each level, Ea = ΔH‡(T) + 2RT vs experiment."""
+    T = f"{gp['T_K']:.0f} K" + (", provisional" if gp["T_provisional"] else "")
+    ref = " + ".join(n.replace("_", " ") for n in gp["reference"])
+    reac = " + ".join(n.replace("_", " ") for n in gp["reactants"])
+    out = ["## Comparison with the gas-phase experiment", "",
+           f"Stationary points recomputed without the solvent model at every level (same geometries). "
+           f"Barriers from {ref} (the measured reference) unless marked; Ea = ΔH‡(T) + 2RT for a "
+           f"gas-phase bimolecular reaction, at T = {T}.", "",
+           f"| Level | Phase | ΔE‡ from {reac} | ΔE‡ | ΔH‡ (298.15 K) | ΔG‡ (298.15 K) | Ea ({T}) |",
+           "|---|---|---|---|---|---|---|"]
+    for row in gp["rows"]:
+        out.append(f"| {row['level'].replace('_', '/')} | {row['phase']} | "
+                   f"{fmt_kj(row['dE_from_reactants_kJ'])} | {fmt_kj(row['dE_from_reference_kJ'])} | "
+                   f"{fmt_kj(row['dH_298_kJ'])} | {fmt_kj(row['dG_298_kJ'])} ({row['standard_state']}) | "
+                   f"**{fmt_kj(row['Ea_T_kJ'])}** |")
+    if gp.get("experimental_Ea_kJ"):
+        out += ["", f"Experiment (gas phase): Ea ≈ {fmt_kj(gp['experimental_Ea_kJ'])}."]
+    st = [r for r in gp["rows"] if r.get("s_trans_to_s_cis_dE_kJ") is not None]
+    if st:
+        best = st[-1]
+        out += [f"{gp['reference'][0].replace('_', ' ')} → {gp['reactants'][0].replace('_', ' ')}, ΔE: "
+                f"{fmt_kj(best['s_trans_to_s_cis_dE_kJ'])} at {best['level'].replace('_', '/')} "
+                f"({best['phase']})."]
+    out += ["Thermal corrections: working-level harmonic frequencies (SMD), quasi-RRHO entropy for "
+            "ΔG‡; the s-trans reference is why ΔE‡ here exceeds the barrier from the s-cis conformer.", ""]
+    return out
+
+
+def _auto_limitations(rx, tz, svp, ts, diag, tr, has_exp: bool = True, gas: bool = False) -> list[str]:
     """Limitations written from the numbers, so they stay true when results change."""
     out = []
     wb, sb = rx.basis(), rx.basis(sp=True)
@@ -156,11 +198,15 @@ def _auto_limitations(rx, tz, svp, ts, diag, tr) -> list[str]:
         gap = best["dG_TS_vs_separated_1M_kJ"] - proto["dG_TS_vs_separated_1M_kJ"]
         out.append(f"{rx.level().split('-')[0]} {'underestimates' if gap > 0 else 'overestimates'} this barrier: ΔG‡ = {fmt_kj(proto['dG_TS_vs_separated_1M_kJ'])} "
                    f"at the protocol level versus {fmt_kj(best['dG_TS_vs_separated_1M_kJ'])} at "
-                   f"{best['level'].replace('_', '/')} ({abs(gap):.0f} kJ/mol {'lower' if gap > 0 else 'higher'}). The experimental value "
-                   f"is given above; the close agreement of the coupled-cluster number is partly "
-                   f"fortuitous (implicit solvent, working-level geometries and thermal corrections).")
+                   f"{best['level'].replace('_', '/')} ({abs(gap):.0f} kJ/mol {'lower' if gap > 0 else 'higher'})."
+                   + (" The comparison with experiment is the gas-phase Ea table above." if gas else
+                      " The experimental value is given above; the close agreement of the "
+                      "coupled-cluster number is partly fortuitous (implicit solvent, working-level "
+                      "geometries and thermal corrections)." if has_exp else ""))
     rc_svp, rc_tz = svp["reactant_complex"], tz["reactant_complex"]
-    txt = (f"Ion–dipole wells: the reactant complex lies {fmt_kj(-rc_svp)} below separated reactants "
+    charged = any(s.get("smiles", "").count("-]") or s.get("smiles", "").count("+]")
+                  for _, s in rx.species())
+    txt = (f"{'Ion–dipole wells: the reactant complex' if charged else 'Reactant complex (a weak, dispersion-bound pair of the neutral reactants)'} lies {fmt_kj(-rc_svp)} below separated reactants "
            f"on the working-level curve but only {fmt_kj(-rc_tz)} below at {rx.basis(sp=True)}")
     if best:
         rc_best = best["dE_TS_vs_separated_kJ"] - best["dE_TS_vs_complex_kJ"]
@@ -168,13 +214,15 @@ def _auto_limitations(rx, tz, svp, ts, diag, tr) -> list[str]:
                 f"{best['level'].replace('_', '/')}")
     txt += (f". In {rx.cfg['solvent']} the deep double well of gas-phase ion–molecule reactions is "
             "largely washed out; what remains here is a shallow, partly artificial well (a teaching "
-            "point, not a failure).")
+            "point, not a failure)." if charged else
+            "; the barriers above are also given from separated reactants.")
     out.append(txt)
     if not wb.startswith(("ma-", "aug-")):
         out.append(f"The {wb} and {sb} basis sets have no diffuse functions; small anions "
                    f"({_anions(rx)}) are described less well than neutral molecules.")
-    out.append(f"Implicit solvent only: no explicit {rx.cfg['solvent']} molecules, so no specific "
-               "hydrogen bonds to the base/nucleophile or leaving group.")
+    out.append(f"Implicit solvent only: no explicit {rx.cfg['solvent']} molecules"
+               + (", so no specific hydrogen bonds to the base/nucleophile or leaving group." if charged
+                  else "."))
     meta = _read_json(rx.root / "02_irc/irc_meta.json")
     path_E = [float(ln.split(",")[3]) for ln in
               (rx.root / "02_irc/energies.csv").read_text(encoding="utf-8").splitlines()[1:]]
