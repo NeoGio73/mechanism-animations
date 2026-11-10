@@ -82,7 +82,9 @@ def _step_test_text(rx: Reaction, other_min: list[tuple[str, float]]) -> str:
                 f"{pt} point, then {rng(lo2, hi2, 3)} on to frame {b}, so more IRC frames would not "
                 f"spread the change")
         if other_min and all(m >= 0.99 for _, m in other_min):
-            out += (f"; {' and '.join(n for n, _ in other_min)} show no such switch: every "
+            nm = [n for n, _ in other_min]
+            who = nm[0] if len(nm) == 1 else ", ".join(nm[:-1]) + " and " + nm[-1]
+            out += (f"; {who} show no such switch: every "
                     f"frame-to-frame overlap of their shown orbitals is at least 0.99")
     return out
 
@@ -321,9 +323,11 @@ def _auto_limitations(rx, tz, svp, ts, diag, tr, has_exp: bool = True, gas: bool
     if not wb.startswith(("ma-", "aug-")):
         out.append(f"The {wb} and {sb} basis sets have no diffuse functions; small anions "
                    f"({_anions(rx)}) are described less well than neutral molecules.")
+    kb = rx.cfg.get("key_bonds")      # the SN2 pilot has none: its key_atoms define Nu–C–LG
+    breaks = any(b.get("role") == "breaks" for b in kb) if kb else "leaving_group" in rx.cfg.get("key_atoms", {})
+    partners = "the base/nucleophile or leaving group" if breaks else "the nucleophile or the product anion"
     out.append(f"Implicit solvent only: no explicit {rx.cfg['solvent']} molecules"
-               + (", so no specific hydrogen bonds to the base/nucleophile or leaving group." if charged
-                  else "."))
+               + (f", so no specific hydrogen bonds to {partners}." if charged else "."))
     meta = _read_json(rx.root / "02_irc/irc_meta.json")
     path_E = [float(ln.split(",")[3]) for ln in
               (rx.root / "02_irc/energies.csv").read_text(encoding="utf-8").splitlines()[1:]]

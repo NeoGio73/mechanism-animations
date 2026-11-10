@@ -35,6 +35,17 @@ primary paper by J. Picione" (`experimental_confirmed = false` in `00_inputs/car
 | K. N. Houk, Y.-T. Lin and F. K. Brown, "Evidence for the concerted mechanism of the Diels–Alder reaction of butadiene with ethylene", *J. Am. Chem. Soc.* **1986**, *108*, 554–556. doi:[10.1021/ja00263a059](https://doi.org/10.1021/ja00263a059) | Concerted transition state. | Comparison |
 | E. Goldstein, B. Beno and K. N. Houk, "Density functional theory prediction of the relative energies and isotope effects for the concerted and stepwise mechanisms of the Diels–Alder reaction of butadiene and ethylene", *J. Am. Chem. Soc.* **1996**, *118*, 6036–6043. doi:[10.1021/ja9601494](https://doi.org/10.1021/ja9601494) | Concerted transition state. | Comparison |
 
+### Nucleophilic addition: cyanide + acetone, water
+
+Leads supplied by J. Picione (2026-11-10), checked against Crossref only; no measured value is on
+the card until J. Picione supplies one. The measured rate depends on pH, because only free cyanide
+(CN⁻, not HCN) adds to the carbonyl.
+
+| Source | Used for | Status |
+|---|---|---|
+| J. P. Guthrie, "Prediction of rate constants for cyanohydrin formation using equilibrium constants and distortion energies", *J. Am. Chem. Soc.* **1998**, *120*, 1688–1694. doi:[10.1021/ja970506q](https://doi.org/10.1021/ja970506q) | Lead: rate and equilibrium constants for cyanohydrin formation. | Lead, to be confirmed by J. Picione |
+| W. J. Svirbely and J. F. Roth, "Carbonyl reactions. I. The kinetics of cyanohydrin formation in aqueous solution", *J. Am. Chem. Soc.* **1953**, *75*, 3106–3111. doi:[10.1021/ja01109a020](https://doi.org/10.1021/ja01109a020) | Lead: measured kinetics in aqueous solution. | Lead, to be confirmed by J. Picione |
+
 ### Secondary source consulted (not cited on the cards)
 
 | Source | Note |

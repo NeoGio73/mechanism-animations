@@ -115,7 +115,8 @@ frames, same input as the frames; `03_orbitals/step_test_59_60/`) show that the 
 orbitals switch abruptly within the first quarter of the step: overlap 0.79 from frame 59 to the ¼
 point, then 0.996–0.997 on to frame 60. More IRC frames would therefore not spread the change, and
 none were added. SN2 and E2 show no such switch: every frame-to-frame overlap of their shown
-orbitals is at least 0.99 (lowest 0.993 and 0.990).
+orbitals is at least 0.99 (lowest 0.993 and 0.990); nor does the cyanide + acetone addition
+(lowest 0.992).
 
 Display rotation of bent bonds (decided by J. Picione, 2026-11-10; first use: Diels–Alder): where
 IBO localization gives an isolated double bond as two bent bonds (for ethylene at the Diels–Alder

@@ -12,7 +12,7 @@
 | Imaginary frequency at TS | 441i cm⁻¹ (exactly one) |
 | TS geometry | C–O 2.23 Å, C–Br 2.30 Å, angle 178.6° |
 | IRC frames | 60; reaction coordinate s from -3.64 to 11.02 bohr·amu^1/2 (TS at s = 0) |
-| Orbitals shown | IBOs (IAO/IBO localization, occupied valence), isovalue ±0.08 e^1/2 bohr^-3/2 (orbital amplitude); tracked frame to frame by maximum overlap with fixed phase (lowest frame-to-frame overlap of each shown orbital: σ(C–Br) → lone pair on Br 0.995 (IRC frames 17→18); lone pair on O → σ(C–O) 0.993 (IRC frames 17→18); for comparison, lowest overlap of the shown orbitals in Diels–Alder 0.827, E2 0.990); canonical HOMO/LUMO optional in the viewer |
+| Orbitals shown | IBOs (IAO/IBO localization, occupied valence), isovalue ±0.08 e^1/2 bohr^-3/2 (orbital amplitude); tracked frame to frame by maximum overlap with fixed phase (lowest frame-to-frame overlap of each shown orbital: σ(C–Br) → lone pair on Br 0.995 (IRC frames 17→18); lone pair on O → σ(C–O) 0.993 (IRC frames 17→18); for comparison, lowest overlap of the shown orbitals in Diels–Alder 0.827, E2 0.990, Nucleophilic addition 0.992); canonical HOMO/LUMO optional in the viewer |
 | Orbitals that change | σ(C–Br) → lone pair on Br; lone pair on O → σ(C–O) |
 | What this is | The minimum-energy path, not a trajectory: no temperature, no dynamics, no explicit solvent molecules |
 | Course mapping | McMurry chapter __ (to be filled in by J. Picione) |
