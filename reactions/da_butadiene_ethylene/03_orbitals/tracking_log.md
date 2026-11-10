@@ -1,7 +1,7 @@
 # Orbital tracking log
 
 110 IRC frames, 17 localized valence IBOs per frame, matched by maximum |overlap| between neighbouring frames (C_k^T S C_k+1). Signs fixed so matched overlaps are positive. Frames where a best match falls below 0.7 are flagged.
-Bond type from the s-character of each two-atom orbital: π below 0.10; when every orbital on a multiple bond is above it, the bond was localized as equivalent bent bonds. Atom numbers in brackets are 0-based.
+Bond type from the s-character of each two-atom orbital: π below 0.10; when every orbital on a multiple bond is above it, the bond was localized as bent bonds (σ and π mixed; the two need not be equivalent). Atom numbers in brackets are 0-based.
 
 | Tracked orbital | Reactant end | Product end | Changes? | Lowest overlap (frame) |
 |---|---|---|---|---|

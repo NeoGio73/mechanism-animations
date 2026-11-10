@@ -12,7 +12,7 @@
 | Imaginary frequency at TS | 888i cm⁻¹ (exactly one) |
 | TS geometry | O–H 1.39 Å (forming), Cβ–H 1.28 Å (breaking), Cα–Br 2.46 Å (breaking), Cα–Cβ 1.43 Å (becoming double), H–Cβ–Cα–Br dihedral 176.3° |
 | IRC frames | 146; reaction coordinate s from -6.38 to 20.58 bohr·amu^1/2 (TS at s = 0) |
-| Orbitals shown | IBOs (IAO/IBO localization, occupied valence), isovalue ±0.08 e^1/2 bohr^-3/2 (orbital amplitude); tracked frame to frame by maximum overlap with fixed phase (lowest frame-to-frame overlap of the shown orbitals 0.99); canonical HOMO/LUMO optional in the viewer |
+| Orbitals shown | IBOs (IAO/IBO localization, occupied valence), isovalue ±0.08 e^1/2 bohr^-3/2 (orbital amplitude); tracked frame to frame by maximum overlap with fixed phase (lowest frame-to-frame overlap of each shown orbital: O lone pair → σ(O–H) 0.990 (IRC frames 29→30); σ(Cβ–H) → π(C=C) 0.991 (IRC frames 29→30); σ(Cα–Br) → Br lone pair 0.997 (IRC frames 29→30); for comparison, lowest overlap of the shown orbitals in Diels–Alder 0.827, SN2 0.993); canonical HOMO/LUMO optional in the viewer |
 | Orbitals that change | O lone pair → σ(O–H); σ(Cβ–H) → π(C=C); σ(Cα–Br) → Br lone pair |
 | What this is | The minimum-energy path, not a trajectory: no temperature, no dynamics, no explicit solvent molecules |
 | Course mapping | McMurry chapter __ (to be filled in) |

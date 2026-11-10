@@ -8,6 +8,7 @@ from pathlib import Path
 
 import numpy as np
 
+from . import render_stamp
 from .steps import Reaction, _read_json
 
 BLENDER = Path(r"C:\Program Files\Blender Foundation\Blender 5.2\blender.exe")
@@ -325,6 +326,11 @@ def video_composite(rx: Reaction) -> None:
     T = json.loads((rx.root / "05_render" / "timeline.json").read_text())
     if len(list(png.glob("f*.png"))) != len(T):
         raise RuntimeError(f"{png} does not hold all {len(T)} rendered frames; run the 'video' step")
+    want = render_stamp.compute(rx.root / "04_meshes", rx.root / "05_render",
+                                Path(__file__).with_name("render_blender.py"))
+    if render_stamp.stored(png) != want:
+        raise RuntimeError(f"{png} holds frames rendered from other inputs (orbitals, geometry, "
+                           f"timing, settings or render script changed); run the 'video' step")
     for c in M.get("curves", [{"key": "working"}]):
         suffix = _suffix(M, c["key"])
         out = rx.d("05_render") / f"{rx.cfg['id']}{suffix}.mp4"

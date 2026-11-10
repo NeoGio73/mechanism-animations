@@ -10,6 +10,51 @@ from .steps import Reaction, _read_json, level_name
 from .units import KJ_TO_KCAL, fmt_kj
 
 
+def _shown(tr: dict) -> list[dict]:
+    """The tracked orbitals a card reports: the expected ones when reaction.toml names them
+    (and all were found), otherwise every orbital whose atoms change."""
+    ec = tr.get("expected_changes") or {}
+    if ec and all(e["found"] for e in ec["items"]):
+        return [next(t for t in tr["tracked"] if t["id"] == e["tracked_id"]) for e in ec["items"]]
+    return [t for t in tr["tracked"] if t["changes"]]
+
+
+def _overlap_text(rx: Reaction, tr: dict, man: dict, changing: list[dict], min_ovl) -> str:
+    """Lowest frame-to-frame overlap of each shown orbital, where on the path it occurs, and the
+    same number for the other reactions that already have a card (reported as computed)."""
+    if not changing:
+        return "lowest frame-to-frame overlap of the shown orbitals —"
+    s_of = {f.get("irc_frame", i): f["s"] for i, f in enumerate(man["frames"])}
+    if len(changing) == 1 or len({t["frame_of_min_overlap"] for t in changing}) > 1 or min_ovl >= 0.95:
+        per = "; ".join(f"{t.get('label') or t['label_start'] + ' → ' + t['label_end']} {t['min_overlap']:.3f}"
+                        f" (IRC frames {t['frame_of_min_overlap'] - 1}→{t['frame_of_min_overlap']})"
+                        for t in changing)
+        txt = f"lowest frame-to-frame overlap of each shown orbital: {per}"
+    else:   # all at the same step: say where that step is
+        k = changing[0]["frame_of_min_overlap"]
+        per = ", ".join(f"{t.get('label') or t['label_start'] + ' → ' + t['label_end']} {t['min_overlap']:.3f}"
+                        for t in changing)
+        txt = (f"lowest frame-to-frame overlap of each shown orbital, all at the step from IRC frame {k - 1} "
+               f"to {k} (s = {s_of.get(k - 1, float('nan')):+.2f} to {s_of.get(k, float('nan')):+.2f} "
+               f"bohr·amu^1/2; TS at frame {man['ts_frame']}): {per}")
+        per_frame = tr.get("per_frame") or []
+        if len(per_frame) > k + 1:
+            ids = [t["id"] for t in changing]
+            nb = [per_frame[j]["overlap_with_previous"][i] for j in (k - 1, k + 1) for i in ids]
+            txt += f"; the neighbouring steps are {min(nb):.2f}–{max(nb):.2f}"
+    others = []
+    for d in sorted(rx.root.parent.iterdir()):
+        if d == rx.root or not (d / "card.md").exists() or not (d / "03_orbitals/tracking.json").exists():
+            continue
+        o = _shown(_read_json(d / "03_orbitals/tracking.json"))
+        if o:
+            title = tomllib.loads((d / "00_inputs/reaction.toml").read_text(encoding="utf-8"))["title"]
+            others.append(f"{title.split(',')[0]} {min(t['min_overlap'] for t in o):.3f}")
+    if others:
+        txt += "; for comparison, lowest overlap of the shown orbitals in " + ", ".join(others)
+    return txt
+
+
 def card(rx: Reaction) -> None:
     r = rx.root
     ts = _read_json(r / "01_ts/ts.json")
@@ -60,7 +105,7 @@ def card(rx: Reaction) -> None:
         f"{meta['s_max']:.2f} bohr·amu^1/2 (TS at s = 0) |",
         f"| Orbitals shown | IBOs (IAO/IBO localization, occupied valence), isovalue ±{man['isovalue']} "
         f"{man['isovalue_units']}; tracked frame to frame by maximum overlap with fixed phase "
-        f"(lowest frame-to-frame overlap of the shown orbitals {f'{min_ovl:.2f}' if min_ovl is not None else '—'}); canonical HOMO/LUMO "
+        f"({_overlap_text(rx, tr, man, changing, min_ovl)}); canonical HOMO/LUMO "
         f"optional in the viewer |",
         f"| Orbitals that change | {orb_txt} |",
         "| What this is | The minimum-energy path, not a trajectory: no temperature, no dynamics, "

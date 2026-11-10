@@ -344,6 +344,21 @@ cam.matrix_world = Matrix.Translation(cam.location) @ Matrix((right, up2, -forwa
 # ------------------------------------------------------------------ render loop
 png = ODIR / ("png_preview" if PREVIEW else "png")
 png.mkdir(parents=True, exist_ok=True)
+# Never reuse frames rendered from other inputs: compare the stored fingerprint of meshes,
+# geometry, timeline, settings and this script; on any mismatch delete every old frame.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import render_stamp  # noqa: E402
+
+stamp = render_stamp.compute(MDIR, ODIR, Path(__file__).resolve())
+old_stamp = render_stamp.stored(png)
+old_frames = sorted(png.glob("f*.png"))
+if old_frames and old_stamp != stamp:
+    for p in old_frames:
+        p.unlink()
+    print(f"STALE_FRAMES_REMOVED {len(old_frames)} (stored fingerprint "
+          f"{(old_stamp or 'none')[:12]}, current {stamp[:12]})", flush=True)
+(png / render_stamp.STAMP).write_text(stamp)
+print(f"INPUTS_SHA256 {stamp}", flush=True)
 only = SETTINGS.get("only_frames")
 gpu_logged = False
 for n, t in enumerate(TIMELINE):

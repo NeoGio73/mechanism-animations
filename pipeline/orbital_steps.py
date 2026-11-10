@@ -59,7 +59,8 @@ def _label(pop_row: np.ndarray, symbols: list[str], s_frac: float | None = None,
 
     s_frac: s-character of this orbital; partner_s: s-character of the other orbitals on the
     same two atoms in the same frame. π: s-character below PI_MAX_S. A multiple bond whose
-    orbitals all have s-character above PI_MAX_S has been localized as equivalent bent bonds."""
+    orbitals all have s-character above PI_MAX_S has been localized as bent bonds (σ and π
+    mixed; the two need not be equivalent)."""
     idx = [a for a in np.argsort(-pop_row) if pop_row[a] > POP_CUT]
     # organic convention: carbon first, hydrogen last, others alphabetical (σ(C–Br), σ(O–H))
     rank = lambda s: (0 if s == "C" else 2 if s == "H" else 1, s)
@@ -147,8 +148,8 @@ def orbital_track(rx: Reaction) -> None:
              "between neighbouring frames (C_k^T S C_k+1). Signs fixed so matched overlaps are "
              "positive. Frames where a best match falls below 0.7 are flagged.",
              f"Bond type from the s-character of each two-atom orbital: π below {PI_MAX_S:.2f}; when "
-             "every orbital on a multiple bond is above it, the bond was localized as equivalent "
-             "bent bonds. Atom numbers in brackets are 0-based.", "",
+             "every orbital on a multiple bond is above it, the bond was localized as bent bonds "
+             "(σ and π mixed; the two need not be equivalent). Atom numbers in brackets are 0-based.", "",
              "| Tracked orbital | Reactant end | Product end | Changes? | Lowest overlap (frame) |",
              "|---|---|---|---|---|"]
     for t in tracked:

@@ -102,7 +102,7 @@ orbitals shown never fell below 0.99). Each tracked orbital is labelled from its
 atomic populations (atoms above 0.15 e) at both ends of the path; a two-atom orbital with
 less than 0.10 of its population in s-type basis functions is labelled π, otherwise σ, and a
 multiple bond whose orbitals are all above 0.10 is labelled as bent bonds (IBO localization
-sometimes gives two equivalent bent bonds instead of σ + π). The orbitals whose set of
+sometimes mixes σ and π into two bent bonds, not necessarily equivalent). The orbitals whose set of
 atoms changes between the ends are the ones shown by default: for SN2, an O lone pair →
 σ(C–O), and σ(C–Br) → a Br lone pair. The overall sign of each orbital is chosen once, at
 the first frame, so that its larger lobe is the + phase. Canonical HOMO and LUMO are tracked
@@ -137,4 +137,9 @@ by J. Picione, 2026-11-09), so the bond-changing region gets the time and a long
 tail passes quickly. Timing by summed atomic displacement is kept as a selectable alternative
 (`video_timing` in `reaction.toml`); the interactive viewer keeps every frame. Start and stop are eased; orbital surfaces cross-fade between
 neighbouring IRC frames. The energy inset and labels are composited in Python (Pillow,
-matplotlib) and encoded with H.264 (ffmpeg, CRF 18).
+matplotlib) and encoded with H.264 (ffmpeg, CRF 18). Rendered frames carry a SHA-256 fingerprint
+of everything that decides their look (orbital meshes, geometries, timeline, render settings and
+the render script; not the energy curves, which are drawn by the compositor). The renderer
+deletes all earlier frames when the fingerprint changes, and the compositor refuses frames whose
+fingerprint does not match (added 2026-11-10 after a Diels–Alder render reused frames made before
+the orbitals were localized; SN2 and E2 were checked and were not affected).
