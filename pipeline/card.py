@@ -106,6 +106,8 @@ def _ts_geometry(rx: Reaction, ts: dict) -> str:
     parts = [f"{b['label']} {ts['bonds_A'][b['label']]:.2f} Å ({roles[b['role']]})" for b in rx.key_bonds()]
     for name, atoms in rx.cfg.get("ts_dihedrals", {}).items():
         parts.append(f"{name} {_dihedral(rx, atoms):.1f}°")
+    for name, val in ts.get("angles_deg", {}).items():
+        parts.append(f"{name} {val:.1f}°")
     return ", ".join(parts)
 
 

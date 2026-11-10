@@ -257,7 +257,7 @@ def _accept_ts(rx: Reaction, g: Geometry, out: dict) -> dict:
         elif min(r) / max(r) < cfg.get("synchronous_min_rate_ratio", 0.8):
             cls = f"asynchronous mode: stretch-rate ratio {min(r) / max(r):.2f}"
     for label, (lo, hi) in rx.cfg.get("ts_required", {}).items():
-        val = out["bonds_A"].get(label, out["dihedrals_deg"].get(label))
+        val = out["bonds_A"].get(label, out["dihedrals_deg"].get(label, out.get("angles_deg", {}).get(label)))
         x = abs(val) if label in out["dihedrals_deg"] else val
         if not lo <= x <= hi:
             reasons.append(f"{label} {x:.2f} outside the required {lo}–{hi}")
@@ -265,7 +265,7 @@ def _accept_ts(rx: Reaction, g: Geometry, out: dict) -> dict:
         cls = "unexpected mode"
     warnings = []
     for label, (lo, hi) in rx.cfg.get("ts_expected", {}).items():
-        val = out["bonds_A"].get(label, out["dihedrals_deg"].get(label))
+        val = out["bonds_A"].get(label, out["dihedrals_deg"].get(label, out.get("angles_deg", {}).get(label)))
         if val is None:
             continue
         x = abs(val) if label in out["dihedrals_deg"] else val
@@ -321,9 +321,11 @@ def ts(rx: Reaction) -> None:
     d_nu, d_lg = rx.bonds(gts)
     bonds = {b["label"]: gts.distance(*b["atoms"]) for b in rx.key_bonds(gts.symbols)}
     dihedrals = {name: dihedral(gts, atoms) for name, atoms in rx.cfg.get("ts_dihedrals", {}).items()}
+    # optional `[ts_angles]`: label = [a, b, c], angle a–b–c in degrees (e.g. Bürgi–Dunitz Nu···C=O)
+    angles = {name: gts.angle(*atoms) for name, atoms in rx.cfg.get("ts_angles", {}).items()}
     out = {"E_eh": r.energy_eh, "G_eh": r.gibbs_eh, "imaginary_cm": r.imaginary,
            "n_imaginary": len(r.imaginary), "mode_check": mode,
-           "bonds_A": bonds, "dihedrals_deg": dihedrals,
+           "bonds_A": bonds, "dihedrals_deg": dihedrals, "angles_deg": angles,
            "d_nu_center_A": d_nu, "d_center_lg_A": d_lg,
            "angle_nu_center_lg_deg": gts.angle(rx.key("nucleophile"), rx.key("center"),
                                                rx.key("leaving_group"))}
