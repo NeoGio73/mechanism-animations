@@ -899,8 +899,12 @@ def plot_profile(rx: Reaction, s, rel, its, e_prod_kj, path: Path, level=None, f
     n = {r: sum(1 for role, _ in rx.species() if role == r) for r in ("reactants", "products")}
     prods = [sp["name"].replace("_", " ") for role, sp in rx.species() if role == "products"]
     plab = f"{prods[0]} (optimized)" if n["products"] == 1 else "separated products"
-    ax.text(s[0] if left else x1, e_prod_kj + 2, f"{plab}  {neg(e_prod_kj, '.0f')} kJ/mol",
-            fontsize=8, color="#555", va="bottom", ha="left" if left else "right")
+    if left or abs(rel[-1] - e_prod_kj) > 15:
+        ax.text(s[0] if left else x1, e_prod_kj + 2, f"{plab}  {neg(e_prod_kj, '.0f')} kJ/mol",
+                fontsize=8, color="#555", va="bottom", ha="left" if left else "right")
+    else:   # the curve meets the line at both ends: put the label under the TS, below the line
+        ax.text(s[its], e_prod_kj - 2, f"{plab}  {neg(e_prod_kj, '.0f')} kJ/mol",
+                fontsize=8, color="#555", va="top", ha="center")
     # a side with one molecule ends at a conformer of it, not a complex of two
     ends = {0: "reactant\ncomplex" if n["reactants"] > 1 else "IRC end",
             len(s) - 1: "product\ncomplex" if n["products"] > 1 else "IRC end"}

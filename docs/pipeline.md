@@ -46,10 +46,11 @@ paper by J. Picione") until he has checked the value.
 | `[key_atoms]` | 0-based indices in the TS guess: `nucleophile`, `center`, `leaving_group` (also set the camera: nucleophile/base left, leaving group right) |
 | `[[key_bonds]]` | optional: every bond that changes, `atoms`, `role` (`forms`, `breaks`, `shortens` for C–C → C=C, `lengthens` for C=C → C–C), `label`; without it, nucleophile–center forms and center–leaving group breaks |
 | `[ts_dihedrals]` | optional: dihedrals to report at the TS (label = four atom indices) |
+| `[ts_angles]` | optional: angles to report at the TS (label = three atom indices, middle atom at the vertex; cyanide + acetone: the Bürgi–Dunitz angle C(N)···C=O); reported, never constrained |
 | `[ts_mode]` | optional: `dominant_atom` must move most in the imaginary mode; `reject_atom` moving along `reject_axis` marks the TS as the SN2 competitor and rejects it; `synchronous` (labels of bonds that must form together) rejects the TS unless their lengths agree within `synchronous_max_spread_A` (0.05 Å) and their stretch rates in the mode within `synchronous_min_rate_ratio` (0.8) |
-| `[ts_expected]` | optional: expected ranges per bond (Å) or dihedral (°); outside gives a warning |
+| `[ts_expected]` | optional: expected ranges per bond (Å), dihedral or angle (°); outside gives a warning |
 | `[ts_required]` | optional: same form, but outside the range rejects the TS (Diels–Alder: both forming bonds 2.15–2.35 Å) |
-| `[[reactants]]`, `[[products]]` | `name` + `smiles` of each separated species; optional `start_xyz` (file in `00_inputs`) fixes the starting conformer |
+| `[[reactants]]`, `[[products]]` | `name` + `smiles` of each separated species; optional `start_xyz` (file in `00_inputs`) fixes the starting conformer. A species that optimizes onto a saddle point (e.g. an eclipsed methyl) is displaced 0.1 Å along the imaginary mode and re-optimized once with the same keywords (`<name>_min`) |
 | `[[references]]` | optional: species optimized and reported but not part of the barrier (Diels–Alder: s-trans butadiene, the ground-state conformer) |
 | `[[diagnostic_levels]]` | optional extra single points reported next to the protocol numbers |
 
