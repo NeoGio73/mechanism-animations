@@ -108,6 +108,15 @@ atoms changes between the ends are the ones shown by default: for SN2, an O lone
 the first frame, so that its larger lobe is the + phase. Canonical HOMO and LUMO are tracked
 for sign only (their identity is fixed by energy order).
 
+Abrupt switch of the localization (Diels–Alder, tested 2026-11-10): the three shown orbitals
+have their lowest frame-to-frame overlap at IRC step 59→60, one to two steps after the TS
+(0.827–0.838). IBO single points at ¼ and ½ of that step (Cartesian interpolation between the two
+frames, same input as the frames; `03_orbitals/step_test_59_60/`) show that the localized
+orbitals switch abruptly within the first quarter of the step: overlap 0.79 from frame 59 to the ¼
+point, then 0.996–0.997 on to frame 60. More IRC frames would therefore not spread the change, and
+none were added. SN2 and E2 show no such switch: every frame-to-frame overlap of their shown
+orbitals is at least 0.99 (lowest 0.993 and 0.990).
+
 Display rotation of bent bonds (decided by J. Picione, 2026-11-10; first use: Diels–Alder): where
 IBO localization gives an isolated double bond as two bent bonds (for ethylene at the Diels–Alder
 reactant end, two non-equivalent ones, s-character 0.18 and 0.24), the pair is rotated within itself,

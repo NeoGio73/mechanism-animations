@@ -43,17 +43,48 @@ def _overlap_text(rx: Reaction, tr: dict, man: dict, changing: list[dict], min_o
             ids = [t["id"] for t in changing]
             nb = [per_frame[j]["overlap_with_previous"][i] for j in (k - 1, k + 1) for i in ids]
             txt += f"; the neighbouring steps are {min(nb):.2f}–{max(nb):.2f}"
-    others = []
+    others, other_min = [], []
     for d in sorted(rx.root.parent.iterdir()):
         if d == rx.root or not (d / "card.md").exists() or not (d / "03_orbitals/tracking.json").exists():
             continue
         o = _shown(_read_json(d / "03_orbitals/tracking.json"))
         if o:
             title = tomllib.loads((d / "00_inputs/reaction.toml").read_text(encoding="utf-8"))["title"]
-            others.append(f"{title.split(',')[0]} {min(t['min_overlap'] for t in o):.3f}")
+            m = min(t['min_overlap'] for t in o)
+            others.append(f"{title.split(',')[0]} {m:.3f}")
+            other_min.append((title.split(',')[0], m))
     if others:
         txt += "; for comparison, lowest overlap of the shown orbitals in " + ", ".join(others)
+    txt += _step_test_text(rx, other_min)
     return txt
+
+
+def _step_test_text(rx: Reaction, other_min: list[tuple[str, float]]) -> str:
+    """Intermediate IBO single points inside a low-overlap step (03_orbitals/step_test_A_B/)."""
+    out = ""
+    for p in sorted((rx.root / "03_orbitals").glob("step_test_*_*/result.json")):
+        a, b = (int(x) for x in p.parent.name.split("_")[-2:])
+        pts = sorted(_read_json(p)["points"].values(), key=lambda q: q["fraction_of_step"])
+        first = pts[0]
+        to_pt = first[f"frame{a}_to_point"].values()
+        lo1, hi1 = min(to_pt), max(to_pt)
+        on = first[f"point_to_frame{b}"].values()
+        lo2, hi2 = min(on), max(on)
+        rng = lambda lo, hi, n: f"{lo:.{n}f}" + (f"–{hi:.{n}f}" if round(hi, n) != round(lo, n) else "")
+        part = {0.25: "¼", 0.5: "½"}
+        frac = {0.25: "first quarter", 0.5: "first half"}.get(first["fraction_of_step"],
+                                                              f"first {first['fraction_of_step']:g}")
+        names = " and ".join(part.get(q["fraction_of_step"], f"{q['fraction_of_step']:g}") for q in pts)
+        pt = part.get(first["fraction_of_step"], f"{first['fraction_of_step']:g}")
+        out += (f"; tested with intermediate IBO single points at {names} of step {a}→{b} "
+                f"(Cartesian interpolation, `03_orbitals/{p.parent.name}/`): the localized orbitals "
+                f"switch abruptly within its {frac}, overlap {rng(lo1, hi1, 2)} from frame {a} to the "
+                f"{pt} point, then {rng(lo2, hi2, 3)} on to frame {b}, so more IRC frames would not "
+                f"spread the change")
+        if other_min and all(m >= 0.99 for _, m in other_min):
+            out += (f"; {' and '.join(n for n, _ in other_min)} show no such switch: every "
+                    f"frame-to-frame overlap of their shown orbitals is at least 0.99")
+    return out
 
 
 def card(rx: Reaction) -> None:
