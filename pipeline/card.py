@@ -180,7 +180,19 @@ def _auto_limitations(rx, tz, svp, ts, diag, tr) -> list[str]:
               (rx.root / "02_irc/energies.csv").read_text(encoding="utf-8").splitlines()[1:]]
     for end, e_path in (("reactant", path_E[0]), ("product", path_E[-1])):
         e_opt = svp[f"{end}_complex"]
-        if abs(e_opt - e_path) >= 4.0:      # ~1 kcal/mol: a different minimum, not just loose IRC convergence
+        side = [s["name"] for role, s in rx.species() if role == f"{end}s"]
+        if abs(e_opt - e_path) >= 4.0 and len(side) == 1:
+            # one molecule on this side: the path ends at a higher-energy conformer of it
+            mol = side[0].replace("_", " ")
+            num = lambda x: f"{x:.1f}".replace("-", "−")
+            out.append(f"The last frame of the path on the {end} side (the IRC end shown in the viewer "
+                       f"and video, {num(e_path)} kJ/mol) is a higher-energy conformer of {mol}: the "
+                       f"IRC follows the steepest-descent path from the TS and stops where the "
+                       f"gradient along it vanishes. The optimized {mol} used for the energies "
+                       f"({num(e_opt)} kJ/mol) is {fmt_kj(abs(e_opt - e_path))} "
+                       f"{'lower' if e_opt < e_path else 'higher'} (working level, relative to "
+                       f"separated reactants).")
+        elif abs(e_opt - e_path) >= 4.0:    # ~1 kcal/mol: a different minimum, not just loose IRC convergence
             out.append(f"The optimized {end} complex used for the energies ({e_opt:.1f} kJ/mol) is a "
                        f"different local minimum on a flat surface from the {'first' if end == 'reactant' else 'last'} "
                        f"frame of the path ({e_path:.1f} kJ/mol, the IRC end shown in the viewer and "

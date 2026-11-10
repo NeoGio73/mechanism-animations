@@ -146,9 +146,24 @@ def fragments(rx: Reaction) -> None:
                      note=f"{role[:-1]} {s['smiles']}")
         if not r.ok or r.opt_converged is False:
             raise orca.OrcaError(f"{s['name']} failed; see {r.out}")
+        name = s["name"]
+        if r.imaginary:
+            # Converged onto a saddle point (e.g. an eclipsed methyl): push the structure along
+            # the imaginary mode (largest atom moves 0.1 Å) and re-optimize once, same keywords.
+            h = orca.read_hess(wd / f"{name}.hess")
+            v = h["modes"][:, int(np.argmin(h["freqs"]))].reshape(-1, 3)
+            gp = read_xyz(wd / f"{name}.xyz")
+            gp = Geometry(gp.symbols, gp.coords + 0.1 * v / np.linalg.norm(v, axis=1).max())
+            prev, name = name, f"{s['name']}_min"
+            r = orca.run(wd, name, rx.inp(job, gp, q, m, nprocs=1), rx.log,
+                         note=f"rerun: {prev} converged to a saddle point (imaginary "
+                              f"{[round(f, 1) for f in r.imaginary]} cm-1); displaced 0.1 Å along "
+                              "that mode, same keywords")
+            if not r.ok or r.opt_converged is False:
+                raise orca.OrcaError(f"{name} failed; see {r.out}")
         res[s["name"]] = {"role": role, "smiles": s["smiles"], "charge": q,
                           "E_eh": r.energy_eh, "G_eh": r.gibbs_eh,
-                          "imaginary_cm": r.imaginary}
+                          "imaginary_cm": r.imaginary, "job": name}
         if r.imaginary:
             print(f"WARNING {s['name']} has imaginary frequencies {r.imaginary}")
     _write_json(rx.d("01_ts") / "fragments.json", res)
@@ -601,9 +616,11 @@ def _stationary_points(rx: Reaction) -> dict:
     ep = _read_json(rx.root / "02_irc/endpoints.json")
     for label in ("reactant_complex", "product_complex"):
         pts[label] = (rx.root / ep[label]["xyz"], rx.cfg["charge"], rx.cfg["mult"])
+    fj = rx.root / "01_ts/fragments.json"
+    jobs = {n: v.get("job", n) for n, v in _read_json(fj).items()} if fj.exists() else {}
     for role, s in rx.species():
         p = rx.root / f"01_ts/fragments/{s['name']}"
-        xyz = p / f"{s['name']}.xyz"
+        xyz = p / f"{jobs.get(s['name'], s['name'])}.xyz"
         pts[s["name"]] = (xyz if xyz.exists() else p / "start.xyz",
                           formal_charge(s["smiles"]), s.get("mult", 1))
     return pts
@@ -875,15 +892,23 @@ def plot_profile(rx: Reaction, s, rel, its, e_prod_kj, path: Path, level=None, f
     ax.axhline(e_prod_kj, color="#888", lw=1, ls=":")
     x1 = s[-1]
     ax.text(x1, 2, "separated reactants  0 kJ/mol", fontsize=8, color="#555", va="bottom", ha="right")
-    # label at the right unless the curve runs along the line there (then at the left end)
-    right = abs(rel[-1] - e_prod_kj) > 15
-    ax.text(x1 if right else s[0], e_prod_kj + 2, f"separated products  {e_prod_kj:.0f} kJ/mol",
-            fontsize=8, color="#555", va="bottom", ha="right" if right else "left")
-    for k, lab in ((0, "reactant\ncomplex"), (its, "TS"), (len(s) - 1, "product\ncomplex")):
-        ax.annotate(f"{lab}\n{rel[k]:.1f} kJ/mol\n({rel[k] / 4.184:.1f} kcal/mol)",
+    # products label at the left end, away from the product-end label, unless the curve runs
+    # along the line there (then at the right end)
+    left = abs(rel[0] - e_prod_kj) > 15
+    neg = lambda x, f: f"{x:{f}}".replace("-", "−")
+    n = {r: sum(1 for role, _ in rx.species() if role == r) for r in ("reactants", "products")}
+    prods = [sp["name"].replace("_", " ") for role, sp in rx.species() if role == "products"]
+    plab = f"{prods[0]} (optimized)" if n["products"] == 1 else "separated products"
+    ax.text(s[0] if left else x1, e_prod_kj + 2, f"{plab}  {neg(e_prod_kj, '.0f')} kJ/mol",
+            fontsize=8, color="#555", va="bottom", ha="left" if left else "right")
+    # a side with one molecule ends at a conformer of it, not a complex of two
+    ends = {0: "reactant\ncomplex" if n["reactants"] > 1 else "IRC end",
+            len(s) - 1: "product\ncomplex" if n["products"] > 1 else "IRC end"}
+    for k, lab in ((0, ends[0]), (its, "TS"), (len(s) - 1, ends[len(s) - 1])):
+        ax.annotate(f"{lab}\n{neg(rel[k], '.1f')} kJ/mol\n({neg(rel[k] / 4.184, '.1f')} kcal/mol)",
                     (s[k], rel[k]), textcoords="offset points",
                     xytext=(16, -6) if k == its else (0, -38),
-                    ha="left" if k == its else "center", fontsize=8)
+                    ha="left" if k in (0, its) else "right", fontsize=8)
     ax.set_xlabel("reaction coordinate s (bohr·amu$^{1/2}$)")
     ax.set_ylabel("electronic energy (kJ/mol)")
     sec = ax.secondary_yaxis("right", functions=(lambda x: x / 4.184, lambda x: x * 4.184))

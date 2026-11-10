@@ -41,7 +41,8 @@ STD_1M_KJ = lambda T: R_KJ * T * math.log(0.0820573661 * T)   # 1 atm → 1 M, p
 def _hess_path(rx: Reaction, name: str):
     if name == "ts":
         return rx.root / "01_ts/ts/ts.hess"
-    return rx.root / f"01_ts/fragments/{name}/{name}.hess"
+    job = _read_json(rx.root / "01_ts/fragments.json").get(name, {}).get("job", name)
+    return rx.root / f"01_ts/fragments/{name}/{job}.hess"
 
 
 def thermal_H_kj(rx: Reaction, name: str, T: float) -> float:
