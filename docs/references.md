@@ -43,7 +43,7 @@ the card until J. Picione supplies one. The measured rate depends on pH, because
 
 | Source | Used for | Status |
 |---|---|---|
-| J. P. Guthrie, "Prediction of rate constants for cyanohydrin formation using equilibrium constants and distortion energies", *J. Am. Chem. Soc.* **1998**, *120*, 1688–1694. doi:[10.1021/ja970506q](https://doi.org/10.1021/ja970506q) | Lead: rate and equilibrium constants for cyanohydrin formation. | Lead, to be confirmed by J. Picione |
+| J. P. Guthrie, "Prediction of rate constants for cyanohydrin formation using equilibrium constants and distortion energies", *J. Am. Chem. Soc.* **1998**, *120*, 1688–1694. doi:[10.1021/ja970506q](https://doi.org/10.1021/ja970506q) | Lead for both the rate constant and the equilibrium constant of cyanohydrin formation from acetone (the equilibrium constant bears on the computed free energy of the alkoxide step). No value from it is on the card. | Lead, to be confirmed by J. Picione |
 | W. J. Svirbely and J. F. Roth, "Carbonyl reactions. I. The kinetics of cyanohydrin formation in aqueous solution", *J. Am. Chem. Soc.* **1953**, *75*, 3106–3111. doi:[10.1021/ja01109a020](https://doi.org/10.1021/ja01109a020) | Lead: measured kinetics in aqueous solution. | Lead, to be confirmed by J. Picione |
 
 ### Secondary source consulted (not cited on the cards)

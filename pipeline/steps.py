@@ -670,23 +670,32 @@ def diagnostics(rx: Reaction) -> None:
         dE_sep = kj(E["ts"] - r0)
         dE_rc = kj(E["ts"] - E["reactant_complex"])
         dE_rxn = kj(sum(E[n] for n in prod) - r0)
-        dG_sep = None
+        dG_sep = dG_rxn = None
         if all(n in gcorr for n in reac):
             dG_sep = dE_sep + kj(gcorr["ts"] - sum(gcorr[n] for n in reac)) \
                 - STD_STATE_KJ * (len(reac) - 1)
+            if all(n in gcorr for n in prod):
+                dG_rxn = dE_rxn + kj(sum(gcorr[n] for n in prod) - sum(gcorr[n] for n in reac)) \
+                    - STD_STATE_KJ * (len(reac) - len(prod))
+        # complex → TS is unimolecular: no standard-state term
+        dG_rc = dE_rc + kj(gcorr["ts"] - gcorr["reactant_complex"])
         rows.append({"level": lv["label"], "dE_TS_vs_separated_kJ": dE_sep,
                      "dE_TS_vs_complex_kJ": dE_rc, "dE_reaction_kJ": dE_rxn,
-                     "dG_TS_vs_separated_1M_kJ": dG_sep})
+                     "dG_TS_vs_separated_1M_kJ": dG_sep, "dG_TS_vs_complex_kJ": dG_rc,
+                     "dG_reaction_1M_kJ": dG_rxn})
     _write_json(rx.root / "01_ts" / "diagnostics.json",
                 {"units": "kJ/mol", "rows": rows,
                  "energies_eh": {lv["label"]: lv["E"] for lv in levels[2:]}})
     md = [f"| Level (SMD {rx.cfg['solvent']}, {rx.basis()} geometries) | TS − separated reactants, ΔE | "
-          "TS − reactant complex, ΔE | Reaction energy, ΔE | ΔG‡ (298 K, 1 M) |",
-          "|---|---|---|---|---|"]
+          "TS − reactant complex, ΔE | Reaction energy, ΔE | ΔG‡ from separated reactants (298 K, 1 M) | "
+          "ΔG‡ from reactant complex (298 K) | Reaction free energy ΔG (298 K, 1 M) |",
+          "|---|---|---|---|---|---|---|"]
+    f = lambda x: fmt_kj(x) if x is not None else "—"
     for r in rows:
-        g = fmt_kj(r["dG_TS_vs_separated_1M_kJ"]) if r["dG_TS_vs_separated_1M_kJ"] is not None else "—"
         md.append(f"| {r['level']} | {fmt_kj(r['dE_TS_vs_separated_kJ'])} | "
-                  f"{fmt_kj(r['dE_TS_vs_complex_kJ'])} | {fmt_kj(r['dE_reaction_kJ'])} | {g} |")
+                  f"{fmt_kj(r['dE_TS_vs_complex_kJ'])} | {fmt_kj(r['dE_reaction_kJ'])} | "
+                  f"{f(r['dG_TS_vs_separated_1M_kJ'])} | {f(r['dG_TS_vs_complex_kJ'])} | "
+                  f"{f(r['dG_reaction_1M_kJ'])} |")
     (rx.root / "01_ts" / "diagnostics.md").write_text("\n".join(md) + "\n", encoding="utf-8")
     print("\n".join(md))
 

@@ -149,16 +149,28 @@ def card(rx: Reaction) -> None:
         "",
     ]
     if diag:
-        lines += ["## Barrier at other levels (same geometries)", "",
-                  "| Level | TS − separated reactants, ΔE | TS − reactant complex, ΔE | Reaction energy, ΔE | ΔG‡ (298 K, 1 M) |",
-                  "|---|---|---|---|---|"]
+        f = lambda x: fmt_kj(x) if x is not None else "—"
+        full = "dG_TS_vs_complex_kJ" in diag["rows"][0]    # older diagnostics.json: one ΔG column
+        lines += ["## Barrier at other levels (same geometries)", ""]
+        if full:
+            lines += ["| Level | TS − separated reactants, ΔE | TS − reactant complex, ΔE | Reaction energy, ΔE "
+                      "| ΔG‡ from separated reactants (298 K, 1 M) | ΔG‡ from reactant complex (298 K) "
+                      "| Reaction free energy ΔG (298 K, 1 M) |",
+                      "|---|---|---|---|---|---|---|"]
+        else:
+            lines += ["| Level | TS − separated reactants, ΔE | TS − reactant complex, ΔE | Reaction energy, ΔE | ΔG‡ (298 K, 1 M) |",
+                      "|---|---|---|---|---|"]
         for row in diag["rows"]:
-            g = row["dG_TS_vs_separated_1M_kJ"]
-            lines.append(f"| {row['level'].replace('_', '/')} | {fmt_kj(row['dE_TS_vs_separated_kJ'])} | "
-                         f"{fmt_kj(row['dE_TS_vs_complex_kJ'])} | {fmt_kj(row['dE_reaction_kJ'])} | "
-                         f"{fmt_kj(g) if g is not None else '—'} |")
-        lines += ["", "ΔG‡ adds the working-level thermal corrections (298.15 K) and the 1 atm → 1 M "
-                  "standard-state correction to each level's electronic barrier.", ""]
+            cells = [row["level"].replace("_", "/"), fmt_kj(row["dE_TS_vs_separated_kJ"]),
+                     fmt_kj(row["dE_TS_vs_complex_kJ"]), fmt_kj(row["dE_reaction_kJ"]),
+                     f(row["dG_TS_vs_separated_1M_kJ"])]
+            if full:
+                cells += [f(row["dG_TS_vs_complex_kJ"]), f(row["dG_reaction_1M_kJ"])]
+            lines.append("| " + " | ".join(cells) + " |")
+        lines += ["", "ΔG adds the working-level thermal corrections (298.15 K) and the 1 atm → 1 M "
+                  "standard-state correction to each level's electronic energies"
+                  + ("; the reactant complex → TS step is unimolecular and needs no standard-state "
+                     "correction" if full else "") + ".", ""]
     gp_path = r / "01_ts/gas_phase.json"
     if gp_path.exists():
         lines += _gas_phase_section(rx, _read_json(gp_path))

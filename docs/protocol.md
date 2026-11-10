@@ -26,6 +26,10 @@ curve peaks one frame from the working-level TS (that same point, 0.6 kJ/mol (0.
 frame) because the single points sit on a path optimized at another level, while the
 DLPNO-CCSD(T)/ma-def2-TZVP maximum falls on the TS frame.
 
+### Implicit solvent and anionic products (noted by J. Picione, 2026-11-10)
+
+SMD represents water as a continuum, with no explicit water molecules. It therefore misses the specific hydrogen bonds that water donates to a localized anion, and it under-stabilizes an alkoxide product. A computed step that forms an alkoxide (cyanide + acetone) is therefore likely too endergonic. The error comes from the solvent model, not the electronic-structure level: for cyanide + acetone the alkoxide lies +34.4 kJ/mol (+8.2 kcal/mol) above separated reactants in free energy at the working level and +36.3 kJ/mol (+8.7 kcal/mol) at DLPNO-CCSD(T)/ma-def2-TZVP (298 K, 1 M). No explicit water molecules are added; the card states the limitation.
+
 ### IRC stopping rule (decided by J. Picione, 2026-11-09)
 
 Each IRC direction is ended when the energy has changed by less than **0.05 kJ/mol
