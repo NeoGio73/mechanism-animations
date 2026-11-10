@@ -61,8 +61,10 @@ class Reaction:
         return self.level(sp).split("/")[1]
 
     def species(self):
-        for role in ("reactants", "products"):
-            for s in self.cfg[role]:
+        """Reactants, products and optional `[[references]]` (optimized and reported, never part
+        of the barrier, e.g. the s-trans ground-state conformer of a diene that reacts s-cis)."""
+        for role in ("reactants", "products", "references"):
+            for s in self.cfg.get(role, []):
                 yield role, s
 
     def key(self, name: str) -> int:
@@ -76,8 +78,9 @@ class Reaction:
     def key_bonds(self, symbols: list[str] | None = None) -> list[dict]:
         """Bonds that change along the reaction: [{atoms: [a, b], role, label}].
 
-        role: "forms" (long → bonded), "breaks" (bonded → long), or "shortens" (stays bonded,
-        bond order rises, e.g. C–C → C=C in an elimination; never drawn dashed).
+        role: "forms" (long → bonded), "breaks" (bonded → long), "shortens" (stays bonded,
+        bond order rises, e.g. C–C → C=C in an elimination; never drawn dashed) or "lengthens"
+        (stays bonded, bond order falls, e.g. C=C → C–C in a cycloaddition; never drawn dashed).
         From `[[key_bonds]]` in reaction.toml; without it, nucleophile–center forms and
         center–leaving_group breaks (SN2)."""
         if "key_bonds" in self.cfg:
@@ -134,7 +137,8 @@ def fragments(rx: Reaction) -> None:
     res = {}
     for role, s in rx.species():
         wd = rx.d(f"01_ts/fragments/{s['name']}")
-        g = from_smiles(s["smiles"])
+        # optional fixed starting geometry (e.g. a chosen conformer), else built from SMILES
+        g = read_xyz(rx.root / "00_inputs" / s["start_xyz"]) if "start_xyz" in s else from_smiles(s["smiles"])
         g.write(wd / "start.xyz")
         q, m = formal_charge(s["smiles"]), s.get("mult", 1)
         job = "Opt Freq" if len(g.symbols) > 1 else ""
@@ -204,8 +208,12 @@ def _accept_ts(rx: Reaction, g: Geometry, out: dict) -> dict:
       dominant_atom = i        the atom that must move most (e.g. the transferring H in E2)
       reject_axis = [a, b]     with reject_atom = c: reject when c moves mainly along a···b
                                (the SN2 motion of the central carbon), classified as SN2
+      synchronous = [labels]   key bonds that must form together: lengths within
+                               synchronous_max_spread_A (0.05 Å) and stretch rates in the mode
+                               within synchronous_min_rate_ratio (0.8); else "asynchronous"
     Optional `[ts_expected]`: label = [low, high] for bonds (Å) and dihedrals (°, compared
-    as |angle|); outside the range gives a warning, not a rejection."""
+    as |angle|); outside the range gives a warning, not a rejection. `[ts_required]`: same
+    form, but outside the range rejects the TS."""
     m = out["mode_check"]
     cfg = rx.cfg.get("ts_mode", {})
     reasons, cls = [], "expected TS"
@@ -215,7 +223,7 @@ def _accept_ts(rx: Reaction, g: Geometry, out: dict) -> dict:
     forms = [x["stretch_rate"] for x in rates.values() if x["role"] == "forms"]
     ref = np.sign(forms[0]) if forms else 0
     for x in rates.values():
-        want = {"forms": ref, "shortens": ref, "breaks": -ref}[x["role"]]
+        want = {"forms": ref, "shortens": ref, "breaks": -ref, "lengthens": -ref}[x["role"]]
         if ref and np.sign(x["stretch_rate"]) != want:
             reasons.append(f"{x['bond']} moves the wrong way in the mode ({x['role']})")
     if "dominant_atom" in cfg:
@@ -237,6 +245,22 @@ def _accept_ts(rx: Reaction, g: Geometry, out: dict) -> dict:
             if along > 0.7 and share[c] >= share[cfg["dominant_atom"]]:
                 cls = (f"SN2-like: {g.symbols[c]}{c} moves along the "
                        f"{g.symbols[a]}{a}···{g.symbols[b]}{b} axis")
+    if "synchronous" in cfg:
+        # bonds that must form together: equal lengths and equal stretch rates in the mode
+        sb = cfg["synchronous"]
+        d = [out["bonds_A"][lab] for lab in sb]
+        r = [abs(rates[lab]["stretch_rate"]) for lab in sb]
+        m["synchronous_length_spread_A"] = float(max(d) - min(d))
+        m["synchronous_rate_ratio"] = float(min(r) / max(r))
+        if max(d) - min(d) > cfg.get("synchronous_max_spread_A", 0.05):
+            cls = f"asynchronous: {', '.join(f'{lab} {x:.2f} Å' for lab, x in zip(sb, d))}"
+        elif min(r) / max(r) < cfg.get("synchronous_min_rate_ratio", 0.8):
+            cls = f"asynchronous mode: stretch-rate ratio {min(r) / max(r):.2f}"
+    for label, (lo, hi) in rx.cfg.get("ts_required", {}).items():
+        val = out["bonds_A"].get(label, out["dihedrals_deg"].get(label))
+        x = abs(val) if label in out["dihedrals_deg"] else val
+        if not lo <= x <= hi:
+            reasons.append(f"{label} {x:.2f} outside the required {lo}–{hi}")
     if reasons and cls == "expected TS":
         cls = "unexpected mode"
     warnings = []
@@ -634,7 +658,9 @@ def diagnostics(rx: Reaction) -> None:
         rows.append({"level": lv["label"], "dE_TS_vs_separated_kJ": dE_sep,
                      "dE_TS_vs_complex_kJ": dE_rc, "dE_reaction_kJ": dE_rxn,
                      "dG_TS_vs_separated_1M_kJ": dG_sep})
-    _write_json(rx.root / "01_ts" / "diagnostics.json", {"units": "kJ/mol", "rows": rows})
+    _write_json(rx.root / "01_ts" / "diagnostics.json",
+                {"units": "kJ/mol", "rows": rows,
+                 "energies_eh": {lv["label"]: lv["E"] for lv in levels[2:]}})
     md = [f"| Level (SMD {rx.cfg['solvent']}, {rx.basis()} geometries) | TS − separated reactants, ΔE | "
           "TS − reactant complex, ΔE | Reaction energy, ΔE | ΔG‡ (298 K, 1 M) |",
           "|---|---|---|---|---|"]

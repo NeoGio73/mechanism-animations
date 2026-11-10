@@ -44,11 +44,13 @@ paper by J. Picione") until he has checked the value.
 | `ts_preopt` | optional: relax the guess with every changing bond frozen before the TS search |
 | `view_axis`, `view_axis_label` | optional: the "down the axis" camera looks along this bond instead (E2: Newman view along Cβ–Cα) |
 | `[key_atoms]` | 0-based indices in the TS guess: `nucleophile`, `center`, `leaving_group` (also set the camera: nucleophile/base left, leaving group right) |
-| `[[key_bonds]]` | optional: every bond that changes, `atoms`, `role` (`forms`, `breaks`, `shortens`), `label`; without it, nucleophile–center forms and center–leaving group breaks |
+| `[[key_bonds]]` | optional: every bond that changes, `atoms`, `role` (`forms`, `breaks`, `shortens` for C–C → C=C, `lengthens` for C=C → C–C), `label`; without it, nucleophile–center forms and center–leaving group breaks |
 | `[ts_dihedrals]` | optional: dihedrals to report at the TS (label = four atom indices) |
-| `[ts_mode]` | optional: `dominant_atom` must move most in the imaginary mode; `reject_atom` moving along `reject_axis` marks the TS as the SN2 competitor and rejects it |
+| `[ts_mode]` | optional: `dominant_atom` must move most in the imaginary mode; `reject_atom` moving along `reject_axis` marks the TS as the SN2 competitor and rejects it; `synchronous` (labels of bonds that must form together) rejects the TS unless their lengths agree within `synchronous_max_spread_A` (0.05 Å) and their stretch rates in the mode within `synchronous_min_rate_ratio` (0.8) |
 | `[ts_expected]` | optional: expected ranges per bond (Å) or dihedral (°); outside gives a warning |
-| `[[reactants]]`, `[[products]]` | `name` + `smiles` of each separated species |
+| `[ts_required]` | optional: same form, but outside the range rejects the TS (Diels–Alder: both forming bonds 2.15–2.35 Å) |
+| `[[reactants]]`, `[[products]]` | `name` + `smiles` of each separated species; optional `start_xyz` (file in `00_inputs`) fixes the starting conformer |
+| `[[references]]` | optional: species optimized and reported but not part of the barrier (Diels–Alder: s-trans butadiene, the ground-state conformer) |
 | `[[diagnostic_levels]]` | optional extra single points reported next to the protocol numbers |
 
 `key_atoms` drive the sanity checks (is the imaginary mode the right motion, which IRC end

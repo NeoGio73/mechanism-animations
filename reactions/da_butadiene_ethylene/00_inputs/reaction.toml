@@ -1,0 +1,145 @@
+# Diels–Alder: s-cis-1,3-butadiene + ethylene → cyclohexene, concerted, in toluene
+id = "da_butadiene_ethylene"
+title = "Diels–Alder, butadiene + ethylene"
+equation = "CH₂=CH–CH=CH₂ + CH₂=CH₂ → cyclohexene"
+charge = 0
+mult = 1
+solvent = "toluene"  # SMD solvent name (ORCA)
+
+# Standard protocol (docs/protocol.md, decided by J. Picione 2026-11-09)
+method = "B3LYP D3BJ ma-def2-SVP def2/J RIJCOSX TightSCF"
+sp_method = "B3LYP D3BJ ma-def2-TZVP def2/J RIJCOSX TightSCF"
+
+nprocs = 4
+maxcore_mb = 3000
+
+# Synchronous TS guess from make_ts_guess.py (C1–C6 = C4–C5 = 2.27 Å, mirror plane), relaxed with
+# every changing bond frozen before OptTS.
+ts_guess = "ts_guess.xyz"
+ts_preopt = true
+
+isovalue = 0.08
+irc_scale_displ_sd = 0.05
+
+path_levels = ["M06-2X_ma-def2-TZVP", "DLPNO-CCSD(T)_ma-def2-TZVP"]
+default_curve = "DLPNO-CCSD(T)_ma-def2-TZVP"
+# Same coupled-cluster sampling rule as E2 (J. Picione, 2026-11-09): every frame within 6 steps
+# of the TS, every 2nd out to 40 steps, every 4th beyond, both ends; cubic spline between.
+path_sp_sampling = [6, 40]
+
+# Atoms (0-based in ts_guess.xyz): C1 0, C2 1, C3 2, C4 3 (diene), C5 4, C6 5 (ethylene).
+# key_atoms only set the camera here (key_bonds below define the chemistry): diene termini
+# C1 left, C4 right.
+[key_atoms]
+nucleophile = 0
+center = 5
+leaving_group = 3
+
+[[key_bonds]]
+atoms = [0, 5]
+role = "forms"
+label = "C1–C6"
+
+[[key_bonds]]
+atoms = [3, 4]
+role = "forms"
+label = "C4–C5"
+
+[[key_bonds]]
+atoms = [1, 2]
+role = "shortens"
+label = "C2–C3"
+
+[[key_bonds]]
+atoms = [0, 1]
+role = "lengthens"
+label = "C1–C2"
+
+[[key_bonds]]
+atoms = [2, 3]
+role = "lengthens"
+label = "C3–C4"
+
+[[key_bonds]]
+atoms = [4, 5]
+role = "lengthens"
+label = "C5–C6"
+
+[ts_dihedrals]
+"C1=C2–C3=C4 dihedral" = [0, 1, 2, 3]
+
+# Accept only a synchronous TS (J. Picione, 2026-11-09): the two forming bonds equal within
+# 0.05 Å and stretching at the same rate in the imaginary mode (ratio ≥ 0.8), both ends moving
+# together; and both forming distances near 2.2–2.3 Å (hard limits 2.15–2.35 Å).
+[ts_mode]
+synchronous = ["C1–C6", "C4–C5"]
+synchronous_max_spread_A = 0.05
+synchronous_min_rate_ratio = 0.8
+
+[ts_required]
+"C1–C6" = [2.15, 2.35]
+"C4–C5" = [2.15, 2.35]
+
+[ts_expected]
+"C2–C3" = [1.37, 1.42]
+"C1=C2–C3=C4 dihedral" = [0, 20]
+
+# Orbitals to show: the diene's two π bonds and ethylene's π bond becoming the two new σ bonds
+# and the new π bond (curved-arrow assignment; checked against the tracking when the orbital
+# steps run).
+[[expected_orbital_changes]]
+label = "π(C1=C2) → π(C2=C3)"
+start = [0, 1]
+end = [1, 2]
+
+[[expected_orbital_changes]]
+label = "π(C3=C4) → σ(C4–C5)"
+start = [2, 3]
+end = [3, 4]
+
+[[expected_orbital_changes]]
+label = "π(C5=C6) → σ(C1–C6)"
+start = [4, 5]
+end = [0, 5]
+
+# Comparison with Rowley and Steiner (J. Picione, 2026-11-09): stationary points recomputed
+# without the solvent model at every level (gas against gas); Ea = ΔH‡(T) + 2RT from s-trans
+# butadiene + ethylene at the mean temperature of the measurements. 800 K is provisional until
+# the range is taken from the paper. Step `gas_phase`, run with the barrier single points.
+[gas_phase]
+species = ["ts", "butadiene_s-cis", "butadiene_s-trans", "ethylene", "cyclohexene"]
+reference = ["butadiene_s-trans", "ethylene"]
+T_exp_K = 800
+T_exp_provisional = true
+experimental_Ea_kJ = 115
+experimental_source = "Rowley and Steiner 1951"
+
+[[diagnostic_levels]]
+label = "M06-2X_ma-def2-TZVP"
+why = "meta-GGA hybrid known to do better on barriers"
+method = "M062X D3ZERO ma-def2-TZVP def2/J RIJCOSX TightSCF"
+
+[[diagnostic_levels]]
+label = "DLPNO-CCSD(T)_ma-def2-TZVP"
+why = "coupled-cluster reference"
+method = "DLPNO-CCSD(T) TightPNO ma-def2-TZVP AutoAux RIJCOSX TightSCF"
+
+[[reactants]]
+name = "butadiene_s-cis"
+smiles = "C=CC=C"
+start_xyz = "butadiene_s-cis_start.xyz"
+
+[[reactants]]
+name = "ethylene"
+smiles = "C=C"
+
+[[products]]
+name = "cyclohexene"
+smiles = "C1CCC=CC1"
+
+# Not part of the barrier: the s-trans conformer is butadiene's ground state, so the measured
+# activation energy (Rowley and Steiner) refers to it.
+[[references]]
+name = "butadiene_s-trans"
+smiles = "C=CC=C"
+start_xyz = "butadiene_s-trans_start.xyz"

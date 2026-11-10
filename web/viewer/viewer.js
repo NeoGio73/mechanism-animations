@@ -109,9 +109,9 @@ function buildMolecule() {
   });
   // The forming and breaking bonds are judged against their own equilibrium lengths, taken from
   // the path ends (forming bond: product end; breaking bond: reactant end).
-  // A bond that only shortens (C–C → C=C) stays an ordinary bond.
+  // A bond that only shortens or lengthens (C–C ↔ C=C) stays an ordinary bond.
   const dist = (f, a, b) => Math.hypot(...[0, 1, 2].map((k) => M.frames[f].xyz[a][k] - M.frames[f].xyz[b][k]));
-  const eq = new Map(keyBonds().filter((b) => b.role !== 'shortens').map((b) =>
+  const eq = new Map(keyBonds().filter((b) => (b.role === 'forms' || b.role === 'breaks')).map((b) =>
     [pairKey(...b.atoms), dist(b.role === 'forms' ? N - 1 : 0, ...b.atoms)]));
   for (let i = 0; i < M.symbols.length; i++) {
     for (let j = i + 1; j < M.symbols.length; j++) {
@@ -445,7 +445,7 @@ function setCamera(mode) {
   if (side.lengthSq() < 1e-3) side = new THREE.Vector3(1, 0, 0).cross(axis);
   side.normalize();
   // Several changing bonds (not all on one line): look straight at the plane they lie in.
-  const kat = [...new Set(keyBonds().filter((b) => b.role !== 'shortens').flatMap((b) => b.atoms))];
+  const kat = [...new Set(keyBonds().filter((b) => (b.role === 'forms' || b.role === 'breaks')).flatMap((b) => b.atoms))];
   if (kat.length >= 4) {
     const n = planeNormal(kat.map((a) => v(ts[a])));
     if (n) {

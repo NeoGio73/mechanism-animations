@@ -101,7 +101,8 @@ def _ts_geometry(rx: Reaction, ts: dict) -> str:
     if "key_bonds" not in rx.cfg:                    # SN2-type: two bonds and the Nu–C–LG angle
         return (f"{_bond(rx, 'nucleophile')} {ts['d_nu_center_A']:.2f} Å, {_bond(rx, 'leaving_group')} "
                 f"{ts['d_center_lg_A']:.2f} Å, angle {ts['angle_nu_center_lg_deg']:.1f}°")
-    roles = {"forms": "forming", "breaks": "breaking", "shortens": "becoming double"}
+    roles = {"forms": "forming", "breaks": "breaking", "shortens": "becoming double",
+             "lengthens": "becoming single"}
     parts = [f"{b['label']} {ts['bonds_A'][b['label']]:.2f} Å ({roles[b['role']]})" for b in rx.key_bonds()]
     for name, atoms in rx.cfg.get("ts_dihedrals", {}).items():
         parts.append(f"{name} {_dihedral(rx, atoms):.1f}°")
