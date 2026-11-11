@@ -962,9 +962,18 @@ def profile_levels(rx: Reaction) -> None:
         ax.plot(s, E, "-", color=c, lw=2.2, label=lab)
         if done:
             ax.plot(s[done], E[done], "o", color=c, ms=3)
-        k = int(np.argmax(E))
-        ax.annotate(f"{E[k]:.1f} kJ/mol ({E[k] / 4.184:.1f} kcal/mol)", (s[k], E[k]),
-                    textcoords="offset points", xytext=(8, 4), fontsize=7.5, color=c)
+    # Peak labels, highest first, nudged down so labels for close peaks do not overprint.
+    peaks = sorted(((float(np.max(E)), float(s[int(np.argmax(E))]), c) for _, E, c, _ in curves), reverse=True)
+    y0, y1 = ax.get_ylim()
+    pts_per_kj = fig.get_size_inches()[1] * 72 * 0.8 / (y1 - y0)
+    last = None
+    for e, x, c in peaks:
+        y = e * pts_per_kj + 4
+        if last is not None and y > last - 10:
+            y = last - 10
+        last = y
+        ax.annotate(f"{e:.1f} kJ/mol ({e / 4.184:.1f} kcal/mol)", (x, e), textcoords="offset points",
+                    xytext=(8, y - e * pts_per_kj), fontsize=7.5, color=c)
     ax.axhline(0, color="#888", lw=1, ls="--")
     ax.text(s[-1], 2, "separated reactants", fontsize=8, color="#555", ha="right", va="bottom")
     ax.set_xlabel("reaction coordinate s (bohr·amu$^{1/2}$), working-level IRC path")

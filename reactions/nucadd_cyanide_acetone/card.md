@@ -47,7 +47,7 @@
 - `02_irc/irc_full_trj.xyz`: IRC frames, reactant → product
 - `02_irc/energy_profile.png`: energy profile
 - `03_orbitals/tracking_log.md`: orbital matching along the path
-- `05_render/nucadd_cyanide_acetone.mp4`: rendered video, energy inset at the working level (`nucadd_cyanide_acetone_<level>.mp4`: same video with the other energy curves)
+- `05_render/nucadd_cyanide_acetone.mp4`: rendered video, energy inset at DLPNO-CCSD(T)/ma-def2-TZVP (`nucadd_cyanide_acetone_<level>.mp4`: same video with the other energy curves)
 - `web/viewer/index.html?r=nucadd_cyanide_acetone`: interactive viewer
 - `run_log.md`: every ORCA job, wall time, and reruns
 
