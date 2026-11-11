@@ -11,7 +11,8 @@ Symmetry: the cation minimum is C1 (σ = 1) and chiral; the TS is C2 within 0.00
 detected C2 at an early geometry, C1 at the final one). Its C2 axis swaps C2 and C3 and reverses
 the reaction coordinate, so it is not counted in σ‡ (σ‡ = 1; equivalently σ‡ = 2 with a path
 degeneracy of 2). Each mirror-image minimum crosses its own mirror-image TS, so the factor 2 for
-the two enantiomeric conformers appears in reactant and TS and cancels.
+the two enantiomeric conformers appears in reactant and TS and cancels. Source for the treatment:
+Fernández-Ramos et al., Theor. Chem. Acc. 2007, 118, 813 (doi:10.1007/s00214-007-0328-0).
 
 Rate: Eyring k = κ (k_B T/h) exp(−ΔG‡/RT), first order (no standard-state term). κ = 1, and the
 Wigner factor 1 + (hν‡/k_B T)²/24 as a rough indicator only (outside its reliable range here).
