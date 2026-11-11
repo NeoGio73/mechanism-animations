@@ -5,7 +5,7 @@ is closest to half the barrier height above the first frame (J. Picione, 2026-11
 frame — rendered in Blender (pipeline/render_figure_blender.py) with the
 tracked orbitals that change (the localized orbitals in the manifest), dashed forming/breaking
 bonds and labels on the key atoms. Optional second row (reaction.toml-independent, set in
-EXTRA below): E2, the same four frames in the Newman view along Cβ–Cα; Diels–Alder, IRC frames
+EXTRA below): E2, the first three frames in the Newman view along Cβ–Cα; Diels–Alder, IRC frames
 59 and 60 on either side of the abrupt localization change. Below: the energy curve at the
 default level (manifest `default_curve`) with every panel marked.
 
@@ -38,8 +38,10 @@ LABELS = {
 }
 # second row: (kind, frames or None for the row-1 frames, title)
 EXTRA = {
-    "e2_ethoxide_2_bromopropane": ("newman", None, "Newman view along Cβ–Cα"),
-    "da_butadiene_ethylene": ("side", [59, 60], "either side of the abrupt orbital change"),
+    # (view, row-1 panel indices or IRC frame numbers, panel titles or None, row heading)
+    "e2_ethoxide_2_bromopropane": ("newman", {"row1": [0, 1, 2]}, None, "Newman view along Cβ–Cα (Cβ in front)"),
+    "da_butadiene_ethylene": ("side", {"irc": [59, 60]}, ["before the orbital change", "after the orbital change"],
+                              "IRC frames 59 and 60, either side of the abrupt orbital change"),
 }
 
 
@@ -73,15 +75,15 @@ def _panels(rx, M):
     rows = [row1]
     ex = EXTRA.get(rx.cfg["id"])
     if ex:
-        view, frames, title = ex
-        if frames is None:
-            rows.append([{"name": f"q{i}", "frame": p["frame"], "view": view, "title": p["title"]}
-                         for i, p in enumerate(row1)])
+        view, sel, titles, heading = ex
+        if "row1" in sel:
+            rows.append([{"name": f"q{i}", "frame": row1[j]["frame"], "view": view, "title": row1[j]["title"]}
+                         for i, j in enumerate(sel["row1"])])
         else:
-            idx = [[f["irc_frame"] for f in M["frames"]].index(fr) for fr in frames]
-            rows.append([{"name": f"q{i}", "frame": k, "view": view, "title": f"IRC frame {_irc_no(M, k)}"}
+            idx = [[f["irc_frame"] for f in M["frames"]].index(fr) for fr in sel["irc"]]
+            rows.append([{"name": f"q{i}", "frame": k, "view": view, "title": titles[i]}
                          for i, k in enumerate(idx)])
-        rows[1][0]["row_title"] = title
+        rows[1][0]["row_title"] = heading
     letters = iter("abcdefghij")
     for row in rows:
         for p in row:
@@ -135,17 +137,19 @@ def compose(rx, M, rows, proj) -> Path:
             lo, hi = min(lo, used.min()), max(hi, used.max())
         crops.append((max(0, lo - 24), min(PANEL_PX[1], hi + 24)))
     phs = [pw * (b - a) / PANEL_PX[0] for a, b in crops]
-    title_h, legend_h, curve_h, gap = 0.30, 0.42, 2.05, 0.10
-    H_in = sum(phs) + len(rows) * title_h + legend_h + curve_h + gap
+    title_h, head_h, legend_h, curve_h, gap = 0.30, 0.20, 0.42, 2.05, 0.10
+    n_head = sum(1 for row in rows if row[0].get("row_title"))
+    H_in = sum(phs) + len(rows) * title_h + n_head * head_h + legend_h + curve_h + gap
     fig = plt.figure(figsize=(W_in, H_in), dpi=300)
     y = H_in
     for r, row in enumerate(rows):
         ph = phs[r]
         top, bot = crops[r]
-        y -= title_h
         if row[0].get("row_title"):
-            fig.text(0.008, (y + title_h - 0.06) / H_in, row[0]["row_title"], ha="left", va="top",
-                     fontsize=MIN_PT, style="italic", color="#3b4654")
+            y -= head_h
+            fig.text(0.03 / W_in, (y + head_h - 0.04) / H_in, row[0]["row_title"], ha="left", va="top",
+                     fontsize=MIN_PT, style="italic", fontweight="bold", color="#3b4654")
+        y -= title_h
         start = (4 - len(row)) / 2 if len(row) < 4 else 0
         for c, p in enumerate(row):
             x0 = (start + c) * pw
@@ -166,6 +170,8 @@ def compose(rx, M, rows, proj) -> Path:
                         solid_capstyle="butt", zorder=3,
                         path_effects=[pe.Stroke(linewidth=2.3, foreground="white"), pe.Normal()])
             for i, lab in labels.items():
+                if pr["view"] == "newman" and i == M["view_axis"][1]:
+                    continue                 # directly behind the front atom
                 px, py, _ = pr["atoms_px"][i]
                 ax.annotate(lab, (px, py), xytext=(3.2, 3.2), textcoords="offset points", fontsize=MIN_PT,
                             fontweight="bold", color="#1d2733", ha="left", va="bottom",
@@ -233,9 +239,9 @@ def compose(rx, M, rows, proj) -> Path:
     lvl = curve["label"].replace(" single points on the same path", "")
     ax.set_title(f"Electronic energy relative to separated reactants: {lvl} single points on the "
                  f"{M['level'].split(',')[0]} path", fontsize=MIN_PT, loc="left", color="#3b4654")
-    ax.text(s[-1], 0, "separated reactants ", ha="right", va="bottom", fontsize=MIN_PT, color="#5b6878")
+    _line_label(fig, ax, s, E, 0.0, "separated reactants", prefer="right")
     if ep is not None:
-        ax.text(s[0], ep, " separated products", ha="left", va="bottom", fontsize=MIN_PT, color="#5b6878")
+        _line_label(fig, ax, s, E, ep, "separated products", prefer="left")
 
     fig.canvas.draw()
     small = [(x.get_text(), x.get_fontsize()) for x in fig.findobj(matplotlib.text.Text)
@@ -250,6 +256,31 @@ def compose(rx, M, rows, proj) -> Path:
     # black-and-white check copy (luminance only), next to the panel renders
     Image.open(f"{out}.png").convert("L").save(odir / "composite_greyscale_check.png")
     return out
+
+
+def _line_label(fig, ax, s, E, y, text, prefer="right"):
+    """Label a horizontal reference line where its text box does not touch the curve (densely
+    interpolated) or a marker label: first at the preferred end, then stepping along the line,
+    above it before below it."""
+    xs = np.linspace(s[0], s[-1], 2000)
+    pts = ax.transData.transform(np.c_[xs, np.interp(xs, s, E)])
+    fig.canvas.draw()
+    rend = fig.canvas.get_renderer()
+    others = [x.get_window_extent(rend) for x in ax.texts]
+    span = s[-1] - s[0]
+    fr = np.linspace(0, 1, 41)
+    xs_try = [(s[-1] - f * span, "right") for f in fr] if prefer == "right" else [(s[0] + f * span, "left") for f in fr]
+    for va in ("bottom", "top"):
+        for x, ha in xs_try:
+            t = ax.text(x, y, f" {text} ", ha=ha, va=va, fontsize=MIN_PT, color="#5b6878")
+            bb = t.get_window_extent(rend).expanded(1.02, 1.15)
+            inside = bb.x0 >= ax.bbox.x0 - 1 and bb.x1 <= ax.bbox.x1 + 1
+            hit = ((pts[:, 0] >= bb.x0) & (pts[:, 0] <= bb.x1) & (pts[:, 1] >= bb.y0) & (pts[:, 1] <= bb.y1)).any()
+            if inside and not hit and not any(bb.overlaps(o) for o in others):
+                return t
+            t.remove()
+    return ax.text(s[-1] if prefer == "right" else s[0], y, f" {text} ", ha=prefer, va="bottom",
+                   fontsize=MIN_PT, color="#5b6878")
 
 
 def caption(rx, M, rows, out: Path) -> None:
@@ -280,8 +311,10 @@ def caption(rx, M, rows, out: Path) -> None:
              "working-level TS."))
     rid = rx.cfg["id"]
     if rid == "e2_ethoxide_2_bromopropane":
-        L.append("Panels (e)–(h): the same frames as (a)–(d), viewed along the Cβ–Cα bond (Newman view, "
-                 "Cβ in front), with the transferring β-H pointing up; the anti-periplanar Br points down.")
+        L.append("Panels (e)–(g): the same frames as (a)–(c), viewed along the Cβ–Cα bond (Newman view, "
+                 "Cβ in front, Cα directly behind it), with the transferring β-H pointing up; the "
+                 "anti-periplanar Br points down. The last frame is not repeated in this view: the bromide "
+                 "has left and lies outside the Newman framing (atoms within 4 Å of the Cβ–Cα axis).")
         for x in M.get("irc_frames_not_shown") or []:
             L.append(f"IRC frame {x['frame']} ({x['steps_from_TS']} step from the TS, {x['dE_above_TS_kJ']:.1f} "
                      "kJ/mol above it at the working level) is not shown in the animation and is not used here; "
