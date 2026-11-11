@@ -25,7 +25,7 @@
 | B3LYP-D3(BJ)/ma-def2-TZVP (protocol) | 37.2 kJ/mol (8.9 kcal/mol) | 44.7 kJ/mol (10.7 kcal/mol) | -3.6 kJ/mol (-0.9 kcal/mol) | 77.5 kJ/mol (18.5 kcal/mol) | 57.1 kJ/mol (13.7 kcal/mol) | 45.2 kJ/mol (10.8 kcal/mol) |
 | M06-2X/ma-def2-TZVP | 31.7 kJ/mol (7.6 kcal/mol) | 42.5 kJ/mol (10.2 kcal/mol) | -16.2 kJ/mol (-3.9 kcal/mol) | 72.0 kJ/mol (17.2 kcal/mol) | 55.0 kJ/mol (13.1 kcal/mol) | 32.6 kJ/mol (7.8 kcal/mol) |
 | DLPNO-CCSD(T)/ma-def2-TZVP | 39.2 kJ/mol (9.4 kcal/mol) | 48.1 kJ/mol (11.5 kcal/mol) | -12.5 kJ/mol (-3.0 kcal/mol) | 79.5 kJ/mol (19.0 kcal/mol) | 60.5 kJ/mol (14.5 kcal/mol) | 36.3 kJ/mol (8.7 kcal/mol) |
-| **Experiment (water, 25 °C; Guthrie 1998)** | — | — | — | 69.6 kJ/mol (16.6 kcal/mol) | — | 10.5 kJ/mol (2.5 kcal/mol) |
+| **Experiment (water, 25 °C; Schlesinger and Miller 1973)** | — | — | — | 69.6 kJ/mol (16.6 kcal/mol) | — | 10.5 kJ/mol (2.5 kcal/mol) |
 
 ΔG adds the working-level thermal corrections (298.15 K) and the 1 atm → 1 M standard-state correction to each level's electronic energies; the reactant complex → TS step is unimolecular and needs no standard-state correction.
 
@@ -38,7 +38,19 @@
 | M06-2X/ma-def2-TZVP | +2.4 kJ/mol (+0.6 kcal/mol) | +22.1 kJ/mol (+5.3 kcal/mol) |
 | DLPNO-CCSD(T)/ma-def2-TZVP | +9.9 kJ/mol (+2.4 kcal/mol) | +25.8 kJ/mol (+6.2 kcal/mol) |
 
-Experiment (water, 25 °C): cyanide addition to acetone, alkoxide formation. Equilibrium K = [R₂C(O⁻)CN]/([R₂C=O][CN⁻]), log K = −1.84, K = 0.0145 M⁻¹, ΔG° = +10.5 kJ/mol (+2.5 kcal/mol); rate = k[CN⁻][R₂C=O], log k = 0.60, k = 4.0 M⁻¹ s⁻¹, ΔG‡ = 69.6 kJ/mol (16.6 kcal/mol) (Eyring, 298.15 K, 1 M standard state, no transmission correction). Both values are in the table above, next to the computed ones. Source: Guthrie 1998 (J. P. Guthrie, J. Am. Chem. Soc. 1998, 120, 1688–1694, doi:10.1021/ja970506q, Table 1), a compilation; Guthrie cites the measurements to Schlesinger and Miller 1973 (J. Am. Chem. Soc. 1973, 95, 3729–3735, doi:10.1021/ja00792a043), which has not yet been read. Values confirmed by J. Picione from Guthrie's Table 1 (2026-11-11).
+### Reverse barrier: product → TS (ΔG‡, 298 K)
+
+| Level | ΔG‡(reverse) = ΔG‡ − ΔG | Computed − measured |
+|---|---|---|
+| B3LYP-D3(BJ)/ma-def2-SVP (working) | 36.8 kJ/mol (8.8 kcal/mol) | -22.3 kJ/mol (-5.3 kcal/mol) |
+| B3LYP-D3(BJ)/ma-def2-TZVP (protocol) | 32.3 kJ/mol (7.7 kcal/mol) | -26.8 kJ/mol (-6.4 kcal/mol) |
+| M06-2X/ma-def2-TZVP | 39.4 kJ/mol (9.4 kcal/mol) | -19.7 kJ/mol (-4.7 kcal/mol) |
+| DLPNO-CCSD(T)/ma-def2-TZVP | 43.2 kJ/mol (10.3 kcal/mol) | -15.9 kJ/mol (-3.8 kcal/mol) |
+| **Experiment (water, 25 °C; Schlesinger and Miller 1973, from k₋₂)** | 59.1 kJ/mol (14.1 kcal/mol) | — |
+
+The reverse step is first order, so it needs no standard-state correction; its error equals the barrier error minus the reaction-free-energy error.
+
+Experiment (water, 25 °C): cyanide addition to acetone, alkoxide formation. Equilibrium K = [R₂C(O⁻)CN]/([R₂C=O][CN⁻]), log K = −1.84, K = 0.0145 M⁻¹, ΔG° = +10.5 kJ/mol (+2.5 kcal/mol); rate = k[CN⁻][R₂C=O], log k = 0.60, k = 4.0 M⁻¹ s⁻¹, ΔG‡ = 69.6 kJ/mol (16.6 kcal/mol) (Eyring, 298.15 K, 1 M standard state, no transmission correction). All three measured values are in the tables above, next to the computed ones. Source: Schlesinger and Miller 1973 (G. Schlesinger and S. L. Miller, J. Am. Chem. Soc. 1973, 95, 3729–3735, doi:10.1021/ja00792a043), Table IV, acetone row: k₂ = 3.97 M⁻¹ s⁻¹ (CN⁻ + acetone → alkoxide), K₂ = 68.5 M (alkoxide → acetone + CN⁻; 1/K₂ = 0.0146 M⁻¹), k₋₂ = 272 s⁻¹ (alkoxide → acetone + CN⁻), giving ΔG‡ = 69.6 kJ/mol (16.6 kcal/mol), ΔG° = +10.5 kJ/mol (+2.5 kcal/mol) and ΔG‡(reverse) = 59.1 kJ/mol (14.1 kcal/mol). The same values, as log k = 0.60 and log K = −1.84, are compiled in Guthrie 1998 (J. P. Guthrie, J. Am. Chem. Soc. 1998, 120, 1688–1694, doi:10.1021/ja970506q, Table 1). Values confirmed by J. Picione from Guthrie's Table 1 and from the original paper (2026-11-11).
 
 ## Known artifacts and limitations
 
@@ -52,6 +64,8 @@ Experiment (water, 25 °C): cyanide addition to acetone, alkoxide formation. Equ
 - The path ends at the alkoxide, (CH₃)₂C(CN)O⁻, which lies above separated cyanide + acetone in free energy (ΔG = +34.4 kJ/mol (+8.2 kcal/mol) at the working level and +36.3 kJ/mol (+8.7 kcal/mol) at DLPNO-CCSD(T)/ma-def2-TZVP, 298 K, 1 M; electronically it is 14.5 kJ/mol (3.5 kcal/mol) and 12.5 kJ/mol (3.0 kcal/mol) below): the addition step on its own is uphill. The neutral cyanohydrin forms only after a later proton transfer (from HCN or water) that this path does not model.
 - Implicit solvent under-stabilizes the alkoxide: SMD has no explicit water molecules, so the hydrogen bonds that water donates to the alkoxide oxygen are missing. Against experiment, DLPNO-CCSD(T)/ma-def2-TZVP puts the barrier 9.9 kJ/mol (2.4 kcal/mol) too high (79.5 against 69.6 kJ/mol) and the reaction free energy 25.8 kJ/mol (6.2 kcal/mol) too high (+36.3 against +10.5 kJ/mol). The barrier error is about 38 % of the product error, and the transition state is about 40 % pyramidalized at the carbonyl carbon (sum of its three bond angles 10.3° below 360°, against 25.3° below in the alkoxide). This is consistent with hydrogen bonds to the developing alkoxide oxygen being missing in proportion to how far the alkoxide has formed, but it is not proven: no explicit water molecules were modelled.
 - The working-level barrier, ΔG‡ = 71.2 kJ/mol (17.0 kcal/mol), is closer to experiment (69.6 kJ/mol) than coupled cluster only through cancellation of errors: with the same functional, the larger ma-def2-TZVP basis raises it to 77.5 kJ/mol (18.5 kcal/mol).
+- The measured equilibrium constant rests on an estimated acidity of the cyanohydrin O–H (K₃ = 6.3 × 10⁻¹³, pKa 12.2, from a substituent-constant correlation, Ballinger and Long 1960, not a direct measurement), so ΔG° = +10.5 kJ/mol carries an uncertainty of a few kJ/mol. The forward rate constant does not depend on it. The reverse rate constant does: k₋₂ = k₂ × K₂ (3.97 × 68.5 = 272 s⁻¹), so the measured reverse barrier (59.1 kJ/mol) carries the same uncertainty.
+- Table IV of Schlesinger and Miller does not state where the acetone rate constant comes from. They cite Svirbely and Roth 1953 as the earlier kinetic study of acetone, so that is its probable origin; this is not confirmed.
 - The measured rate constant refers to free cyanide (rate = k[CN⁻][R₂C=O]); observed rates depend on pH, because only CN⁻, not HCN, adds to the carbonyl.
 
 ## Files

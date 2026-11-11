@@ -188,6 +188,18 @@ def card(rx: Reaction) -> None:
                              f"{sg(a - ea) if a is not None and ea is not None else '—'} | "
                              f"{sg(b - eb) if b is not None and eb is not None else '—'} |")
             lines += [""]
+            er = xr.get("dG_reverse_kJ")        # product → TS, first order, no standard state
+            if er is not None:
+                lines += ["### Reverse barrier: product → TS (ΔG‡, 298 K)", "",
+                          "| Level | ΔG‡(reverse) = ΔG‡ − ΔG | Computed − measured |", "|---|---|---|"]
+                for row in diag["rows"]:
+                    a, b = row["dG_TS_vs_separated_1M_kJ"], row["dG_reaction_1M_kJ"]
+                    if a is None or b is None:
+                        continue
+                    lines.append(f"| {row['level'].replace('_', '/')} | {fmt_kj(a - b)} | {sg(a - b - er)} |")
+                lines += [f"| **{xr.get('reverse_label', xr['label'])}** | {fmt_kj(er)} | — |", "",
+                          "The reverse step is first order, so it needs no standard-state correction; its "
+                          "error equals the barrier error minus the reaction-free-energy error.", ""]
     gp_path = r / "01_ts/gas_phase.json"
     if gp_path.exists():
         lines += _gas_phase_section(rx, _read_json(gp_path))
