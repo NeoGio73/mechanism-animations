@@ -48,14 +48,14 @@ the card until J. Picione supplies one. The measured rate depends on pH, because
 
 ### Carbocation 1,2-hydride shift: 2,3-dimethyl-2-butyl cation (degenerate), low-temperature NMR
 
-Leads found by Claude (2026-11-10) at J. Picione's request, checked against Crossref only; no measured
-value is on the card until J. Picione supplies one. The measurements are in superacid solution, which
-SMD has no parameters for; the calculations use SMD dichloromethane as a polar, non-nucleophilic
-stand-in, with gas phase alongside.
+Leads found by Claude (2026-11-10) at J. Picione's request; the value on the card was read from
+the paper by J. Picione (2026-11-11). The measurements are in superacid solution, which SMD has no
+parameters for; the calculations use SMD dichloromethane as a polar, non-nucleophilic stand-in, with
+gas phase alongside. The comparison is made at 135 K.
 
 | Source | Used for | Status |
 |---|---|---|
-| M. Saunders and M. R. Kates, "Rates of degenerate 1,2-hydride and 1,2-methide shifts from the carbon-13 nuclear magnetic resonance spectra of tertiary alkyl cations", *J. Am. Chem. Soc.* **1978**, *100*, 7082–7083. doi:[10.1021/ja00490a060](https://doi.org/10.1021/ja00490a060) | Lead: barrier to the degenerate 1,2-hydride shift in the 2,3-dimethyl-2-butyl cation from low-temperature ¹³C NMR. | Lead, to be confirmed by J. Picione |
+| M. Saunders and M. R. Kates, "Rates of degenerate 1,2-hydride and 1,2-methide shifts from the carbon-13 nuclear magnetic resonance spectra of tertiary alkyl cations", *J. Am. Chem. Soc.* **1978**, *100*, 7082–7083. doi:[10.1021/ja00490a060](https://doi.org/10.1021/ja00490a060) | Compound I, degenerate 1,2-hydride shift in the 2,3-dimethyl-2-butyl cation: ΔG‡ = 13.0 ± 0.4 kJ/mol (3.1 ± 0.1 kcal/mol) at −138 °C (135 K); k = 3.1 × 10⁷ s⁻¹ (135 K), 4.6 × 10⁷ s⁻¹ (145 K), 1.4 × 10⁸ s⁻¹ (154 K). 50:50 SO₂ClF/SO₂F₂; ¹³C NMR line broadening at 67.9 MHz, fast-exchange limit; temperatures ±2 °C. No Arrhenius fit, so no measured Ea. The authors infer weaker hyperconjugation at the transition state than in the cation. Used for the ΔG‡ and Eyring rate comparison at 135 K. | Confirmed by J. Picione from the original paper, 2026-11-11 |
 | M. Saunders and H. A. Jiménez-Vázquez, "Recent studies of carbocations", *Chem. Rev.* **1991**, *91*, 375–397. doi:[10.1021/cr00003a005](https://doi.org/10.1021/cr00003a005) | Lead: review that collects the hydride-shift barriers; for cross-checking the value, not for citing it. | Lead, to be confirmed by J. Picione |
 
 ### Secondary source consulted (not cited on the cards)
@@ -125,7 +125,8 @@ ORCA's own citation list for the DLPNO jobs also names: F. Neese, F. Wennmohs an
 | K. Fukui, "The path of chemical reactions — the IRC approach", *Acc. Chem. Res.* **1981**, *14*, 363–368. doi:[10.1021/ar00072a001](https://doi.org/10.1021/ar00072a001) | Intrinsic reaction coordinate |
 | D. Bykov, T. Petrenko, R. Izsák, S. Kossmann, U. Becker, E. Valeev and F. Neese, "Efficient implementation of the analytic second derivatives of Hartree–Fock and hybrid DFT energies: a detailed analysis of different approximations", *Mol. Phys.* **2015**, *113*, 1961–1977. doi:[10.1080/00268976.2015.1025114](https://doi.org/10.1080/00268976.2015.1025114) | Analytic Hessians (TS search, frequencies) |
 | S. Grimme, "Supramolecular binding thermodynamics by dispersion-corrected density functional theory", *Chem. Eur. J.* **2012**, *18*, 9955–9964. doi:[10.1002/chem.201200497](https://doi.org/10.1002/chem.201200497) | Quasi-RRHO vibrational entropy (ORCA default, 100 cm⁻¹) |
-| H. Eyring, "The activated complex in chemical reactions", *J. Chem. Phys.* **1935**, *3*, 107–115. doi:[10.1063/1.1749604](https://doi.org/10.1063/1.1749604) | ΔG‡ from measured rate constants and the transition-state-theory rate constant (Diels–Alder card) |
+| H. Eyring, "The activated complex in chemical reactions", *J. Chem. Phys.* **1935**, *3*, 107–115. doi:[10.1063/1.1749604](https://doi.org/10.1063/1.1749604) | ΔG‡ from measured rate constants and the transition-state-theory rate constant (Diels–Alder and hydride-shift cards) |
+| E. Wigner, "Über das Überschreiten von Potentialschwellen bei chemischen Reaktionen", *Z. Phys. Chem.* **1932**, *19B*, 203–216. doi:[10.1515/zpch-1932-1920](https://doi.org/10.1515/zpch-1932-1920) | Wigner tunnelling factor, given as a rough indicator only (hydride-shift card) |
 
 ### Orbitals and tracking
 
