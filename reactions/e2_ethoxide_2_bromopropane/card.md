@@ -26,7 +26,7 @@
 | M06-2X/ma-def2-TZVP | 61.6 kJ/mol (14.7 kcal/mol) | 70.9 kJ/mol (16.9 kcal/mol) | -88.8 kJ/mol (-21.2 kcal/mol) | 90.2 kJ/mol (21.6 kcal/mol) |
 | DLPNO-CCSD(T)/ma-def2-TZVP | 78.6 kJ/mol (18.8 kcal/mol) | 86.6 kJ/mol (20.7 kcal/mol) | -82.5 kJ/mol (-19.7 kcal/mol) | 107.2 kJ/mol (25.6 kcal/mol) |
 
-ΔG‡ adds the working-level thermal corrections (298.15 K) and the 1 atm → 1 M standard-state correction to each level's electronic barrier.
+ΔG adds the working-level thermal corrections (298.15 K) and the 1 atm → 1 M standard-state correction to each level's electronic energies.
 
 Experiment: 2-bromopropane + NaOEt in ethanol, 25 °C: overall second-order k ≈ 2.88 × 10⁻⁶ M⁻¹ s⁻¹ (mean of 19 points, 2.76–2.96 × 10⁻⁶ M⁻¹ s⁻¹), 80.3 % propene, the rest SN2 ether. Source: M. L. Dhar, E. D. Hughes and C. K. Ingold, J. Chem. Soc. 1948, 2058–2065, doi:10.1039/JR9480002058 (Mechanism of elimination reactions, Part X; Tables III and VII). See also E. D. Hughes, C. K. Ingold, S. Masterman and B. J. McNulty, J. Chem. Soc. 1940, 899–912, doi:10.1039/JR9400000899 (Part V), and M. L. Dhar, E. D. Hughes, C. K. Ingold, A. M. M. Mandour, G. A. Maw and L. I. Woolf, J. Chem. Soc. 1948, 2093, doi:10.1039/JR9480002093 (Part XVI). Eyring at 298.15 K (1 M standard state): E2 share k(E2) ≈ 2.31 × 10⁻⁶ M⁻¹ s⁻¹ gives ΔG‡(E2) ≈ 105.2 kJ/mol (25.1 kcal/mol); the SN2 share gives ΔG‡(SN2) ≈ 108.7 kJ/mol (26.0 kcal/mol). The two pathways differ by only about 3.5 kJ/mol (0.8 kcal/mol), which is why a secondary bromide with ethoxide gives mostly, not only, alkene.
 

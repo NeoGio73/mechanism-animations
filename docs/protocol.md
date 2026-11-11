@@ -26,6 +26,26 @@ curve peaks one frame from the working-level TS (that same point, 0.6 kJ/mol (0.
 frame) because the single points sit on a path optimized at another level, while the
 DLPNO-CCSD(T)/ma-def2-TZVP maximum falls on the TS frame.
 
+### Barrier from the TS frame and from the curve maximum (decided by J. Picione, 2026-11-11)
+
+The barrier quoted first is the one at the working-level transition state, with its thermal
+correction. Single points at a higher level along the working-level path can peak on another
+frame. Whenever the default-level curve has its highest point on another frame and more than
+1 kJ/mol above the TS frame, the card also gives the barrier from that maximum (the electronic
+difference added to the TS-frame barrier; the thermal correction stays that of the TS frame,
+stated as such, since there are no frequencies at the maximum), the frame number, and both
+differences from experiment. This is the IRCMax practice of D. K. Malick, G. A. Petersson and
+J. A. Montgomery Jr. (J. Chem. Phys. 1998, 108, 5704–5713). The card builder applies the rule
+automatically (pipeline/card.py). At present it applies to SN2 only: the DLPNO-CCSD(T)/ma-def2-TZVP
+maximum is IRC frame 18, 4.1 kJ/mol (1.0 kcal/mol) above the TS frame 17, so ΔG‡ is 95.6 kJ/mol
+(22.9 kcal/mol) from the TS frame and 99.7 kJ/mol (23.8 kcal/mol) from the maximum, +0.6 and
++4.7 kJ/mol from experiment (95.0 kJ/mol); the offset is expected to shrink in the ma-def2-SVP
+rerun. E2, Diels–Alder and cyanide + acetone have their maximum on the TS frame.
+
+A gas-phase measurement is compared with the gas-phase computed value; the solution value is
+given for reference only (Diels–Alder: Ea 119.8 kJ/mol (28.6 kcal/mol) in the gas phase, +4.8 kJ/mol
+from experiment; 118.1 kJ/mol (28.2 kcal/mol) in SMD toluene, for reference).
+
 ### Implicit solvent and anionic products (noted by J. Picione, 2026-11-10)
 
 SMD represents water as a continuum, with no explicit water molecules. It therefore misses the specific hydrogen bonds that water donates to a localized anion, and it under-stabilizes an alkoxide product. A computed step that forms an alkoxide (cyanide + acetone) is therefore likely too endergonic. The error comes from the solvent model, not the electronic-structure level: for cyanide + acetone the alkoxide lies +34.4 kJ/mol (+8.2 kcal/mol) above separated reactants in free energy at the working level and +36.3 kJ/mol (+8.7 kcal/mol) at DLPNO-CCSD(T)/ma-def2-TZVP (298 K, 1 M). No explicit water molecules are added; the card states the limitation.

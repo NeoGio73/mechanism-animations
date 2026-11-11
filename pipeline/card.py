@@ -200,6 +200,10 @@ def card(rx: Reaction) -> None:
                 lines += [f"| **{xr.get('reverse_label', xr['label'])}** | {fmt_kj(er)} | — |", "",
                           "The reverse step is first order, so it needs no standard-state correction; its "
                           "error equals the barrier error minus the reaction-free-energy error.", ""]
+    cm = _curve_max(man, diag, notes)
+    if cm:
+        cm["note"] = notes.get("curve_max_note")
+        lines += _curve_max_section(cm, notes.get("curve_max_note"))
     gp_path = r / "01_ts/gas_phase.json"
     if gp_path.exists():
         lines += _gas_phase_section(rx, _read_json(gp_path))
@@ -213,7 +217,7 @@ def card(rx: Reaction) -> None:
                                                   has_exp=bool(notes.get("experimental")),
                                                   gas=gp_path.exists(),
                                                   exp_dg=(notes.get("experiment_row") or {}).get(
-                                                      "dG_TS_vs_separated_1M_kJ"))]
+                                                      "dG_TS_vs_separated_1M_kJ"), curve_max=cm)]
     lines += [f"- {x}" for x in notes.get("limitations", [])]
     lines += ["", "## Files", "",
               "- `02_irc/energies.csv`: frame, s (bohr·amu^1/2), E (Eh, kJ/mol, kcal/mol), key distances (Å)",
@@ -228,6 +232,61 @@ def card(rx: Reaction) -> None:
               "Content CC-BY 4.0; code MIT. Computed with ORCA 6.1.1.", ""]
     (r / "card.md").write_text("\n".join(lines), encoding="utf-8")
     print("\n".join(lines))
+
+
+CURVE_MAX_MIN_KJ = 1.0      # J. Picione, 2026-11-11
+
+
+def _curve_max(man: dict, diag: dict | None, notes: dict) -> dict | None:
+    """Default-level curve maximum off the working-level TS frame by more than CURVE_MAX_MIN_KJ
+    (decided by J. Picione, 2026-11-11; the practice of Malick, Petersson and Montgomery 1998,
+    IRCMax). Returns the numbers for the card, or None."""
+    key = man.get("default_curve", "working")
+    curve = next((c for c in man.get("curves", []) if c["key"] == key), None)
+    if curve is None or key == "working" or diag is None:
+        return None
+    E = curve["E_kJ"]
+    ts = man["ts_frame"]
+    k = max(range(len(E)), key=lambda i: E[i])
+    d = E[k] - E[ts]
+    if k == ts or d <= CURVE_MAX_MIN_KJ:
+        return None
+    row = next((r for r in diag["rows"] if r["level"] == key), None)
+    if row is None or row.get("dG_TS_vs_separated_1M_kJ") is None:
+        return None
+    irc = lambda i: man["frames"][i].get("irc_frame", i)
+    mb = notes.get("measured_barrier") or {}
+    xr = notes.get("experiment_row") or {}
+    exp = mb.get("dG_kJ", xr.get("dG_TS_vs_separated_1M_kJ"))
+    g_ts = row["dG_TS_vs_separated_1M_kJ"]
+    return {"level": key.replace("_", "/"), "ts_irc": irc(ts), "max_irc": irc(k), "E_ts": E[ts],
+            "E_max": E[k], "dE": d, "s_max": man["frames"][k]["s"], "dG_ts": g_ts, "dG_max": g_ts + d,
+            "exp": exp, "exp_label": mb.get("label", xr.get("label", "Experiment"))}
+
+
+def _curve_max_section(cm: dict, note: str | None) -> list[str]:
+    sg = lambda x: f"{x:+.1f} kJ/mol ({x / 4.184:+.1f} kcal/mol)"
+    dif = lambda g: sg(g - cm["exp"]) if cm["exp"] is not None else "—"
+    out = [f"### Barrier from the highest point of the {cm['level']} curve", "",
+           f"The barrier quoted first is the one at the working-level transition state (IRC frame "
+           f"{cm['ts_irc']}), with its thermal correction. On the {cm['level']} curve the highest point is "
+           f"IRC frame {cm['max_irc']} (s = {cm['s_max']:+.2f} bohr·amu½), {fmt_kj(cm['dE'])} above the TS "
+           f"frame ({fmt_kj(cm['E_max'])} against {fmt_kj(cm['E_ts'])} relative to separated reactants, "
+           "electronic). The barrier from that maximum adds this difference and keeps the thermal "
+           "correction of the TS frame (there are no frequencies at the maximum). Taking the barrier "
+           "from the highest point of high-level single points along a lower-level path is the IRCMax "
+           "practice of Malick, Petersson and Montgomery (J. Chem. Phys. 1998, 108, 5704).", "",
+           f"| ΔG‡ (298 K, 1 M), {cm['level']} | Value | Computed − measured |", "|---|---|---|",
+           f"| From the working-level TS frame (IRC frame {cm['ts_irc']}) | {fmt_kj(cm['dG_ts'])} | "
+           f"{dif(cm['dG_ts'])} |",
+           f"| From the curve maximum (IRC frame {cm['max_irc']}; thermal correction from the TS frame) | "
+           f"{fmt_kj(cm['dG_max'])} | {dif(cm['dG_max'])} |"]
+    if cm["exp"] is not None:
+        out.append(f"| **{cm['exp_label']}** | {fmt_kj(cm['exp'])} | — |")
+    out.append("")
+    if note:
+        out += [note, ""]
+    return out
 
 
 def _display_rotation_text(rx: Reaction) -> str | None:
@@ -311,9 +370,20 @@ def _gas_phase_section(rx, gp: dict) -> list[str]:
         out.append(f"| {row['level'].replace('_', '/')} | {row['phase']} | "
                    f"{fmt_kj(row['dE_from_reactants_kJ'])} | {fmt_kj(row['dE_from_reference_kJ'])} | "
                    f"{fmt_kj(row['dH_298_kJ'])} | {fmt_kj(row['dG_298_kJ'])} ({row['standard_state']}) | "
-                   f"**{fmt_kj(row['Ea_T_kJ'])}** |")
+                   + (f"**{fmt_kj(row['Ea_T_kJ'])}** |" if row["phase"] == "gas phase"
+                      else f"{fmt_kj(row['Ea_T_kJ'])} |"))
     if gp.get("experimental_Ea_kJ"):
-        out += ["", f"Experiment (gas phase): Ea ≈ {fmt_kj(gp['experimental_Ea_kJ'])}."]
+        x = gp["experimental_Ea_kJ"]
+        out += ["", f"Experiment (gas phase): Ea ≈ {fmt_kj(x)}."]
+        g = [r for r in gp["rows"] if r["phase"] == "gas phase"]
+        so = [r for r in gp["rows"] if r["phase"] != "gas phase" and r["level"] == (g[-1]["level"] if g else None)]
+        if g:      # decided by J. Picione, 2026-11-11: gas-phase measurement against gas-phase Ea
+            b = g[-1]
+            out += [f"Comparison with the gas-phase measurement (gas-phase computed Ea, bold above): "
+                    f"{b['level'].replace('_', '/')} gives {fmt_kj(b['Ea_T_kJ'])}, "
+                    f"{b['Ea_T_kJ'] - x:+.1f} kJ/mol ({(b['Ea_T_kJ'] - x) / 4.184:+.1f} kcal/mol) from experiment."
+                    + (f" The {so[0]['phase']} value at the same level, {fmt_kj(so[0]['Ea_T_kJ'])}, is given "
+                       "for reference only, not as the comparison." if so else "")]
     st = [r for r in gp["rows"] if r.get("s_trans_to_s_cis_dE_kJ") is not None]
     if st:
         best = st[-1]
@@ -349,8 +419,15 @@ def _gas_phase_section(rx, gp: dict) -> list[str]:
     return out
 
 
+def _two_way(cm: dict) -> str:
+    a, b = cm["dG_ts"] - cm["exp"], cm["dG_max"] - cm["exp"]
+    return (f" Against experiment the {cm['level']} ΔG‡ is {a:+.1f} kJ/mol ({a / 4.184:+.1f} kcal/mol) from the "
+            f"TS frame and {b:+.1f} kJ/mol ({b / 4.184:+.1f} kcal/mol) from the curve maximum (IRC frame "
+            f"{cm['max_irc']}; table above)." + (" " + cm["note"] if cm.get("note") else ""))
+
+
 def _auto_limitations(rx, tz, svp, ts, diag, tr, has_exp: bool = True, gas: bool = False,
-                      exp_dg: float | None = None) -> list[str]:
+                      exp_dg: float | None = None, curve_max: dict | None = None) -> list[str]:
     """Limitations written from the numbers, so they stay true when results change."""
     out = []
     wb, sb = rx.basis(), rx.basis(sp=True)
@@ -373,6 +450,7 @@ def _auto_limitations(rx, tz, svp, ts, diag, tr, has_exp: bool = True, gas: bool
                    f"at the protocol level versus {fmt_kj(best['dG_TS_vs_separated_1M_kJ'])} at "
                    f"{best['level'].replace('_', '/')} ({abs(gap):.0f} kJ/mol {'lower' if gap > 0 else 'higher'})."
                    + (" The comparison with experiment is the gas-phase Ea table above." if gas else
+                      _two_way(curve_max) if curve_max and curve_max.get("exp") is not None and has_exp else
                       " The measured value is in the table above, with the differences below it."
                       if exp_dg is not None and abs(best["dG_TS_vs_separated_1M_kJ"] - exp_dg) > 4 else
                       " The experimental value is given above; the close agreement of the "
