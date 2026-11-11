@@ -1,0 +1,173 @@
+# Full recomputation at the M06-2X working level (J. Picione, 2026-11-11), from da_butadiene_ethylene.
+# Made by pipeline/new_level_folder.py; the source folder stays untouched.
+# Diels–Alder: s-cis-1,3-butadiene + ethylene → cyclohexene, concerted, in toluene
+id = "da_butadiene_ethylene"
+title = "Diels–Alder, butadiene + ethylene"
+equation = "CH₂=CH–CH=CH₂ + CH₂=CH₂ → cyclohexene"
+charge = 0
+mult = 1
+solvent = "toluene"  # SMD solvent name (ORCA)
+
+# Standard protocol (docs/protocol.md, decided by J. Picione 2026-11-09)
+method = "M062X D3ZERO ma-def2-SVP def2/J RIJCOSX TightSCF DefGrid3"
+sp_method = "M062X D3ZERO ma-def2-TZVP def2/J RIJCOSX TightSCF DefGrid3"
+
+nprocs = 4
+maxcore_mb = 3000
+
+# Synchronous TS guess from make_ts_guess.py (C1–C6 = C4–C5 = 2.27 Å, mirror plane), relaxed with
+# every changing bond frozen before OptTS.
+ts_guess = "ts_guess_m062x.xyz"   # M06-2X TS of the sensitivity test
+ts_preopt = false
+
+isovalue = 0.08
+irc_scale_displ_sd = 0.02359   # calibrated before the IRC: region median about 0.10
+irc_adapt_scale_displ = false   # J. Picione, 2026-11-11
+irc_init_step_s = 0.10          # first step, bohr·amu½
+
+path_levels = ["M06-2X_ma-def2-TZVP", "B3LYP_ma-def2-TZVP", "DLPNO-CCSD(T)_ma-def2-TZVP"]
+default_curve = "DLPNO-CCSD(T)_ma-def2-TZVP"
+# Same coupled-cluster sampling rule as E2 (J. Picione, 2026-11-09): every frame within 6 steps
+# of the TS, every 2nd out to 40 steps, every 4th beyond, both ends; cubic spline between.
+
+# Atoms (0-based in ts_guess.xyz): C1 0, C2 1, C3 2, C4 3 (diene), C5 4, C6 5 (ethylene).
+# key_atoms only set the camera here (key_bonds below define the chemistry): diene termini
+# C1 left, C4 right.
+[key_atoms]
+nucleophile = 0
+center = 5
+leaving_group = 3
+
+[[key_bonds]]
+atoms = [0, 5]
+role = "forms"
+label = "C1–C6"
+
+[[key_bonds]]
+atoms = [3, 4]
+role = "forms"
+label = "C4–C5"
+
+[[key_bonds]]
+atoms = [1, 2]
+role = "shortens"
+label = "C2–C3"
+
+[[key_bonds]]
+atoms = [0, 1]
+role = "lengthens"
+label = "C1–C2"
+
+[[key_bonds]]
+atoms = [2, 3]
+role = "lengthens"
+label = "C3–C4"
+
+[[key_bonds]]
+atoms = [4, 5]
+role = "lengthens"
+label = "C5–C6"
+
+[ts_dihedrals]
+"C1=C2–C3=C4 dihedral" = [0, 1, 2, 3]
+
+# Accept only a synchronous TS (J. Picione, 2026-11-09): the two forming bonds equal within
+# 0.05 Å and stretching at the same rate in the imaginary mode (ratio ≥ 0.8), both ends moving
+# together; and both forming distances near 2.2–2.3 Å (hard limits 2.15–2.35 Å).
+[ts_mode]
+synchronous = ["C1–C6", "C4–C5"]
+synchronous_max_spread_A = 0.05
+synchronous_min_rate_ratio = 0.8
+
+[ts_required]
+"C1–C6" = [2.15, 2.35]
+"C4–C5" = [2.15, 2.35]
+
+[ts_expected]
+"C2–C3" = [1.37, 1.42]
+"C1=C2–C3=C4 dihedral" = [0, 20]
+
+# Orbitals to show: the diene's two π bonds and ethylene's π bond becoming the two new σ bonds
+# and the new π bond. Counter-clockwise arrow drawing, the one the IBO tracking settled on
+# (J. Picione, 2026-11-10). The clockwise drawing is its mirror image through the TS mirror
+# plane and describes the same mechanism; the viewer can show it by reflection ([mirror]).
+[[expected_orbital_changes]]
+label = "π(C1=C2) → σ(C1–C6)"
+start = [0, 1]
+end = [0, 5]
+
+[[expected_orbital_changes]]
+label = "π(C5=C6) → σ(C4–C5)"
+start = [4, 5]
+end = [3, 4]
+
+[[expected_orbital_changes]]
+label = "π(C3=C4) → π(C2=C3)"
+start = [2, 3]
+end = [1, 2]
+
+# Mirror plane of the synchronous TS (0-based heavy-atom pairs it swaps: C1↔C4, C2↔C3, C5↔C6;
+# hydrogens are matched automatically). Used only by the viewer's "mirror direction" toggle,
+# which reflects the orbital meshes through this plane at every frame; no new calculation.
+[mirror]
+pairs = [[0, 3], [1, 2], [4, 5]]
+
+# Display only (J. Picione, 2026-11-10): near the reactant end IBO localizes ethylene's C=C as
+# two bent bonds. The shown one is drawn as the σ + π split of the same pair (rotation inside
+# the pair; no energy or density changes) from the reactant end while it is more than
+# max_angle_deg from that split. Unrotated orbitals stay in the data files.
+[display_rotation]
+atoms = [4, 5]
+max_angle_deg = 0.5
+
+# Comparison with Rowley and Steiner (J. Picione, 2026-11-09): stationary points recomputed
+# without the solvent model at every level (gas against gas); Ea = ΔH‡(T) + 2RT from s-trans
+# butadiene + ethylene at the mean temperature of the measurements. 800 K is provisional until
+# the range is taken from the paper. Step `gas_phase`, run with the barrier single points.
+[gas_phase]
+species = ["ts", "butadiene_s-cis", "butadiene_s-trans", "ethylene", "cyclohexene"]
+reference = ["butadiene_s-trans", "ethylene"]
+# Rowley and Steiner 1951 as compiled in the NIST Chemical Kinetics Database (squib
+# 1951ROW/STE198-213), read by J. Picione on 2026-11-10: second order, 760–921 K, Ea = 115 kJ/mol,
+# A = 4.98e-14 cm³ molecule⁻¹ s⁻¹ (3.0e7 L mol⁻¹ s⁻¹), n = 0. 840 K = midpoint of the range.
+T_exp_K = 840
+T_exp_provisional = false
+T_exp_range_K = [760, 921]
+experimental_Ea_kJ = 115
+experimental_A_cm3_molecule_s = 4.98e-14
+experimental_source = "Rowley and Steiner 1951, via the NIST Chemical Kinetics Database"
+
+[[diagnostic_levels]]
+label = "M06-2X_ma-def2-TZVP"
+why = "meta-GGA hybrid known to do better on barriers"
+method = "M062X D3ZERO ma-def2-TZVP def2/J RIJCOSX TightSCF DefGrid3"
+
+[[diagnostic_levels]]
+label = "DLPNO-CCSD(T)_ma-def2-TZVP"
+why = "coupled-cluster reference"
+method = "DLPNO-CCSD(T) TightPNO ma-def2-TZVP AutoAux RIJCOSX TightSCF"
+
+[[reactants]]
+name = "butadiene_s-cis"
+smiles = "C=CC=C"
+start_xyz = "butadiene_s-cis_start.xyz"
+
+[[reactants]]
+name = "ethylene"
+smiles = "C=C"
+
+[[products]]
+name = "cyclohexene"
+smiles = "C1CCC=CC1"
+
+# Not part of the barrier: the s-trans conformer is butadiene's ground state, so the measured
+# activation energy (Rowley and Steiner) refers to it.
+[[references]]
+name = "butadiene_s-trans"
+smiles = "C=CC=C"
+start_xyz = "butadiene_s-trans_start.xyz"
+
+[[diagnostic_levels]]
+label = "B3LYP_ma-def2-TZVP"
+why = "the former working functional, for comparison"
+method = "B3LYP D3BJ ma-def2-TZVP def2/J RIJCOSX TightSCF"

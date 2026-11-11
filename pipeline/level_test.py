@@ -69,10 +69,20 @@ def nimag(stem: Path) -> list[float]:
     return [float(x) for x in f[f < 0]]
 
 
+def _ok(r, what):
+    """J. Picione, 2026-11-11: a crashed or incomplete job is never a result."""
+    if not r.ok:
+        raise orca.OrcaError(f"{what}: job did not finish normally ({r.out})")
+    if r.opt_converged is False:
+        raise orca.OrcaError(f"{what}: optimization did not converge ({r.out})")
+    return r
+
+
 def opt_min(rx, wd: Path, name: str, g, q=None, m=None, solv=True, note=""):
     """Opt Freq; a minimum left with an imaginary mode is displaced 0.1 Å (largest atom) along it
     and re-optimized once with the same keywords (as in the earlier method check)."""
     r = orca.run(wd, name, make(rx, M062X + " Opt Freq", g, q, m, solv), rx.log, note=note)
+    _ok(r, f"{wd.name}/{name}")
     stem = wd / name
     im = nimag(stem)
     if r.ok and im:
@@ -83,12 +93,14 @@ def opt_min(rx, wd: Path, name: str, g, q=None, m=None, solv=True, note=""):
         g2 = Geometry(g1.symbols, np.asarray(g1.coords) + v)
         r = orca.run(wd, name + "_min", make(rx, M062X + " Opt Freq", g2, q, m, solv), rx.log,
                      note=note + f"; displaced 0.1 Å along the {abs(im[0]):.0f}i mode and re-optimized")
+        _ok(r, f"{wd.name}/{name}_min")
         stem = wd / (name + "_min")
     return stem, r
 
 
 def opt_ts(rx, wd: Path, name: str, g, solv=True, note=""):
     r = orca.run(wd, name, make(rx, M062X + " OptTS Freq", g, solv=solv, blocks=TSB), rx.log, note=note)
+    _ok(r, f"{wd.name}/{name}")
     return wd / name, r
 
 
@@ -573,6 +585,132 @@ def sens_report() -> dict:
     return out
 
 
+# ------------------------------------------------------------------ E2 arbitration
+WB97X = "wB97X-D3BJ ma-def2-SVP def2/J RIJCOSX TightSCF DefGrid3"
+RIMP2 = "RI-MP2 ma-def2-SVP AutoAux RIJCOSX TightSCF"
+
+
+def e2_arbitration() -> None:
+    """J. Picione, 2026-11-11, E2 arbitration (report, then stop):
+      a. the 7.4 kJ/mol between the CC barriers on B3LYP and M06-2X geometries, split into the
+         electronic part (CC ΔE‡ on each geometry set) and the thermal part;
+      b. E2 TS at ωB97X-D3(BJ)/ma-def2-SVP and RI-MP2/ma-def2-SVP in SMD ethanol, each from the B3LYP
+         and the M06-2X TS, with frequencies (RI-MP2: numerical), reactants at the same levels; DLPNO-CCSD(T)
+         barrier on each;
+      c. CC single points within about 1 bohr·amu½ of the TS on the B3LYP path (existing) and on a
+         short M06-2X IRC at the 0.10 step; the frame where CC peaks on each.
+    Three chains, 2 cores each (8 physical cores shared with other jobs), maxcore 2000 MB."""
+    import shutil
+    from concurrent.futures import ThreadPoolExecutor
+    from .geometry import formal_charge
+    from .steps import accept_ts_stem
+    rx = Reaction.load(RX / "e2_ethoxide_2_bromopropane")
+    base = rx.d("01_ts/level_test/arbitration")
+    NP, MC = 2, 2000
+    lt = rx.root / "01_ts/level_test/M06-2X"
+    start = {"from_B3LYP": rx.root / "01_ts/ts/ts", "from_M06-2X": lt / "ts/ts"}
+    reac = ["ethoxide", "2-bromopropane"]
+    ch = {s["name"]: (formal_charge(s["smiles"]), s.get("mult", 1)) for _, s in rx.species()}
+
+    def inp(kw, g, q=None, m=None, blocks=""):
+        kw += f" CPCM({rx.cfg['solvent']})"
+        blocks = rx.solvent_block + ("\n" + blocks if blocks else "")
+        return orca.make_input(kw, g, rx.cfg["charge"] if q is None else q, rx.cfg["mult"] if m is None else m,
+                               blocks=blocks, nprocs=NP, maxcore_mb=MC)
+
+    def cc(wd, name, xyz, q=None, m=None):
+        r = _ok(orca.run(wd, name, inp(LEVELS_SP[DLPNO], read_xyz(xyz), q, m), rx.log,
+                         note=f"E2 arbitration: DLPNO-CCSD(T)/ma-def2-TZVP SMD ethanol, {name}"), f"CC {wd.name}/{name}")
+        return r.energy_eh
+
+    def level_chain(tag, kw, freq):
+        out = {"reactants": {}, "ts": {}}
+        for n in reac:
+            wd = base / tag / n
+            _ok(orca.run(wd, n, inp(f"{kw} Opt {freq}", read_xyz(Path(f"{lt / n / n}.xyz")), *ch[n]), rx.log,
+                         note=f"E2 arbitration: {tag} {n}, Opt {freq}, from M06-2X"), f"{tag} {n}")
+            st = wd / n
+            out["reactants"][n] = {"imag_cm": nimag(st), "E_G": eg(st), "E_cc": cc(wd, "cc", Path(f"{st}.xyz"), *ch[n])}
+        for s, src in start.items():
+            wd = base / tag / f"ts_{s}"
+            wd.mkdir(parents=True, exist_ok=True)
+            if freq == "Freq":
+                blk = TSB
+            else:             # no analytic RI-MP2 Hessian with SMD: start from the source level's Hessian
+                shutil.copy(f"{src}.hess", wd / "start.hess")
+                blk = '%geom InHess Read InHessName "start.hess" MaxIter 150 end'
+            _ok(orca.run(wd, "ts", inp(f"{kw} OptTS {freq}", read_xyz(Path(f"{src}.xyz")), blocks=blk), rx.log,
+                         note=f"E2 arbitration: {tag} TS {s.replace('_', ' ')}, OptTS {freq}"), f"{tag} ts {s}")
+            st = wd / "ts"
+            acc = accept_ts_stem(rx, st)
+            g = read_xyz(Path(f"{st}.xyz"))
+            E, G = eg(st)
+            Ecc = cc(wd, "cc", Path(f"{st}.xyz"))
+            R = out["reactants"]
+            dE = kj(Ecc - sum(R[n]["E_cc"] for n in reac))
+            th = kj((G - E) - sum(R[n]["E_G"][1] - R[n]["E_G"][0] for n in reac))
+            out["ts"][s] = {"bonds_A": {b["label"]: g.distance(*b["atoms"]) for b in rx.key_bonds(g.symbols)},
+                            "imag_cm": nimag(st), "accepted": acc["accepted"], "classification": acc["classification"],
+                            "reasons": acc["reasons"], "CC_dE_kJ": dE, "thermal_kJ": th,
+                            "CC_dG298_kJ": dE + th - STD_STATE_KJ * (len(reac) - 1)}
+        return out
+
+    def irc_chain():
+        wd = base / "m062x_irc"
+        wd.mkdir(parents=True, exist_ok=True)
+        src = lt / "ts/ts"
+        shutil.copy(f"{src}.hess", wd / "ts.hess")
+        sc = irc_init_scale(Path(f"{src}.hess"), 0.10)
+        sd = 0.02116 / 0.0897 * 0.10      # SN2 calibration; actual steps reported
+        for d in ("forward", "backward"):
+            blk = (f'%irc\n  MaxIter 14\n  Direction {d}\n  InitHess read\n  Hess_Filename "ts.hess"\n'
+                   f'  Scale_Displ_SD {sd:.5f}\n  Adapt_Scale_Displ false\n  Init_Displ length\n'
+                   f'  Scale_Init_Displ {sc:.5f}\n  PrintLevel 1\nend')
+            r = orca.run(wd, f"irc_{d[0]}", inp(M062X + " IRC", read_xyz(Path(f"{src}.xyz")), blocks=blk), rx.log,
+                         note=f"E2 arbitration: short M06-2X IRC {d}, first step 0.10, Adapt_Scale_Displ false, 14 steps")
+            if not r.ok:          # IRC ends "not converged" after MaxIter by design; require the trajectory
+                if "ORCA TERMINATED NORMALLY" not in Path(r.out).read_text(errors="replace"):
+                    raise orca.OrcaError(f"M06-2X IRC {d} crashed ({r.out})")
+        m = {"C": 12.011, "H": 1.008, "O": 15.999, "Br": 79.904}
+        g0 = read_xyz(Path(f"{src}.xyz"))
+        mm = np.array([m[s] for s in g0.symbols])
+        fr = [(0.0, g0)]
+        for sgn, t in ((1, "irc_f_IRC_F_trj.xyz"), (-1, "irc_b_IRC_B_trj.xyz")):
+            prev, s = np.asarray(g0.coords) / 0.52917721, 0.0
+            for f in read_xyz_frames(wd / t):
+                x = np.asarray(f.coords) / 0.52917721
+                st = float(np.sqrt((mm[:, None] * (x - prev) ** 2).sum()))
+                if st < 1e-6:
+                    continue
+                s += st
+                prev = x
+                fr.append((sgn * s, f))
+        fr.sort(key=lambda t: t[0])
+        rows = []
+        for i, (s, g) in enumerate(fr):
+            xyz = wd / f"frames/p{i:02d}.xyz"
+            xyz.parent.mkdir(exist_ok=True)
+            g.write(xyz) if hasattr(g, "write") else xyz.write_text(
+                f"{len(g.symbols)}\n\n" + "\n".join(f"{a} {c[0]:.8f} {c[1]:.8f} {c[2]:.8f}" for a, c in zip(g.symbols, g.coords)) + "\n")
+            E = cc(wd / "cc", f"p{i:02d}", xyz)
+            rows.append({"s": s, "E_cc_eh": E, "bonds_A": {b["label"]: g.distance(*b["atoms"]) for b in rx.key_bonds(g.symbols)}})
+        return {"Scale_Displ_SD": sd, "frames": rows}
+
+    res = {}
+    with ThreadPoolExecutor(3) as ex:
+        fut = {"M06-2X_short_IRC": ex.submit(irc_chain),
+               "wB97X-D3(BJ)": ex.submit(level_chain, "wB97X-D3BJ", WB97X, "Freq"),
+               "RI-MP2": ex.submit(level_chain, "RI-MP2", RIMP2, "NumFreq")}
+        for k, f in fut.items():
+            try:
+                res[k] = f.result()
+            except Exception as e:         # incomplete: reported as such, never as a result
+                res[k] = {"INCOMPLETE": str(e)}
+                traceback.print_exc()
+    write(base / "results.json", res)
+    print(json.dumps(res, indent=1, default=float, ensure_ascii=False)[:5000])
+
+
 # ------------------------------------------------------------------ queue
 TASKS = [("hshift_fallback", hshift_fallback, ()),
          ("methylbutyl", methylbutyl, ()),
@@ -613,4 +751,5 @@ if __name__ == "__main__":
     else:
         {"queue": queue, "hshift_fallback": hshift_fallback, "methylbutyl": methylbutyl,
          "bridged": bridged, "check_ts": check_ts_acceptance,
-         "sens_report": sens_report}[sys.argv[1]]()
+         "sens_report": sens_report,
+         "e2_arbitration": e2_arbitration}[sys.argv[1]]()

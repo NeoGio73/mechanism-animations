@@ -1,6 +1,35 @@
 # Computational protocol (draft methods text)
 
-## Standard for the reaction set (decided by J. Picione, 2026-11-09)
+## Working level for all six reactions (decided by J. Picione, 2026-11-11)
+
+The working level for geometries, transition states, IRCs and orbitals of all six reactions is
+**M06-2X-D3(0)/ma-def2-SVP** on the DefGrid3 integration grid, RIJCOSX (def2/J), TightSCF, in each
+reaction's SMD solvent model. This replaces the B3LYP-D3(BJ)/ma-def2-SVP standard below and the
+3-methyl-2-butyl exception, both kept below as the record of earlier work.
+
+Why:
+- B3LYP fails for the two cations. It understates the methyl bridging of the 3-methyl-2-butyl
+  cation, and gives a rotation barrier 13–14 kJ/mol below M06-2X. For the 2,3-dimethyl-2-butyl
+  cation it makes the hydrogen-bridged ion a transition state, where M06-2X finds a shallow minimum.
+- In a functional sensitivity test (`docs/sensitivity_M06-2X.md`, kept as it is for the supporting
+  information), the DLPNO-CCSD(T)/ma-def2-TZVP barriers of SN2, cyanide + acetone and Diels–Alder
+  changed by 0.5 kJ/mol or less between B3LYP and M06-2X geometries.
+- E2 differed by 7.4 kJ/mol and waits for an arbitration (ωB97X-D3(BJ) and RI-MP2 geometries,
+  coupled cluster along both paths near the TS).
+
+SN2, Diels–Alder and cyanide + acetone are recomputed in full at this level in new folders once the
+IRC step-size test has passed, with every frame at every level; the earlier results stay. The
+B3LYP-D3(BJ)/ma-def2-SVP SN2 transition state and its single points
+(`reactions/sn2_hydroxide_bromomethane_masvp`) are kept for the sensitivity table.
+
+### A crashed or incomplete job is never a result (J. Picione, 2026-11-11)
+
+Every automatic decision (pipeline steps, queue tasks, test scripts) treats a job that did not end
+with ORCA's normal termination, or a path that did not reach the range it was meant to cover, as
+incomplete: no value is taken from it and no follow-up decision is made on it. It is logged in
+`run_log.md` and rerun with the same settings, or reported.
+
+## Standard for the reaction set (decided by J. Picione, 2026-11-09; replaced 2026-11-11, see above)
 
 From E2 onward, every reaction uses one working level for geometries, the TS, the IRC and the
 orbitals: **B3LYP-D3(BJ)/ma-def2-SVP**, RIJCOSX (def2/J), TightSCF, SMD solvent. The minimally
@@ -26,7 +55,7 @@ curve peaks one frame from the working-level TS (that same point, 0.6 kJ/mol (0.
 frame) because the single points sit on a path optimized at another level, while the
 DLPNO-CCSD(T)/ma-def2-TZVP maximum falls on the TS frame.
 
-### Exception: 3-methyl-2-butyl cation at M06-2X (decided by J. Picione, 2026-11-11)
+### Exception: 3-methyl-2-butyl cation at M06-2X (decided by J. Picione, 2026-11-11; since then M06-2X is the working level for all reactions)
 
 The working level for this one reaction is M06-2X-D3(0)/ma-def2-SVP in SMD dichloromethane, for
 the minimum, the TS, the IRC and the orbitals, instead of the standard B3LYP-D3(BJ)/ma-def2-SVP.

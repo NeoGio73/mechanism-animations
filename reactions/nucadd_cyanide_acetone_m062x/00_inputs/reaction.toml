@@ -1,0 +1,96 @@
+# Full recomputation at the M06-2X working level (J. Picione, 2026-11-11), from nucadd_cyanide_acetone.
+# Made by pipeline/new_level_folder.py; the source folder stays untouched.
+# Nucleophilic addition to a carbonyl: N≡C⁻ + (CH₃)₂C=O → (CH₃)₂C(O⁻)C≡N, in water
+# (the first step of cyanohydrin formation; protonation of the alkoxide is not computed)
+id = "nucadd_cyanide_acetone"
+title = "Nucleophilic addition, cyanide + acetone"
+equation = "N≡C⁻ + (CH₃)₂C=O → (CH₃)₂C(O⁻)C≡N"
+charge = -1
+mult = 1
+solvent = "water"    # SMD solvent name (ORCA); textbook conditions are NaCN/HCN in water
+
+# Standard protocol (docs/protocol.md, decided by J. Picione 2026-11-09)
+method = "M062X D3ZERO ma-def2-SVP def2/J RIJCOSX TightSCF DefGrid3"
+sp_method = "M062X D3ZERO ma-def2-TZVP def2/J RIJCOSX TightSCF DefGrid3"
+
+nprocs = 4
+maxcore_mb = 2000    # lower than the other reactions so it fits beside the Diels–Alder run; no effect on results
+
+# TS guess from make_ts_guess.py (C···C 2.10 Å, cyanide carbon above the acetone plane, ~107° to
+# C=O); relaxed with the forming C–C and the C=O frozen, then OptTS. The approach angle is not
+# constrained in the TS search: the Bürgi–Dunitz angle is a result, not an input.
+ts_guess = "ts_guess_m062x.xyz"   # M06-2X TS of the sensitivity test
+ts_preopt = false
+
+isovalue = 0.08
+irc_scale_displ_sd = 0.02359   # calibrated before the IRC: region median about 0.10
+irc_adapt_scale_displ = false   # J. Picione, 2026-11-11
+irc_init_step_s = 0.10          # first step, bohr·amu½
+
+path_levels = ["M06-2X_ma-def2-TZVP", "B3LYP_ma-def2-TZVP", "DLPNO-CCSD(T)_ma-def2-TZVP"]
+default_curve = "DLPNO-CCSD(T)_ma-def2-TZVP"
+
+# Atoms (0-based): 0 carbonyl C, 1 O, 2 and 3 methyl C, 4 cyanide C, 5 N, 6–11 H.
+# Camera: cyanide on the left, O on the right.
+[key_atoms]
+nucleophile = 4
+center = 0
+leaving_group = 1
+
+[[key_bonds]]
+atoms = [4, 0]
+role = "forms"
+label = "C(N)–C"
+
+[[key_bonds]]
+atoms = [0, 1]
+role = "lengthens"
+label = "C–O"
+
+# Bürgi–Dunitz angle: Nu···C=O at the TS (reported; warning only outside 95–120°)
+[ts_angles]
+"Bürgi–Dunitz angle C(N)···C=O" = [4, 0, 1]
+
+[ts_expected]
+"C(N)–C" = [1.8, 2.5]
+"Bürgi–Dunitz angle C(N)···C=O" = [95, 120]
+
+# Attack must be through carbon (cyanohydrin), not nitrogen: the forming bond is C4–C0 by
+# construction, and the mode check requires that bond to shorten while C=O lengthens.
+
+[[expected_orbital_changes]]
+label = "C lone pair (cyanide) → σ(C–C)"
+start = [4]
+end = [4, 0]
+
+[[expected_orbital_changes]]
+label = "π(C=O) → O lone pair"
+start = [0, 1]
+end = [1]
+
+[[diagnostic_levels]]
+label = "M06-2X_ma-def2-TZVP"
+why = "meta-GGA hybrid known to do better on barriers"
+method = "M062X D3ZERO ma-def2-TZVP def2/J RIJCOSX TightSCF DefGrid3"
+
+[[diagnostic_levels]]
+label = "DLPNO-CCSD(T)_ma-def2-TZVP"
+why = "coupled-cluster reference"
+method = "DLPNO-CCSD(T) TightPNO ma-def2-TZVP AutoAux RIJCOSX TightSCF"
+
+[[reactants]]
+name = "cyanide"
+smiles = "[C-]#N"
+
+[[reactants]]
+name = "acetone"
+smiles = "CC(C)=O"
+
+[[products]]
+name = "acetone_cyanohydrin_alkoxide"
+smiles = "CC(C)(C#N)[O-]"
+
+[[diagnostic_levels]]
+label = "B3LYP_ma-def2-TZVP"
+why = "the former working functional, for comparison"
+method = "B3LYP D3BJ ma-def2-TZVP def2/J RIJCOSX TightSCF"

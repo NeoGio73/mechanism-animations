@@ -109,7 +109,7 @@ def level_name(method: str) -> str:
     """'B3LYP D3BJ ma-def2-SVP def2/J RIJCOSX TightSCF' → 'B3LYP-D3(BJ)/ma-def2-SVP'"""
     tok = method.split()
     disp = {"D3BJ": "-D3(BJ)", "D3ZERO": "-D3(0)", "D4": "-D4"}
-    func = tok[0] + "".join(disp[t] for t in tok if t in disp)
+    func = {"M062X": "M06-2X", "wB97X-D3BJ": "ωB97X-D3(BJ)"}.get(tok[0], tok[0]) + "".join(disp[t] for t in tok if t in disp)
     basis = next(t for t in tok if "def2-" in t and "/" not in t)
     return f"{func}/{basis}"
 
