@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT.parents[1]))
 
 from pipeline import orca                     # noqa: E402
-from pipeline.geometry import read_xyz        # noqa: E402
+from pipeline.geometry import Geometry, read_xyz   # noqa: E402
 from pipeline.steps import Reaction           # noqa: E402
 from pipeline.units import kj                 # noqa: E402
 
@@ -60,12 +60,26 @@ def method_check(rx):
         out[f"B3LYP/{start}"] = measures(g)
         for lab, kw in METHODS.items():
             wd = CHECK / "method" / lab / start
-            r = orca.run(wd, start, inp(rx, kw + " Opt Freq", g), rx.log,
+            job = " Opt NumFreq" if "MP2" in lab else " Opt Freq"   # no analytic MP2 Hessian in ORCA
+            r = orca.run(wd, start, inp(rx, kw + job, g), rx.log,
                          note=f"method check, gas phase, {lab}, from the B3LYP {start} minimum")
+            name = start
+            if r.ok and r.imaginary:
+                # converged onto a saddle point: push along the imaginary mode (largest atom
+                # 0.1 Å) and re-optimize once, same keywords (as the pipeline does for minima)
+                h = orca.read_hess(wd / f"{start}.hess")
+                v = h["modes"][:, int(np.argmin(h["freqs"]))].reshape(-1, 3)
+                gp = read_xyz(wd / f"{start}.xyz")
+                gp = Geometry(gp.symbols, gp.coords + 0.1 * v / np.linalg.norm(v, axis=1).max())
+                name = f"{start}_min"
+                r = orca.run(wd, name, inp(rx, kw + job, gp), rx.log,
+                             note=f"rerun: {start} converged to a saddle point (imaginary "
+                                  f"{[round(f, 1) for f in r.imaginary]} cm-1); displaced 0.1 Å along "
+                                  "that mode, same keywords")
             row = {"ok": r.ok, "opt_converged": r.opt_converged, "E_eh": r.energy_eh,
-                   "imaginary_cm": r.imaginary}
-            if (wd / f"{start}.xyz").exists():
-                row.update(measures(read_xyz(wd / f"{start}.xyz")))
+                   "imaginary_cm": r.imaginary, "job": name}
+            if (wd / f"{name}.xyz").exists():
+                row.update(measures(read_xyz(wd / f"{name}.xyz")))
             out[f"{lab}/{start}"] = row
             print(lab, start, row, flush=True)
     (CHECK / "method_check.json").write_text(json.dumps(out, indent=1, default=str), encoding="utf-8")
