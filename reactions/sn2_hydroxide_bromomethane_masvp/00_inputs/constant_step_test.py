@@ -1,7 +1,8 @@
 """Constant-step IRC test (J. Picione, 2026-11-11), on the SN2 rerun TS (B3LYP-D3(BJ)/ma-def2-SVP).
 
-Two variants, each 40 steps forward and 40 backward from the TS, first step = target step
-(Init_Displ length), Scale_Displ_SD 0.05 as in the adaptive run:
+Target step 0.10 bohr·amu½ for every step including the first (J. Picione, 2026-11-11). First a
+calibration (5 forward steps per variant at Scale_Displ_SD 0.05) to find the Scale_Displ_SD that
+gives 0.10, then 40 steps forward and 40 backward per variant, first step 0.10 (Init_Displ length):
   A  Adapt_Scale_Displ false
   B  Adapt_Scale_Displ false, SD_ParabolicFit false (no line search, so no step-length choice)
 Report: step lengths in s (are they equal, including the first?), and agreement with the
@@ -22,27 +23,42 @@ from pipeline import orca                                       # noqa: E402
 from pipeline.geometry import read_xyz, read_xyz_frames         # noqa: E402
 from pipeline.steps import Reaction, irc_init_scale             # noqa: E402
 
-TARGET = 0.158     # bohr·amu½: largest key-bond change about 0.03 Å per step (from the def2-SVP path)
+TARGET = 0.10      # bohr·amu½, every step including the first (J. Picione, 2026-11-11)
+SD0 = 0.05
 VARIANTS = {"A": "  Adapt_Scale_Displ false\n",
             "B": "  Adapt_Scale_Displ false\n  SD_ParabolicFit false\n"}
 MASS = {"C": 12.011, "H": 1.008, "O": 15.999, "Br": 79.904}
 BOND = {"C–O": (0, 2), "C–Br": (0, 1)}
 
 
-def run_variant(rx, v):
-    wd = ROOT / "02_irc/attempts/constant_step" / v
+def run_variant(rx, v, calib=False):
+    wd = ROOT / "02_irc/attempts/constant_step" / (f"calib_{v}" if calib else v)
     wd.mkdir(parents=True, exist_ok=True)
     shutil.copy(ROOT / "01_ts/ts/ts.hess", wd / "ts.hess")
     sc = irc_init_scale(ROOT / "01_ts/ts/ts.hess", TARGET)
-    for d in ("forward", "backward"):
-        blk = (f'%irc\n  MaxIter 40\n  Direction {d}\n  InitHess read\n  Hess_Filename "ts.hess"\n'
-               f'  Scale_Displ_SD 0.05\n{VARIANTS[v]}  Init_Displ length\n  Scale_Init_Displ {sc:.5f}\n'
+    sd = SD0 if calib else json.loads((ROOT / "02_irc/attempts/constant_step/calibration.json").read_text())[v]["sd"]
+    for d in (("forward",) if calib else ("forward", "backward")):
+        blk = (f'%irc\n  MaxIter {5 if calib else 40}\n  Direction {d}\n  InitHess read\n  Hess_Filename "ts.hess"\n'
+               f'  Scale_Displ_SD {sd:.5f}\n{VARIANTS[v]}  Init_Displ length\n  Scale_Init_Displ {sc:.5f}\n'
                '  PrintLevel 1\nend')
         inp = orca.make_input(rx.keywords("IRC"), read_xyz(ROOT / "01_ts/ts/ts.xyz"), rx.cfg["charge"],
                               rx.cfg["mult"], blocks=rx.solvent_block + "\n" + blk, nprocs=2,
                               maxcore_mb=rx.cfg["maxcore_mb"])
         orca.run(wd, f"irc_{d[0]}", inp, rx.log,
-                 note=f"constant-step IRC test {v} ({VARIANTS[v].strip()}), {d}, 40 steps, first step {TARGET}")
+                 note=f"constant-step IRC test {v} ({VARIANTS[v].strip()}), {d}, "
+                      f"{'calibration, 5 steps' if calib else '40 steps'}, Scale_Displ_SD {sd:.5f}, first step {TARGET}")
+
+
+def calibrate():
+    ts = read_xyz(ROOT / "01_ts/ts/ts.xyz")
+    out = {}
+    for v in VARIANTS:
+        fr = frames_s([(1, ROOT / f"02_irc/attempts/constant_step/calib_{v}/irc_f_IRC_F_trj.xyz")], ts)
+        st = [t[1] for t in fr][1:]                     # steps after the first (displacement) step
+        med = float(np.median(st))
+        out[v] = {"sd0": SD0, "steps_s": st, "median_s": med, "sd": SD0 * TARGET / med}
+        print(v, "steps", np.round(st, 4).tolist(), "→ Scale_Displ_SD", round(out[v]["sd"], 5), flush=True)
+    (ROOT / "02_irc/attempts/constant_step/calibration.json").write_text(json.dumps(out, indent=1))
 
 
 def frames_s(trjs, ts):
@@ -103,8 +119,13 @@ def report():
 
 
 if __name__ == "__main__":
-    if sys.argv[1] == "run":
-        rx = Reaction.load(ROOT)
+    rx = Reaction.load(ROOT)
+    if sys.argv[1] in ("all", "calibrate"):
+        with ThreadPoolExecutor(2) as ex:
+            list(ex.map(lambda v: run_variant(rx, v, calib=True), VARIANTS))
+        calibrate()
+    if sys.argv[1] in ("all", "run"):
         with ThreadPoolExecutor(2) as ex:
             list(ex.map(lambda v: run_variant(rx, v), VARIANTS))
-    report()
+    if sys.argv[1] in ("all", "run", "report"):
+        report()

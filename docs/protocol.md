@@ -136,6 +136,10 @@ where the rule was met, and logs the stop in `run_log.md`. The end complex is th
 that last point (Opt Freq, TightOpt if an imaginary mode remains), and the card states the s value
 where the path was cut.
 
+With the constant IRC step of 0.10 bohr·amu^1/2 used for paths computed from 2026-11-11 on, the
+rule is the same for every reaction: an energy change below 0.5 kJ/mol (0.12 kcal/mol) per
+bohr·amu^1/2, sustained over 2.0 bohr·amu^1/2 of path (J. Picione, 2026-11-11).
+
 First use: E2 (2026-11-09). The product-side IRC was stopped by hand at step 115, before the rule
 existed. Products had formed by step 56 (O–H 0.98 Å, C=C 1.34 Å). Each step changed the energy by
 less than 0.05 kJ/mol only from step 79 on, and the rule would have stopped that direction at
