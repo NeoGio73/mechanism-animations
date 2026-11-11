@@ -137,6 +137,7 @@ def card(rx: Reaction) -> None:
         f"| TS geometry | {_ts_geometry(rx, ts)} |",
         f"| IRC frames | {meta['n_frames']}; reaction coordinate s from {meta['s_min']:.2f} to "
         f"{meta['s_max']:.2f} bohr·amu^1/2 (TS at s = 0) |",
+        f"| Path quality | {_path_quality(rx)} |",
         f"| Orbitals shown | IBOs (IAO/IBO localization, occupied valence), isovalue ±{man['isovalue']} "
         f"{man['isovalue_units']}; tracked frame to frame by maximum overlap with fixed phase "
         f"({_overlap_text(rx, tr, man, changing, min_ovl)}); canonical HOMO/LUMO "
@@ -287,6 +288,12 @@ def _curve_max_section(cm: dict, note: str | None) -> list[str]:
     if note:
         out += [note, ""]
     return out
+
+
+def _path_quality(rx: Reaction) -> str:
+    """Rule decided by J. Picione, 2026-11-11 (pipeline/path_quality.py)."""
+    from .path_quality import card_text, quality
+    return card_text(quality(rx))
 
 
 def _display_rotation_text(rx: Reaction) -> str | None:

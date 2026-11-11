@@ -26,6 +26,43 @@ curve peaks one frame from the working-level TS (that same point, 0.6 kJ/mol (0.
 frame) because the single points sit on a path optimized at another level, while the
 DLPNO-CCSD(T)/ma-def2-TZVP maximum falls on the TS frame.
 
+### Exception: 3-methyl-2-butyl cation at M06-2X (decided by J. Picione, 2026-11-11)
+
+The working level for this one reaction is M06-2X-D3(0)/ma-def2-SVP in SMD dichloromethane, for
+the minimum, the TS, the IRC and the orbitals, instead of the standard B3LYP-D3(BJ)/ma-def2-SVP.
+Reason: B3LYP understates the methyl bridging of the secondary cation (gas-phase "anti" minimum:
+C2–C3–CH₃ 81.6° at B3LYP against 71.3° at M06-2X and 71.6° at RI-MP2/ma-def2-SVP; M06-2X and RI-MP2
+agree with each other, not with B3LYP), and it gives a rotation barrier 13–14 kJ/mol lower than
+M06-2X (gas phase: "eclip" TS 6.9 against 20.0 kJ/mol, "anti" TS 16.0 against 29.8 kJ/mol, ΔE).
+The path animated is the eclip-side one (lower at every level and in both phases).
+
+### M06-2X integration grid
+
+M06-2X geometry optimizations and frequencies from 2026-11-11 on use DefGrid3 (ORCA 6 default:
+DefGrid2), because meta-GGA functionals such as M06-2X are sensitive to the integration grid.
+M06-2X/ma-def2-TZVP single points stay on the default grid, as for the single points already on
+the cards.
+
+### First IRC step from the TS (decided by J. Picione, 2026-11-11)
+
+ORCA's default first step is an initial displacement along the TS mode chosen for an expected
+energy change of 2 mEh (ORCA 6.1 manual, %irc block: `DE_Init_Displ 2.0`, default; `Init_Displ`
+DE or length; `Scale_Init_Displ`, default 0.1 a.u., used with length). On the finished paths it
+gave one long step on each side of the TS (cyanide + acetone 1.020 against a median step of 0.042
+bohr·amu½; Diels–Alder 0.630 against 0.093; SN2 (def2-SVP) 0.737 against 0.210; E2 0.366 against
+0.163). The first point ORCA stores is the displaced geometry itself, so its distance from the TS is
+s₁ = Scale_Init_Displ · √(Σ m_i |v_i|²) for the normalized Cartesian TS mode v (reproduces all four
+first steps). New IRCs set `irc_init_step_s` in reaction.toml (about the median step of the path);
+the pipeline writes `Init_Displ length` and the matching `Scale_Init_Displ` (tested on the SN2 rerun
+TS with ORCA 6.1.1: first point at s = 0.210 bohr·amu½ as requested).
+
+### Path-quality rule (decided by J. Picione, 2026-11-11)
+
+Within the bond-changing region (frames at which a forming or breaking bond has covered more than
+5 % and less than 95 % of its change), every IRC step longer than 1.5 times the median step of the
+path is flagged and stated on the card (pipeline/path_quality.py; full list in
+`02_irc/path_quality.json`).
+
 ### Barrier from the TS frame and from the curve maximum (decided by J. Picione, 2026-11-11)
 
 The barrier quoted first is the one at the working-level transition state, with its thermal

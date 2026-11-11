@@ -407,9 +407,28 @@ def irc_stop_index(rx: Reaction, frames) -> tuple[int, int] | None:
     return None
 
 
-def _irc_blocks(rx: Reaction, direction: str) -> str:
+def irc_init_scale(hess_path: Path, step_s: float) -> float:
+    """ORCA Scale_Init_Displ (bohr, along the normalized Cartesian TS mode, with Init_Displ length)
+    that puts the first IRC point step_s (bohr·amu½) from the TS. The first point ORCA stores is
+    the displaced geometry itself, so s₁ = scale · √(Σ m_i |v_i|²) (checked on SN2, E2,
+    Diels–Alder and cyanide + acetone: reproduces their first steps 0.737, 0.366, 0.630, 1.020)."""
+    h = orca.read_hess(hess_path)
+    i = int(np.argmin(h["freqs"]))
+    v = h["modes"][:, i].reshape(-1, 3)
+    v = v / np.linalg.norm(v)
+    return float(step_s / np.sqrt((h["masses"][:, None] * v ** 2).sum()))
+
+
+def _irc_blocks(rx: Reaction, direction: str, hess: Path | None = None) -> str:
+    """`irc_init_step_s` (bohr·amu½; J. Picione, 2026-11-11): first IRC step from the TS, set about
+    equal to the median step of the path. Without it ORCA's default applies (initial displacement
+    for an expected energy change of 2 mEh), which left one long step on each side of the TS."""
     step = rx.cfg.get("irc_scale_displ_sd")       # smaller → more frames along the path
     extra = f"  Scale_Displ_SD {step}\n" if step else ""
+    s1 = rx.cfg.get("irc_init_step_s")
+    if s1:
+        sc = irc_init_scale(hess or rx.root / "01_ts/ts/ts.hess", float(s1))
+        extra += f"  Init_Displ length\n  Scale_Init_Displ {sc:.5f}\n"
     return (f'%irc\n  MaxIter 300\n  Direction {direction}\n  InitHess read\n'
             f'  Hess_Filename "ts.hess"\n{extra}  PrintLevel 1\nend')
 
@@ -425,6 +444,8 @@ def irc(rx: Reaction) -> None:
     g = read_xyz(rx.root / "01_ts/ts/ts.xyz")
     step = rx.cfg.get("irc_scale_displ_sd")
     how = f", Scale_Displ_SD {step}" if step else ", default step"
+    if rx.cfg.get("irc_init_step_s"):
+        how += f", first step {rx.cfg['irc_init_step_s']} bohr·amu½ (Init_Displ length)"
     legacy_out = wd / "irc.out"
     if (wd / "irc_stop.json").exists() and legacy_out.exists():
         _join_irc(rx, "irc", "irc", _read_json(wd / "irc_stop.json"))

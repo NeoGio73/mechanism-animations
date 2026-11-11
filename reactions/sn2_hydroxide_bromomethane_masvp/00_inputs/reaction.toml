@@ -1,0 +1,74 @@
+# SN2: HO⁻ + CH₃Br → CH₃OH + Br⁻, rerun at the standard working level (docs/tasks.md; moved up by
+# J. Picione, 2026-11-11). Same reaction, solvent, settings and atom order as the def2-SVP pilot in
+# reactions/sn2_hydroxide_bromomethane, which stays untouched until this rerun is checked.
+id = "sn2_hydroxide_bromomethane"
+title = "SN2, hydroxide + bromomethane"
+equation = "HO⁻ + CH₃Br → CH₃OH + Br⁻"
+charge = -1          # total charge of the reacting system
+mult = 1
+solvent = "water"    # SMD solvent name (ORCA)
+
+# Standard protocol (docs/protocol.md, decided by J. Picione 2026-11-09), as for E2 onwards.
+method = "B3LYP D3BJ ma-def2-SVP def2/J RIJCOSX TightSCF"
+sp_method = "B3LYP D3BJ ma-def2-TZVP def2/J RIJCOSX TightSCF"
+
+nprocs = 4           # 4 cores was fastest for this 7-atom system (docs/environment_checks.md)
+maxcore_mb = 3000    # MB of memory per core
+
+# TS guess: the optimized def2-SVP TS of the pilot (01_ts/ts/ts.xyz there), same atom order.
+ts_guess = "ts_guess.xyz"
+
+isovalue = 0.08              # as in the pilot
+irc_scale_displ_sd = 0.05    # as in the pilot
+# First IRC step from the TS, bohr·amu½ (J. Picione, 2026-11-11): about the median step of the
+# pilot path (0.210); ORCA's default (2 mEh) gave a first step of 0.737 there.
+irc_init_step_s = 0.21
+
+path_levels = ["M06-2X_ma-def2-TZVP", "DLPNO-CCSD(T)_ma-def2-TZVP"]
+default_curve = "DLPNO-CCSD(T)_ma-def2-TZVP"
+
+# (TOML: keep all plain settings above this line; everything after a [section] belongs to it)
+video_timing = "path_length"   # as in the pilot video
+
+[key_atoms]
+nucleophile = 2      # O of hydroxide
+center = 0           # C
+leaving_group = 1    # Br
+
+# Orbitals that must change (atoms carrying the IBO at the reactant end → product end); shown by
+# default. Names as on the pilot card.
+[[expected_orbital_changes]]
+label = "lone pair on O → σ(C–O)"
+start = [2]
+end = [2, 0]
+
+[[expected_orbital_changes]]
+label = "σ(C–Br) → lone pair on Br"
+start = [0, 1]
+end = [1]
+
+[[diagnostic_levels]]
+label = "M06-2X_ma-def2-TZVP"
+why = "meta-GGA hybrid known to do better on SN2 barriers"
+method = "M062X D3ZERO ma-def2-TZVP def2/J RIJCOSX TightSCF"
+
+[[diagnostic_levels]]
+label = "DLPNO-CCSD(T)_ma-def2-TZVP"
+why = "coupled-cluster reference"
+method = "DLPNO-CCSD(T) TightPNO ma-def2-TZVP AutoAux RIJCOSX TightSCF"
+
+[[reactants]]
+name = "hydroxide"
+smiles = "[OH-]"
+
+[[reactants]]
+name = "bromomethane"
+smiles = "CBr"
+
+[[products]]
+name = "methanol"
+smiles = "CO"
+
+[[products]]
+name = "bromide"
+smiles = "[Br-]"
