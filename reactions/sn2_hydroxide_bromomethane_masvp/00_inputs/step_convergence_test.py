@@ -210,15 +210,23 @@ def covers_region(p):
     return (not p[0]["region"]) and (not p[-1]["region"])
 
 
+def finished(name, d):
+    o = OUT / name / f"irc_{d[0]}.out"
+    return o.exists() and "ORCA TERMINATED NORMALLY" in o.read_text(errors="replace")
+
+
 def verdict():
-    """Whole-region pass/fail of s010 against s005 (both sides pass, both paths cover the region)."""
+    """Whole-region pass/fail of s010 against s005 (both sides pass, both paths cover the region).
+    Returns True (pass), False (fail) or None (incomplete: a job did not finish normally or a path
+    does not cover the region; not a step-size result, so no 0.025 run on it)."""
     ts = read_xyz(ROOT / "01_ts/ts/ts.xyz")
     ends = adaptive_ends()
     p10, p05 = load("s010", ts, ends), load("s005", ts, ends)
     c = compare(p10, p05)
     cov = {"s010": covers_region(p10), "s005": covers_region(p05)}
-    ok = all(v.get("pass") for v in c.values()) and all(cov.values())
-    out = {"pass": ok, "covers_region": cov,
+    done = {f"{n}/{d}": finished(n, d) for n in ("s010", "s005") for d in ("forward", "backward")}
+    ok = None if not (all(done.values()) and all(cov.values())) else all(v.get("pass") for v in c.values())
+    out = {"pass": ok, "jobs_finished_normally": done, "covers_region": cov,
            "sides": {k: {a: b for a, b in v.items() if a != "rows"} for k, v in c.items()}}
     (OUT / "verdict.json").write_text(json.dumps(out, indent=1), encoding="utf-8")
     print(json.dumps(out, indent=1))
@@ -252,13 +260,31 @@ if __name__ == "__main__":
     rx = Reaction.load(ROOT)
     if sys.argv[1] == "after":
         # standing instruction (J. Picione, 2026-11-11): on a whole-region fail, run 0.025 overnight
-        if verdict():
+        v = verdict()
+        if v is None:
+            (OUT / "INCOMPLETE").write_text("a job did not finish normally or a path does not cover the "
+                                            "region: no step-size verdict, no 0.025 run\n")
+        elif v:
             (OUT / "PASS").write_text("whole-region comparison passed\n")
         else:
-            (OUT / "FAIL").write_text("whole-region comparison failed or did not cover the region; running 0.025\n")
+            (OUT / "FAIL").write_text("whole-region comparison failed; running 0.025\n")
             with ThreadPoolExecutor(2) as ex:
                 list(ex.map(lambda d: job(rx, "s0025", d), ("forward", "backward")))
             report3()
+    elif sys.argv[1] == "rerun_crashed":
+        # jobs that ended without "ORCA TERMINATED NORMALLY": outputs moved aside, same settings rerun
+        import time
+        todo = [(n, d) for n in ("s010", "s005") for d in ("forward", "backward") if not finished(n, d)]
+        for n, d in todo:
+            dest = OUT / n / f"crashed_{time.strftime('%H%M')}_{d}"
+            dest.mkdir(exist_ok=True)
+            for f in (OUT / n).glob(f"irc_{d[0]}*"):
+                if f.is_file():
+                    shutil.move(str(f), dest / f.name)
+        print("rerunning", todo, flush=True)
+        with ThreadPoolExecutor(max(len(todo), 1)) as ex:
+            list(ex.map(lambda a: job(rx, *a), todo))
+        report()
     elif sys.argv[1] == "report3":
         report3()
     elif sys.argv[1] == "run":

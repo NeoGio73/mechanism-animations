@@ -494,6 +494,85 @@ def bridged() -> None:
     print(json.dumps(res, indent=1, default=float, ensure_ascii=False))
 
 
+# ------------------------------------------------------------------ sensitivity table (one table, then stop)
+SENS = ["sn2_hydroxide_bromomethane_masvp", "e2_ethoxide_2_bromopropane", "nucadd_cyanide_acetone",
+        "da_butadiene_ethylene"]
+
+
+def sens_report() -> dict:
+    """One table for the four reactions (J. Picione, 2026-11-11): TS forming and breaking bonds at
+    B3LYP and M06-2X, imaginary frequency at both, mode overlap, TS acceptance, and the
+    DLPNO-CCSD(T)/ma-def2-TZVP barrier on each geometry set with that level's own thermal
+    corrections, against the measured value. Solution reactions: ΔG‡(298.15 K) from separated
+    reactants, 1 M. Diels–Alder: gas-phase Ea = ΔH‡(840 K) + 2RT from s-trans-butadiene + ethylene
+    (gas-phase single points on the SMD geometries, SMD frequencies, as on the card)."""
+    from .gas_phase import R_KJ as RG, _tst
+    from .steps import accept_ts_stem
+    out = {}
+    for rid in SENS:
+        rx = Reaction.load(RX / rid)
+        S = json.loads((rx.root / "01_ts/level_test/M06-2X/summary.json").read_text(encoding="utf-8"))
+        st = {k: rx.root / v["stem"].replace("\\", "/") for k, v in S["structures"].items()}
+        g3, gm = read_xyz(rx.root / "01_ts/ts/ts.xyz"), read_xyz(Path(f"{st['ts']}.xyz"))
+        kb = [b for b in rx.key_bonds(g3.symbols) if b["role"] in ("forms", "breaks")]
+        frag = _read_json(rx.root / "01_ts/fragments.json")
+        reac = [n for n, v in frag.items() if v["role"] == "reactants"]
+        tsj = _read_json(rx.root / "01_ts/ts.json")
+        row = {"bonds_A": {b["label"]: {"role": b["role"], "B3LYP": g3.distance(*b["atoms"]),
+                                        "M06-2X": gm.distance(*b["atoms"])} for b in kb},
+               "imag_cm": {"B3LYP": tsj["imaginary_cm"], "M06-2X": nimag(st["ts"])},
+               "mode_overlap": S["ts_mode_overlap_with_B3LYP"],
+               "minima_imag_cm": {k: nimag(v) for k, v in st.items() if k != "ts"}}
+        acc = accept_ts_stem(rx, st["ts"])
+        row["M06-2X_ts_accepted"] = acc["accepted"]
+        row["M06-2X_ts_reasons"] = acc["reasons"]
+        meas = MEASURED[rx.cfg["id"]]
+        row["measured"] = {"quantity": meas[0], "kJ": meas[1], "source": meas[2]}
+        if not rid.startswith("da_"):
+            # B3LYP geometries: CC energies + B3LYP thermal corrections
+            if (rx.root / "01_ts/diagnostics.json").exists():
+                dg = next(r for r in _read_json(rx.root / "01_ts/diagnostics.json")["rows"] if r["level"].startswith("DLPNO"))
+                b3 = dg["dG_TS_vs_separated_1M_kJ"]
+                src = "01_ts/diagnostics.json"
+            else:          # SN2 rerun: diagnostics not run yet (lane held); CC single points here
+                pts = {n: (rx.root / f"01_ts/fragments/{n}/{frag[n].get('job', n)}.xyz") for n in reac}
+                from .geometry import formal_charge
+                ch = {s["name"]: (formal_charge(s["smiles"]), s.get("mult", 1)) for _, s in rx.species()}
+                wd = rx.d("01_ts/level_test/B3LYP_geom_dlpno")
+                Ecc = {"ts": sp(rx, wd, "ts", DLPNO, rx.root / "01_ts/ts/ts.xyz")}
+                for n in reac:
+                    Ecc[n] = sp(rx, wd, n, DLPNO, pts[n], *ch[n])
+                gc = {n: frag[n]["G_eh"] - frag[n]["E_eh"] for n in reac}
+                gc["ts"] = tsj["G_eh"] - tsj["E_eh"]
+                b3 = kj(Ecc["ts"] + gc["ts"] - sum(Ecc[n] + gc[n] for n in reac)) - STD_STATE_KJ * (len(reac) - 1)
+                src = "01_ts/level_test/B3LYP_geom_dlpno (B3LYP frequencies)"
+            E = S["dlpno_smd_eh"]
+            gcm = {k: (lambda e: e[1] - e[0])(eg(v)) for k, v in st.items()}
+            m6 = kj(E["ts"] + gcm["ts"] - sum(E[n] + gcm[n] for n in reac)) - STD_STATE_KJ * (len(reac) - 1)
+            row["CC_dG298_kJ"] = {"B3LYP_geom": b3, "M06-2X_geom": m6, "B3LYP_source": src,
+                                  "minus_measured": {"B3LYP_geom": b3 - meas[1], "M06-2X_geom": m6 - meas[1]}}
+        else:
+            gp = _read_json(rx.root / "01_ts/gas_phase.json")
+            T = gp["T_K"]
+            ref = ["butadiene_s-trans", "ethylene"]
+            b3row = next(r for r in gp["rows"] if r["level"].startswith("DLPNO") and r["phase"] == "gas phase")
+            E = S["dlpno_gas_eh"]
+            Hc = {k: thermo.thermo(Path(f"{st[k]}.hess"), T, thermo.symmetry_number(Path(f"{st[k]}.out")))
+                  for k in ["ts"] + ref}
+            dH = kj(E["ts"] - sum(E[n] for n in ref)) + Hc["ts"]["H_minus_E_kJ"] - sum(Hc[n]["H_minus_E_kJ"] for n in ref)
+            dG = kj(E["ts"] - sum(E[n] for n in ref)) + Hc["ts"]["G_minus_E_kJ"] - sum(Hc[n]["G_minus_E_kJ"] for n in ref)
+            m6 = dH + 2 * RG * T
+            k = _tst(dG, T, gp["k_exp_L_mol_s"])
+            row["CC_Ea_gas_840K_kJ"] = {"B3LYP_geom": b3row["Ea_T_kJ"], "M06-2X_geom": m6,
+                                        "minus_measured": {"B3LYP_geom": b3row["Ea_T_kJ"] - meas[1], "M06-2X_geom": m6 - meas[1]},
+                                        "k_ratio_to_exp": {"B3LYP_geom": b3row["k_ratio_to_exp"], "M06-2X_geom": k["k_ratio_to_exp"]},
+                                        "sigma": {n: Hc[n]["sigma"] for n in Hc}}
+        out[rid] = row
+    write(ROOT / "docs/sensitivity_M06-2X.json", out)
+    print(json.dumps(out, indent=1, default=float, ensure_ascii=False))
+    return out
+
+
 # ------------------------------------------------------------------ queue
 TASKS = [("hshift_fallback", hshift_fallback, ()),
          ("methylbutyl", methylbutyl, ()),
@@ -533,4 +612,5 @@ if __name__ == "__main__":
         sensitivity(sys.argv[2])
     else:
         {"queue": queue, "hshift_fallback": hshift_fallback, "methylbutyl": methylbutyl,
-         "bridged": bridged, "check_ts": check_ts_acceptance}[sys.argv[1]]()
+         "bridged": bridged, "check_ts": check_ts_acceptance,
+         "sens_report": sens_report}[sys.argv[1]]()
