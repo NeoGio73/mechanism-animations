@@ -56,13 +56,39 @@ first steps). New IRCs set `irc_init_step_s` in reaction.toml (about the median 
 the pipeline writes `Init_Displ length` and the matching `Scale_Init_Displ` (tested on the SN2 rerun
 TS with ORCA 6.1.1: first point at s = 0.210 bohr·amu½ as requested).
 
+### IRC step length (decided by J. Picione, 2026-11-11)
+
+Every path computed from 2026-11-11 on uses ORCA's non-adaptive step (`Adapt_Scale_Displ false`;
+`irc_adapt_scale_displ = false` in reaction.toml), a first step of 0.10 bohr·amu^1/2 set by length,
+and `Scale_Displ_SD` calibrated so that the median step in the bond-changing region is about
+0.10 bohr·amu^1/2. ORCA's correction step after each descent step stays on (`Do_SD_Corr` unchanged).
+The steps are not equal and are not required to be.
+
+Why: a test on the SN2 rerun TS (`02_irc/attempts/constant_step/`) showed that switching adaptation
+off does not give equal steps (first step 0.100, later steps 0.065–0.158 bohr·amu^1/2; switching
+off the parabolic fit as well changed nothing). The adaptive path, with steps of 0.21–0.34 there,
+lay up to 1.3 kJ/mol (0.3 kcal/mol) above the 0.10 path in the steep product-side stretch at
+s = −1.7 to −3.7 bohr·amu^1/2, 1.55 kJ/mol at matching C–O distance. The larger steps are probably
+the less accurate ones, so agreement with the adaptive path was not used as a criterion.
+
+Step-size convergence test, on SN2 before any path is recomputed: the same non-adaptive IRC with
+first step and median at 0.05 bohr·amu^1/2, compared with the 0.10 path at matching C–O distance
+on the reactant side and at matching C–Br distance on the product side (energy and the other key
+bond). Criterion: within 0.2 kJ/mol and 0.005 Å throughout the bond-changing region. If it passes,
+0.10 is the step for the whole set. Result: pending.
+
+Each card states the first step, the median, the shortest and the longest step in the
+bond-changing region, the largest change of a key bond in one step, and one sentence on the
+convergence test.
+
 ### Path-quality rule (decided by J. Picione, 2026-11-11)
 
 Within the bond-changing region (frames at which a forming or breaking bond has covered more than
-5 % and less than 95 % of its change), every IRC step longer than 1.5 times the median step of that
-region (not of the whole path, whose long flat approach lowers the median; J. Picione, 2026-11-11)
-is flagged and stated on the card (pipeline/path_quality.py; full list in
-`02_irc/path_quality.json`).
+5 % and less than 95 % of its change), every IRC step longer than 2.0 times the median step of that
+region (not of the whole path, whose long flat approach lowers the median) is flagged and stated on
+the card (pipeline/path_quality.py; full list in `02_irc/path_quality.json`). The factor was first
+set at 1.5 and raised to 2.0 with the non-adaptive step, whose steps vary by about ±50 %
+(J. Picione, 2026-11-11).
 
 ### Barrier from the TS frame and from the curve maximum (decided by J. Picione, 2026-11-11)
 
@@ -136,9 +162,10 @@ where the rule was met, and logs the stop in `run_log.md`. The end complex is th
 that last point (Opt Freq, TightOpt if an imaginary mode remains), and the card states the s value
 where the path was cut.
 
-With the constant IRC step of 0.10 bohr·amu^1/2 used for paths computed from 2026-11-11 on, the
-rule is the same for every reaction: an energy change below 0.5 kJ/mol (0.12 kcal/mol) per
-bohr·amu^1/2, sustained over 2.0 bohr·amu^1/2 of path (J. Picione, 2026-11-11).
+With the median IRC step of about 0.10 bohr·amu^1/2 used for paths computed from 2026-11-11 on,
+the rule is about the same for every reaction: an energy change below 0.5 kJ/mol (0.12 kcal/mol)
+per bohr·amu^1/2, sustained over about 2.0 bohr·amu^1/2 of path (J. Picione, 2026-11-11; the steps
+are not exactly equal, so these are approximate).
 
 First use: E2 (2026-11-09). The product-side IRC was stopped by hand at step 115, before the rule
 existed. Products had formed by step 56 (O–H 0.98 Å, C=C 1.34 Å). Each step changed the energy by

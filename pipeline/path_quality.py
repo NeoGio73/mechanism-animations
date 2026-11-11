@@ -1,5 +1,5 @@
 """Path-quality rule (decided by J. Picione, 2026-11-11): within the bond-changing region, flag any
-IRC step longer than 1.5 times the median step of that region (not of the whole path, whose long
+IRC step longer than 2.0 times (first set at 1.5) the median step of that region (not of the whole path, whose long
 flat approach lowers the median); the card states the flagged steps compactly and
 02_irc/path_quality.json keeps the full list.
 
@@ -16,7 +16,7 @@ from pathlib import Path
 
 import numpy as np
 
-FACTOR = 1.5
+FACTOR = 2.0       # J. Picione, 2026-11-11 (was 1.5); with Adapt_Scale_Displ false steps vary ±50 %
 LO, HI = 0.05, 0.95
 
 

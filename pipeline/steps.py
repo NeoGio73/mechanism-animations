@@ -425,6 +425,10 @@ def _irc_blocks(rx: Reaction, direction: str, hess: Path | None = None) -> str:
     for an expected energy change of 2 mEh), which left one long step on each side of the TS."""
     step = rx.cfg.get("irc_scale_displ_sd")       # smaller → more frames along the path
     extra = f"  Scale_Displ_SD {step}\n" if step else ""
+    # irc_adapt_scale_displ = false (J. Picione, 2026-11-11): ORCA keeps Scale_Displ_SD fixed
+    # instead of adapting it; steps are then not equal but near the calibrated median.
+    if rx.cfg.get("irc_adapt_scale_displ") is False:
+        extra += "  Adapt_Scale_Displ false\n"
     s1 = rx.cfg.get("irc_init_step_s")
     if s1:
         sc = irc_init_scale(hess or rx.root / "01_ts/ts/ts.hess", float(s1))
@@ -444,6 +448,8 @@ def irc(rx: Reaction) -> None:
     g = read_xyz(rx.root / "01_ts/ts/ts.xyz")
     step = rx.cfg.get("irc_scale_displ_sd")
     how = f", Scale_Displ_SD {step}" if step else ", default step"
+    if rx.cfg.get("irc_adapt_scale_displ") is False:
+        how += ", Adapt_Scale_Displ false"
     if rx.cfg.get("irc_init_step_s"):
         how += f", first step {rx.cfg['irc_init_step_s']} bohr·amu½ (Init_Displ length)"
     legacy_out = wd / "irc.out"
