@@ -35,7 +35,9 @@ from pipeline.steps import Reaction, irc_init_scale             # noqa: E402
 
 SD_PER_S = 0.02116 / 0.0897
 RUNS = {"s010": {"target": 0.10, "maxiter": {"forward": 100, "backward": 160}},
-        "s005": {"target": 0.05, "maxiter": {"forward": 190, "backward": 300}}}
+        "s005": {"target": 0.05, "maxiter": {"forward": 190, "backward": 300}},
+        # third path, only if the whole-region 0.05/0.10 comparison fails (J. Picione, 2026-11-11)
+        "s0025": {"target": 0.025, "maxiter": {"forward": 380, "backward": 620}, "nprocs": 4}}
 OUT = ROOT / "02_irc/attempts/step_convergence"
 MASS = {"C": 12.011, "H": 1.008, "O": 15.999, "Br": 79.904}
 CO, CBR = (0, 2), (0, 1)
@@ -55,7 +57,7 @@ def job(rx, name, d):
            f'  Scale_Displ_SD {sd:.5f}\n  Adapt_Scale_Displ false\n  Init_Displ length\n'
            f'  Scale_Init_Displ {sc:.5f}\n  PrintLevel 1\nend')
     inp = orca.make_input(rx.keywords("IRC"), read_xyz(ROOT / "01_ts/ts/ts.xyz"), rx.cfg["charge"],
-                          rx.cfg["mult"], blocks=rx.solvent_block + "\n" + blk, nprocs=2,
+                          rx.cfg["mult"], blocks=rx.solvent_block + "\n" + blk, nprocs=r.get("nprocs", 2),
                           maxcore_mb=rx.cfg["maxcore_mb"])
     orca.run(wd, f"irc_{d[0]}", inp, rx.log,
              note=f"step-size convergence test {name}, {d}, Adapt_Scale_Displ false, Scale_Displ_SD {sd:.5f}, "
@@ -198,9 +200,68 @@ def report(early=False):
     show(out)
 
 
+def load(name, ts, ends):
+    return region_flags(with_energy(path(OUT / f"{name}/irc_f_IRC_F_trj.xyz", OUT / f"{name}/irc_b_IRC_B_trj.xyz", ts),
+                                    E_TS), ends)
+
+
+def covers_region(p):
+    """The path ran past the bond-changing region at both ends (its end frames are outside it)."""
+    return (not p[0]["region"]) and (not p[-1]["region"])
+
+
+def verdict():
+    """Whole-region pass/fail of s010 against s005 (both sides pass, both paths cover the region)."""
+    ts = read_xyz(ROOT / "01_ts/ts/ts.xyz")
+    ends = adaptive_ends()
+    p10, p05 = load("s010", ts, ends), load("s005", ts, ends)
+    c = compare(p10, p05)
+    cov = {"s010": covers_region(p10), "s005": covers_region(p05)}
+    ok = all(v.get("pass") for v in c.values()) and all(cov.values())
+    out = {"pass": ok, "covers_region": cov,
+           "sides": {k: {a: b for a, b in v.items() if a != "rows"} for k, v in c.items()}}
+    (OUT / "verdict.json").write_text(json.dumps(out, indent=1), encoding="utf-8")
+    print(json.dumps(out, indent=1))
+    return ok
+
+
+def report3():
+    """0.10, 0.05, 0.025 side by side; 0.025 is the reference. For each coarser path: largest energy
+    and other-bond difference per side, where, and whether within 0.2 kJ/mol and 0.005 Å."""
+    ts = read_xyz(ROOT / "01_ts/ts/ts.xyz")
+    ends = adaptive_ends()
+    P = {n: load(n, ts, ends) for n in RUNS}
+    out = {"stats": {n: stats(p) for n, p in P.items()},
+           "covers_region": {n: covers_region(p) for n, p in P.items()},
+           "vs_0.025": {}, "0.10_vs_0.05": {}}
+    for n in ("s010", "s005"):
+        c = compare(P[n], P["s0025"])
+        out["vs_0.025"][n] = {k: {a: b for a, b in v.items() if a != "rows"} for k, v in c.items()}
+        # where the difference exceeds the criterion: s ranges of the failing frames
+        for k, v in c.items():
+            bad = [r[0] for r in v.get("rows", []) if abs(r[2]) > TOL_E or abs(r[3]) > TOL_B]
+            out["vs_0.025"][n][k]["failing_s"] = [min(bad), max(bad)] if bad else None
+            out["vs_0.025"][n][k]["n_failing"] = len(bad)
+    c = compare(P["s010"], P["s005"])
+    out["0.10_vs_0.05"] = {k: {a: b for a, b in v.items() if a != "rows"} for k, v in c.items()}
+    (OUT / "report3.json").write_text(json.dumps(out, indent=1), encoding="utf-8")
+    print(json.dumps(out, indent=1))
+
+
 if __name__ == "__main__":
     rx = Reaction.load(ROOT)
-    if sys.argv[1] == "run":
+    if sys.argv[1] == "after":
+        # standing instruction (J. Picione, 2026-11-11): on a whole-region fail, run 0.025 overnight
+        if verdict():
+            (OUT / "PASS").write_text("whole-region comparison passed\n")
+        else:
+            (OUT / "FAIL").write_text("whole-region comparison failed or did not cover the region; running 0.025\n")
+            with ThreadPoolExecutor(2) as ex:
+                list(ex.map(lambda d: job(rx, "s0025", d), ("forward", "backward")))
+            report3()
+    elif sys.argv[1] == "report3":
+        report3()
+    elif sys.argv[1] == "run":
         with ThreadPoolExecutor(4) as ex:
             list(ex.map(lambda a: job(rx, *a), [(n, d) for n in RUNS for d in ("forward", "backward")]))
         report()
