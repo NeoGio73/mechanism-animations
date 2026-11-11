@@ -89,7 +89,7 @@ def thermo(hess_path: Path, T: float, sigma: int, p_pa: float = P_ATM) -> dict:
     w = 1.0 / (1.0 + (OMEGA0_CM / nu) ** 4)
     s_vib = (w * s_harm + (1 - w) * s_free).sum()
     S = s_trans + s_rot + s_vib
-    return {"T_K": T, "H_minus_E_kJ": H_minus_E, "TS_trans_kJ": T * s_trans, "TS_rot_kJ": T * s_rot,
+    return {"T_K": T, "ZPE_kJ": zpe, "H_minus_E_kJ": H_minus_E, "TS_trans_kJ": T * s_trans, "TS_rot_kJ": T * s_rot,
             "TS_vib_kJ": T * s_vib, "G_minus_E_kJ": H_minus_E - T * S, "sigma": sigma, "linear": bool(linear)}
 
 

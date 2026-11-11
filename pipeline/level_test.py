@@ -296,12 +296,202 @@ def sensitivity(folder: str) -> None:
                *((pts[k][1], pts[k][2]) if k != "ts" else (None, None))) for k, v in st.items()}
     out = {"structures": {k: {"stem": str(v.relative_to(rx.root)), "imag_cm": nimag(v)} for k, v in st.items()},
            "dlpno_smd_eh": E, "ts_mode_overlap_with_B3LYP": mode_overlap(tsb3, ts)}
+    from .steps import accept_ts_stem
+    acc = accept_ts_stem(rx, ts)
+    out["ts_acceptance"] = {k: acc[k] for k in ("accepted", "classification", "reasons", "imaginary_cm")}
+    if not acc["accepted"]:
+        out["FLAG"] = f"ts: not a valid TS ({'; '.join(acc['reasons']) or acc['classification']})"
     if folder.startswith("da_"):
         Eg = {k: sp(rx, base / "sp_dlpno_gas", k, DLPNO, Path(f"{st[k]}.xyz"),
                     *((pts[k][1], pts[k][2]) if k != "ts" else (None, None)), solv=False)
               for k in ("ts", "butadiene_s-trans", "ethylene")}
         out["dlpno_gas_eh"] = Eg
     write(base / "summary.json", out)
+
+
+# ------------------------------------------------------------------ TS acceptance for queue summaries
+def check_ts_acceptance() -> dict:
+    """J. Picione, 2026-11-11: every job meant to be a TS must pass the pipeline's own acceptance test
+    (steps.accept_ts_stem: exactly one imaginary mode, key bonds moving the expected way, the
+    reaction's [ts_mode] rules); summaries flag any that do not. Applied after the fact to every
+    level-test summary, since queue worker 1 runs code loaded before this check existed."""
+    from .steps import accept_ts_stem
+    jobs = {"hshift_2_3_dimethyl_2_butyl": ["01_ts/level_test/M06-2X/dcm/ts/ts"],
+            "nucadd_cyanide_acetone": ["01_ts/level_test/M06-2X/ts/ts"],
+            "da_butadiene_ethylene": ["01_ts/level_test/M06-2X/ts/ts"],
+            "e2_ethoxide_2_bromopropane": ["01_ts/level_test/M06-2X/ts/ts"],
+            "sn2_hydroxide_bromomethane_masvp": ["01_ts/level_test/M06-2X/ts/ts"]}
+    res = {}
+    for rid, stems in jobs.items():
+        rx = Reaction.load(RX / rid)
+        for s in stems:
+            stem = rx.root / s
+            if not Path(f"{stem}.hess").exists():
+                res[f"{rid}/{s}"] = {"status": "not finished"}
+                continue
+            a = accept_ts_stem(rx, stem)
+            res[f"{rid}/{s}"] = {"accepted": a["accepted"], "classification": a["classification"],
+                                 "reasons": a["reasons"], "imaginary_cm": a["imaginary_cm"]}
+            summ = stem.parent.parent / "summary.json" if stem.parent.name == "ts" else None
+            for cand in (summ, stem.parents[2] / "summary.json"):
+                if cand and cand.exists():
+                    d = json.loads(cand.read_text(encoding="utf-8"))
+                    d.setdefault("ts_acceptance", {})[s] = res[f"{rid}/{s}"]
+                    if not a["accepted"]:
+                        d["FLAG"] = f"{s}: not a valid TS ({'; '.join(a['reasons']) or a['classification']})"
+                    write(cand, d)
+                    break
+    write(QUEUE / "ts_acceptance.json", res)
+    return res
+
+
+# ------------------------------------------------------------------ bridged ion (tertiary shift)
+def _sym_swap(xyz: Path) -> dict:
+    """Does the structure map onto itself with C2 ↔ C3 (atoms 0 ↔ 1), H 2 fixed? Atom matching by
+    distances to (0, 1, 2), then the best rotation or reflection (Kabsch); RMSD in Å."""
+    from scipy.optimize import linear_sum_assignment
+    g = read_xyz(xyz)
+    x = np.asarray(g.coords)
+    sig = np.array([[np.linalg.norm(x[i] - x[a]) for a in (0, 1, 2)] for i in range(len(x))])
+    img = sig[:, [1, 0, 2]]
+    cost = np.abs(sig[:, None, :] - img[None, :, :]).sum(-1)
+    for i in range(len(x)):
+        for j in range(len(x)):
+            if g.symbols[i] != g.symbols[j]:
+                cost[i, j] = 1e6
+    _, perm = linear_sum_assignment(cost)
+    a, b = x - x.mean(0), x[perm] - x[perm].mean(0)
+    out = {}
+    u, _, vt = np.linalg.svd(b.T @ a)
+    s = np.sign(np.linalg.det(u @ vt))
+    for kind, det in (("rotation", 1), ("reflection", -1)):
+        rot = u @ np.diag([1, 1, det * s]) @ vt          # det(rot) = det
+        out[kind] = float(np.sqrt(((b @ rot - a) ** 2).sum(1).mean()))
+    return {"perm": [int(p) for p in perm], "rmsd_A": out}
+
+
+def _mode_overlaps(stem_ts: Path, stem_min: Path) -> list[tuple[float, float]]:
+    """Overlap of the TS imaginary mode with every vibration of the minimum (after superposing the
+    minimum on the TS); returns (overlap, frequency cm⁻¹) sorted by overlap."""
+    ha, hb = orca.read_hess(Path(f"{stem_ts}.hess")), orca.read_hess(Path(f"{stem_min}.hess"))
+    va = ha["modes"][:, int(np.argmin(ha["freqs"]))].reshape(-1, 3)
+    xa = np.asarray(read_xyz(Path(f"{stem_ts}.xyz")).coords)
+    xb = np.asarray(read_xyz(Path(f"{stem_min}.xyz")).coords)
+    xa, xb = xa - xa.mean(0), xb - xb.mean(0)
+    u, _, vt = np.linalg.svd(xb.T @ xa)
+    rot = u @ np.diag([1, 1, np.sign(np.linalg.det(u @ vt))]) @ vt
+    va = va / np.linalg.norm(va)
+    res = []
+    for k, f in enumerate(hb["freqs"]):
+        if abs(f) < 1.0:
+            continue
+        vb = hb["modes"][:, k].reshape(-1, 3) @ rot
+        res.append((float(abs((va * vb).sum() / np.linalg.norm(vb))), float(f)))
+    return sorted(res, reverse=True)
+
+
+def _kind(xyz: Path) -> dict:
+    g = read_xyz(xyz)
+    d0, d1 = g.distance(0, 2), g.distance(1, 2)
+    kind = "bridged" if abs(d0 - d1) < 0.10 else ("open, H on C3" if d1 < d0 else "open, H on C2")
+    return {"C2–H_A": round(d0, 3), "C3–H_A": round(d1, 3), "C2–C3_A": round(g.distance(0, 1), 3), "kind": kind}
+
+
+def bridged() -> None:
+    """J. Picione, 2026-11-11, items 1–3: M06-2X TS between the open cation and the bridged ion (DCM and
+    gas, DefGrid3, Freq), mirror-image check, depth of the bridged well; RI-MP2/ma-def2-SVP gas
+    optimization + numerical frequencies of the bridged structure from the M06-2X geometry."""
+    from concurrent.futures import ThreadPoolExecutor
+    from .steps import accept_ts_stem
+    rx = Reaction.load(RX / "hshift_2_3_dimethyl_2_butyl")
+    base = rx.d("01_ts/level_test/M06-2X/bridged")
+    lt = rx.root / "01_ts/level_test/M06-2X"
+    bridged_dcm = lt / "dcm/ts/ts"                 # the OptTS that converged to a minimum
+
+    def mp2():
+        wd = base / "rimp2_gas"
+        r = orca.run(wd, "bridged", make(rx, "RI-MP2 ma-def2-SVP AutoAux TightSCF Opt NumFreq",
+                                         read_xyz(Path(f"{bridged_dcm}.xyz")), solv=False), rx.log,
+                     note="RI-MP2/ma-def2-SVP gas, Opt NumFreq of the bridged ion from the M06-2X (DCM) geometry")
+        st = wd / "bridged"
+        return {"ok": r.ok, "opt_converged": r.opt_converged, "imag_cm": nimag(st), **_kind(Path(f"{st}.xyz")),
+                "symmetry": _sym_swap(Path(f"{st}.xyz")), "E_eh": eg(st)[0]}
+
+    def phase(ph):
+        solv = ph == "dcm"
+        out = {}
+        if solv:
+            opn, brg = lt / "dcm/min/min", bridged_dcm
+        else:
+            opn, _ = opt_min(rx, base / "gas/open", "open", read_xyz(rx.root / "01_ts/gas_phase_opt/cation/cation.xyz"),
+                             solv=False, note="M06-2X gas, open cation (lowest conformer) from B3LYP gas")
+            brg, _ = opt_min(rx, base / "gas/bridged", "bridged", read_xyz(Path(f"{bridged_dcm}.xyz")), solv=False,
+                             note="M06-2X gas, bridged ion from the DCM M06-2X bridged minimum")
+        out["open"] = {"stem": str(opn.relative_to(rx.root)), "imag_cm": nimag(opn), **_kind(Path(f"{opn}.xyz"))}
+        out["bridged"] = {"stem": str(brg.relative_to(rx.root)), "imag_cm": nimag(brg), **_kind(Path(f"{brg}.xyz")),
+                          "symmetry": _sym_swap(Path(f"{brg}.xyz"))}
+        if not solv:
+            out["bridged"]["first_optimization_imag_cm"] = nimag(base / "gas/bridged/bridged")
+        if out["bridged"]["kind"] != "bridged":
+            out["note"] = "bridged structure did not stay bridged on optimization; no well, no scan"
+            return out
+        # relaxed scan of C2–H from the bridged ion toward the open cation (H stays on C3)
+        r0 = read_xyz(Path(f"{brg}.xyz")).distance(0, 2)
+        wd = base / ph / "scan"
+        blk = f"%geom\n  Scan B 0 2 = {r0 + 0.02:.3f}, 1.95, 16 end\nend"
+        r = orca.run(wd, "scan", make(rx, M062X + " Opt", read_xyz(Path(f"{brg}.xyz")), solv=solv, blocks=blk),
+                     rx.log, note=f"M06-2X {ph}, relaxed scan of C2–H {r0 + 0.02:.2f}→1.95 Å from the bridged ion")
+        dat = [ln.split() for ln in (wd / "scan.relaxscanact.dat").read_text().splitlines() if ln.strip()]
+        sc = [(float(a), float(b)) for a, b in dat]
+        out["scan"] = [{"C2–H_A": a, "dE_vs_bridged_kJ": kj(b - eg(brg)[0])} for a, b in sc]
+        k = int(np.argmax([b for _, b in sc]))
+        out["scan_max_point"] = k + 1
+        if k == 0 or k == len(sc) - 1:
+            out["note"] = f"scan maximum at the end point {k + 1}; no interior maximum"
+            return out
+        gmax = read_xyz(wd / f"scan.{k + 1:03d}.xyz")
+        ts, r = opt_ts(rx, base / ph / "ts", "ts", gmax, solv=solv,
+                       note=f"M06-2X {ph}, TS open ↔ bridged from scan point {k + 1}")
+        acc = accept_ts_stem(rx, ts)
+        out["ts"] = {"stem": str(ts.relative_to(rx.root)), "imag_cm": nimag(ts), **_kind(Path(f"{ts}.xyz")),
+                     "accepted": acc["accepted"], "reasons": acc["reasons"],
+                     "symmetry_of_ts": _sym_swap(Path(f"{ts}.xyz"))}
+        # which minima does the TS connect? ±0.1 Å along the imaginary mode, then optimize
+        if len(nimag(ts)) == 1:
+            h = orca.read_hess(Path(f"{ts}.hess"))
+            v = h["modes"][:, int(np.argmin(h["freqs"]))].reshape(-1, 3)
+            v *= 0.1 / np.linalg.norm(v, axis=1).max()
+            g0 = read_xyz(Path(f"{ts}.xyz"))
+            ends = {}
+            for sgn, tag in ((1, "plus"), (-1, "minus")):
+                g1 = Geometry(g0.symbols, np.asarray(g0.coords) + sgn * v)
+                e, _ = opt_min(rx, base / ph / f"ts_{tag}", tag, g1, solv=solv,
+                               note=f"M06-2X {ph}, TS displaced {tag} 0.1 Å along its mode, optimized")
+                ends[tag] = {**_kind(Path(f"{e}.xyz")), "imag_cm": nimag(e), "dE_vs_open_kJ": kj(eg(e)[0] - eg(opn)[0])}
+            out["ts_connects"] = ends
+        # energies, ZPE, G(135 K); σ = 1 throughout (as low_T.py)
+        T = 135.0
+        def th(stem):
+            t = thermo.thermo(Path(f"{stem}.hess"), T, 1)
+            return eg(stem)[0], t["ZPE_kJ"], t["G_minus_E_kJ"]
+        E = {k: th(s) for k, s in (("open", opn), ("bridged", brg), ("ts", ts))}
+        def diff(a, b):
+            dE = kj(E[a][0] - E[b][0])
+            return {"dE_kJ": dE, "dE_ZPE_kJ": dE + E[a][1] - E[b][1], "dG135_kJ": dE + E[a][2] - E[b][2]}
+        out["ts_minus_bridged"] = diff("ts", "bridged")
+        out["ts_minus_open"] = diff("ts", "open")
+        out["bridged_minus_open"] = diff("bridged", "open")
+        ov = _mode_overlaps(ts, brg)
+        out["transfer_mode_in_bridged"] = {"freq_cm": ov[0][1], "overlap_with_ts_mode": ov[0][0],
+                                           "next": ov[1], "ZPE_kJ": 0.5 * ov[0][1] * 0.0119627}
+        return out
+
+    with ThreadPoolExecutor(2) as ex:
+        fm = ex.submit(mp2)
+        res = {"dcm": phase("dcm"), "gas": phase("gas")}
+        res["rimp2_gas_bridged"] = fm.result()
+    write(base / "summary.json", res)
+    print(json.dumps(res, indent=1, default=float, ensure_ascii=False))
 
 
 # ------------------------------------------------------------------ queue
@@ -342,4 +532,5 @@ if __name__ == "__main__":
     if sys.argv[1] == "sensitivity":
         sensitivity(sys.argv[2])
     else:
-        {"queue": queue, "hshift_fallback": hshift_fallback, "methylbutyl": methylbutyl}[sys.argv[1]]()
+        {"queue": queue, "hshift_fallback": hshift_fallback, "methylbutyl": methylbutyl,
+         "bridged": bridged, "check_ts": check_ts_acceptance}[sys.argv[1]]()

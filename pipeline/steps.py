@@ -215,7 +215,7 @@ def dihedral(g: Geometry, atoms) -> float:
     return float(np.degrees(np.arctan2(np.dot(np.cross(b1, v), w), np.dot(v, w))))
 
 
-def _accept_ts(rx: Reaction, g: Geometry, out: dict) -> dict:
+def _accept_ts(rx: Reaction, g: Geometry, out: dict, hess_path: Path | None = None) -> dict:
     """Accept or reject the TS from its imaginary mode and geometry.
 
     Always: exactly one imaginary frequency; forming bonds shorten while breaking bonds
@@ -242,7 +242,7 @@ def _accept_ts(rx: Reaction, g: Geometry, out: dict) -> dict:
         if ref and np.sign(x["stretch_rate"]) != want:
             reasons.append(f"{x['bond']} moves the wrong way in the mode ({x['role']})")
     if "dominant_atom" in cfg:
-        h = orca.read_hess(rx.root / "01_ts/ts/ts.hess")
+        h = orca.read_hess(hess_path or rx.root / "01_ts/ts/ts.hess")
         v = h["modes"][:, int(np.argmin(h["freqs"]))].reshape(-1, 3)
         share = np.linalg.norm(v, axis=1) ** 2 / (v ** 2).sum()
         m["atom_shares"] = {f"{g.symbols[i]}{i}": round(float(share[i]), 3)
@@ -290,6 +290,24 @@ def _accept_ts(rx: Reaction, g: Geometry, out: dict) -> dict:
         print("WARNING", w)
     return {"accepted": not reasons and cls == "expected TS", "classification": cls,
             "reasons": reasons, "range_warnings": warnings}
+
+
+def accept_ts_stem(rx: Reaction, stem: Path) -> dict:
+    """The pipeline's TS acceptance test applied to any finished OptTS Freq job (stem.xyz, stem.hess),
+    e.g. a TS optimized at another level: exactly one imaginary frequency, key bonds moving the
+    right way, plus the reaction's [ts_mode] / [ts_required] rules (J. Picione, 2026-11-11: every job
+    meant to be a TS must pass it, and summaries must flag any that do not)."""
+    stem = Path(stem)
+    g = read_xyz(Path(f"{stem}.xyz"))
+    hp = Path(f"{stem}.hess")
+    f = orca.read_hess(hp)["freqs"]
+    imag = [float(x) for x in f[f < 0]]
+    out = {"imaginary_cm": imag, "n_imaginary": len(imag), "mode_check": check_ts_mode(rx, hp, g),
+           "bonds_A": {b["label"]: g.distance(*b["atoms"]) for b in rx.key_bonds(g.symbols)},
+           "dihedrals_deg": {n: dihedral(g, a) for n, a in rx.cfg.get("ts_dihedrals", {}).items()},
+           "angles_deg": {n: g.angle(*a) for n, a in rx.cfg.get("ts_angles", {}).items()}}
+    out.update(_accept_ts(rx, g, out, hp))
+    return out
 
 
 def _constraint_block(rx: Reaction) -> str:
