@@ -43,7 +43,23 @@ The tertiary cation lies 56.9 kJ/mol (13.6 kcal/mol) below this minimum in DCM a
 
 This is a chemical result, not a failure of the calculation. A secondary cation next to a tertiary centre does not survive as a classical ion at this level; it is held only by its conformation. The degenerate tertiary → tertiary shift in the 2,3-dimethyl-2-butyl cation is used instead.
 
-The literature on the simplest secondary case, the 2-butyl cation, points the same way. Experimentally, its hydrogen scrambling is not frozen out even at −190 °C in the solid (barrier below 2.4 kcal/mol, 10 kJ/mol), and isotope experiments indicate two forms in rapid equilibrium, a hydrogen-bridged form about 0.4 kcal/mol (1.7 kJ/mol) more stable (Saunders and Jiménez-Vázquez, *Chem. Rev.* 1991, 91, 375–397). Ab initio, Carneiro, Schleyer, Koch and Raghavachari found two minima within 1 kcal/mol (4 kJ/mol): a symmetric hydrogen-bridged ion and a cation distorted toward C–C hyperconjugation, described in the review as partially methyl-bridged (*J. Am. Chem. Soc.* 1990, 112, 4064–4066; not read here, cited through the review). The partially methyl-bridged minimum found here for the 3-methyl-2-butyl cation is the same kind of structure reported for the 2-butyl cation. Full references in docs/references.md.
+The literature on the simplest secondary case, the 2-butyl cation, points the same way. Experimentally, its hydrogen scrambling is not frozen out even at −190 °C in the solid (barrier below 2.4 kcal/mol, 10 kJ/mol), and isotope experiments indicate two forms in rapid equilibrium, a hydrogen-bridged form about 0.4 kcal/mol (1.7 kJ/mol) more stable (Saunders and Jiménez-Vázquez, *Chem. Rev.* 1991, 91, 375–397). Ab initio, Carneiro, Schleyer, Koch and Raghavachari (*J. Am. Chem. Soc.* 1990, 112, 4064–4066) found for the 2-butyl cation:
+
+- the open classical form is a transition structure (one imaginary frequency), 2.8 kcal/mol (11.7 kJ/mol) above the methyl-bridged form at MP4(sdtq)/6-311G**//MP2(fu)/6-31G** with zero-point energy;
+- the methyl-bridged and hydrogen-bridged forms are both minima, within 0.8 kcal/mol (3.3 kJ/mol); with zero-point energy the hydrogen-bridged form is lower by 0.3 kcal/mol (1.3 kJ/mol).
+
+The partially methyl-bridged minimum found here for the 3-methyl-2-butyl cation is the same kind of structure reported for the 2-butyl cation. The bridging angle depends on the method in the same way: Hartree–Fock and B3LYP give a wider angle, MP2 and M06-2X a narrower one.
+
+| Cation | Level | C⁺–C–CH₃ angle of the methyl-bridged form |
+|---|---|---|
+| 2-butyl (Carneiro et al. 1990) | HF/6-31G* | 102.4° |
+| 2-butyl (Carneiro et al. 1990) | MP2(fu)/6-31G* | 77.4° |
+| 2-butyl (Carneiro et al. 1990) | MP2/6-31G** | 76.9° |
+| 3-methyl-2-butyl, anti minimum, gas phase (this work) | B3LYP-D3(BJ)/ma-def2-SVP | 81.6° |
+| 3-methyl-2-butyl, anti minimum, gas phase (this work) | M06-2X/ma-def2-SVP | 71.3° |
+| 3-methyl-2-butyl, anti minimum, gas phase (this work) | RI-MP2/ma-def2-SVP | 71.6° |
+
+One difference: in the 2-butyl cation the hydrogen-bridged form is a minimum; in the 3-methyl-2-butyl cation it is not, because the hydride shift from it leads downhill to the tertiary 2-methyl-2-butyl cation. Full references in docs/references.md.
 
 Two follow-ups were asked for:
 - whether the partial methyl bridging survives at M06-2X and at a wavefunction level;
