@@ -30,6 +30,23 @@ DLPNO-CCSD(T)/ma-def2-TZVP maximum falls on the TS frame.
 
 SMD represents water as a continuum, with no explicit water molecules. It therefore misses the specific hydrogen bonds that water donates to a localized anion, and it under-stabilizes an alkoxide product. A computed step that forms an alkoxide (cyanide + acetone) is therefore likely too endergonic. The error comes from the solvent model, not the electronic-structure level: for cyanide + acetone the alkoxide lies +34.4 kJ/mol (+8.2 kcal/mol) above separated reactants in free energy at the working level and +36.3 kJ/mol (+8.7 kcal/mol) at DLPNO-CCSD(T)/ma-def2-TZVP (298 K, 1 M). No explicit water molecules are added; the card states the limitation.
 
+### Result: the 3-methyl-2-butyl cation has no classical secondary minimum to shift from (accepted by J. Picione, 2026-11-10)
+
+The first choice for the carbocation 1,2-hydride shift was 3-methyl-2-butyl → 2-methyl-2-butyl. The rule set beforehand was that the secondary cation must be a true minimum (all real frequencies, not hydrogen-bridged) with a barrier to the shift; otherwise switch to the degenerate shift in the 2,3-dimethyl-2-butyl cation.
+
+The secondary cation was optimized at the working level, in SMD dichloromethane and in the gas phase, from three rotamers about C2–C3 (`reactions/hshift_3_methyl_2_butyl`, run log there). Two findings came out:
+
+- **No barrier for the shift itself.** With the C3–H in line with the empty p orbital on C2, the optimization runs downhill without a barrier to the tertiary 2-methyl-2-butyl cation, in both phases.
+- **The minimum that does exist is partly methyl-bridged, not classical.** With the C3–H turned 64–78° away from the p axis, the optimization finds a true minimum: all frequencies real, the hydrogen still on C3. But one C3–CH₃ bond is stretched to 1.60–1.61 Å in DCM and 1.66–1.67 Å in the gas phase. That methyl leans toward C2, with a C2–C3–CH₃ angle of 92–95° in DCM and 82–85° in the gas phase. This is strong C–C hyperconjugation. Only rotation about C2–C3 keeps the hydrogen from shifting.
+
+The tertiary cation lies 56.9 kJ/mol (13.6 kcal/mol) below this minimum in DCM and 54.2 kJ/mol (13.0 kcal/mol) below in the gas phase (ΔE).
+
+This is a chemical result, not a failure of the calculation. A secondary cation next to a tertiary centre does not survive as a classical ion at this level; it is held only by its conformation. The degenerate tertiary → tertiary shift in the 2,3-dimethyl-2-butyl cation is used instead.
+
+Two follow-ups were asked for:
+- whether the partial methyl bridging survives at M06-2X and at a wavefunction level;
+- whether a C2–C3 rotation transition state connects this minimum to the tertiary cation.
+
 ### IRC stopping rule (decided by J. Picione, 2026-11-09)
 
 Each IRC direction is ended when the energy has changed by less than **0.05 kJ/mol
