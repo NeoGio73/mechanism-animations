@@ -27,30 +27,41 @@
 | M06-2X/ma-def2-TZVP | 71.4 kJ/mol (17.1 kcal/mol) | 78.7 kJ/mol (18.8 kcal/mol) | -211.5 kJ/mol (-50.5 kcal/mol) | 121.5 kJ/mol (29.0 kcal/mol) |
 | DLPNO-CCSD(T)/ma-def2-TZVP | 84.2 kJ/mol (20.1 kcal/mol) | 89.2 kJ/mol (21.3 kcal/mol) | -202.2 kJ/mol (-48.3 kcal/mol) | 134.3 kJ/mol (32.1 kcal/mol) |
 
-ΔG‡ adds the working-level thermal corrections (298.15 K) and the 1 atm → 1 M standard-state correction to each level's electronic barrier.
+ΔG adds the working-level thermal corrections (298.15 K) and the 1 atm → 1 M standard-state correction to each level's electronic energies.
 
 ## Comparison with the gas-phase experiment
 
-Stationary points recomputed without the solvent model at every level (same geometries). Barriers from butadiene s-trans + ethylene (the measured reference) unless marked; Ea = ΔH‡(T) + 2RT for a gas-phase bimolecular reaction, at T = 800 K, provisional.
+Stationary points recomputed without the solvent model at every level (same geometries). Barriers from butadiene s-trans + ethylene (the measured reference) unless marked; Ea = ΔH‡(T) + 2RT for a gas-phase bimolecular reaction, with ΔH‡ recomputed at T = 840 K, the midpoint of the measured range 760–921 K.
 
-| Level | Phase | ΔE‡ from butadiene s-cis + ethylene | ΔE‡ | ΔH‡ (298.15 K) | ΔG‡ (298.15 K) | Ea (800 K, provisional) |
+| Level | Phase | ΔE‡ from butadiene s-cis + ethylene | ΔE‡ | ΔH‡ (298.15 K) | ΔG‡ (298.15 K) | Ea (840 K) |
 |---|---|---|---|---|---|---|
-| B3LYP-D3(BJ)/ma-def2-SVP (working) | SMD toluene | 58.0 kJ/mol (13.9 kcal/mol) | 71.8 kJ/mol (17.2 kcal/mol) | 76.3 kJ/mol (18.2 kcal/mol) | 119.1 kJ/mol (28.5 kcal/mol) (1 M) | **91.9 kJ/mol (22.0 kcal/mol)** |
-| B3LYP-D3(BJ)/ma-def2-SVP (working) | gas phase | 59.8 kJ/mol (14.3 kcal/mol) | 73.7 kJ/mol (17.6 kcal/mol) | 78.2 kJ/mol (18.7 kcal/mol) | 128.9 kJ/mol (30.8 kcal/mol) (1 atm) | **93.8 kJ/mol (22.4 kcal/mol)** |
-| B3LYP-D3(BJ)/ma-def2-TZVP (protocol) | SMD toluene | 65.2 kJ/mol (15.6 kcal/mol) | 79.5 kJ/mol (19.0 kcal/mol) | 84.0 kJ/mol (20.1 kcal/mol) | 126.8 kJ/mol (30.3 kcal/mol) (1 M) | **99.6 kJ/mol (23.8 kcal/mol)** |
-| B3LYP-D3(BJ)/ma-def2-TZVP (protocol) | gas phase | 66.6 kJ/mol (15.9 kcal/mol) | 80.9 kJ/mol (19.3 kcal/mol) | 85.4 kJ/mol (20.4 kcal/mol) | 136.1 kJ/mol (32.5 kcal/mol) (1 atm) | **101.0 kJ/mol (24.1 kcal/mol)** |
-| M06-2X/ma-def2-TZVP | SMD toluene | 71.4 kJ/mol (17.1 kcal/mol) | 84.0 kJ/mol (20.1 kcal/mol) | 88.5 kJ/mol (21.1 kcal/mol) | 131.2 kJ/mol (31.4 kcal/mol) (1 M) | **104.1 kJ/mol (24.9 kcal/mol)** |
-| M06-2X/ma-def2-TZVP | gas phase | 72.5 kJ/mol (17.3 kcal/mol) | 85.2 kJ/mol (20.4 kcal/mol) | 89.7 kJ/mol (21.4 kcal/mol) | 140.4 kJ/mol (33.5 kcal/mol) (1 atm) | **105.3 kJ/mol (25.2 kcal/mol)** |
-| DLPNO-CCSD(T)/ma-def2-TZVP | SMD toluene | 84.2 kJ/mol (20.1 kcal/mol) | 97.0 kJ/mol (23.2 kcal/mol) | 101.5 kJ/mol (24.3 kcal/mol) | 144.3 kJ/mol (34.5 kcal/mol) (1 M) | **117.1 kJ/mol (28.0 kcal/mol)** |
-| DLPNO-CCSD(T)/ma-def2-TZVP | gas phase | 85.9 kJ/mol (20.5 kcal/mol) | 98.7 kJ/mol (23.6 kcal/mol) | 103.2 kJ/mol (24.7 kcal/mol) | 153.9 kJ/mol (36.8 kcal/mol) (1 atm) | **118.8 kJ/mol (28.4 kcal/mol)** |
+| B3LYP-D3(BJ)/ma-def2-SVP (working) | SMD toluene | 58.0 kJ/mol (13.9 kcal/mol) | 71.8 kJ/mol (17.2 kcal/mol) | 76.3 kJ/mol (18.2 kcal/mol) | 119.1 kJ/mol (28.5 kcal/mol) (1 M) | **92.9 kJ/mol (22.2 kcal/mol)** |
+| B3LYP-D3(BJ)/ma-def2-SVP (working) | gas phase | 59.8 kJ/mol (14.3 kcal/mol) | 73.7 kJ/mol (17.6 kcal/mol) | 78.2 kJ/mol (18.7 kcal/mol) | 128.9 kJ/mol (30.8 kcal/mol) (1 atm) | **94.8 kJ/mol (22.7 kcal/mol)** |
+| B3LYP-D3(BJ)/ma-def2-TZVP (protocol) | SMD toluene | 65.2 kJ/mol (15.6 kcal/mol) | 79.5 kJ/mol (19.0 kcal/mol) | 84.0 kJ/mol (20.1 kcal/mol) | 126.8 kJ/mol (30.3 kcal/mol) (1 M) | **100.6 kJ/mol (24.0 kcal/mol)** |
+| B3LYP-D3(BJ)/ma-def2-TZVP (protocol) | gas phase | 66.6 kJ/mol (15.9 kcal/mol) | 80.9 kJ/mol (19.3 kcal/mol) | 85.4 kJ/mol (20.4 kcal/mol) | 136.1 kJ/mol (32.5 kcal/mol) (1 atm) | **102.0 kJ/mol (24.4 kcal/mol)** |
+| M06-2X/ma-def2-TZVP | SMD toluene | 71.4 kJ/mol (17.1 kcal/mol) | 84.0 kJ/mol (20.1 kcal/mol) | 88.5 kJ/mol (21.1 kcal/mol) | 131.2 kJ/mol (31.4 kcal/mol) (1 M) | **105.1 kJ/mol (25.1 kcal/mol)** |
+| M06-2X/ma-def2-TZVP | gas phase | 72.5 kJ/mol (17.3 kcal/mol) | 85.2 kJ/mol (20.4 kcal/mol) | 89.7 kJ/mol (21.4 kcal/mol) | 140.4 kJ/mol (33.5 kcal/mol) (1 atm) | **106.3 kJ/mol (25.4 kcal/mol)** |
+| DLPNO-CCSD(T)/ma-def2-TZVP | SMD toluene | 84.2 kJ/mol (20.1 kcal/mol) | 97.0 kJ/mol (23.2 kcal/mol) | 101.5 kJ/mol (24.3 kcal/mol) | 144.3 kJ/mol (34.5 kcal/mol) (1 M) | **118.1 kJ/mol (28.2 kcal/mol)** |
+| DLPNO-CCSD(T)/ma-def2-TZVP | gas phase | 85.9 kJ/mol (20.5 kcal/mol) | 98.7 kJ/mol (23.6 kcal/mol) | 103.2 kJ/mol (24.7 kcal/mol) | 153.9 kJ/mol (36.8 kcal/mol) (1 atm) | **119.8 kJ/mol (28.6 kcal/mol)** |
 
 Experiment (gas phase): Ea ≈ 115.0 kJ/mol (27.5 kcal/mol).
 butadiene s-trans → butadiene s-cis, ΔE: 12.8 kJ/mol (3.1 kcal/mol) at DLPNO-CCSD(T)/ma-def2-TZVP (gas phase).
 Thermal corrections: working-level harmonic frequencies (SMD), quasi-RRHO entropy for ΔG‡; the s-trans reference is why ΔE‡ here exceeds the barrier from the s-cis conformer.
 
-Experiment (gas phase): butadiene + ethylene → cyclohexene, Ea ≈ 115 kJ/mol (27.5 kcal/mol). Source: D. Rowley and H. Steiner, Discuss. Faraday Soc. 1951, 10, 198–213, doi:10.1039/DF9511000198. The measured activation energy refers to equilibrium butadiene (almost all s-trans) in the gas phase; this calculation is in SMD toluene and starts from s-cis butadiene, so the s-trans → s-cis energy is reported separately. Concerted, synchronous transition state: K. N. Houk, Y.-T. Lin and F. K. Brown, J. Am. Chem. Soc. 1986, 108, 554–556, doi:10.1021/ja00263a059; E. Goldstein, B. Beno and K. N. Houk, J. Am. Chem. Soc. 1996, 118, 6036–6043, doi:10.1021/ja9601494.
+### Rate constant at 840 K
 
-*Value to be confirmed against the primary paper by J. Picione.*
+Transition-state theory, gas phase: k = (k_B T/h)(RT/p°) exp(−ΔG‡/RT), with ΔG‡ at 840 K for a 1 atm (101 325 Pa) standard state, no tunnelling correction, and the reaction-path degeneracy carried by the rotational symmetry numbers. ΔG‡(T) uses each level's gas-phase ΔE‡ and the working-level thermal corrections (quasi-RRHO entropy, checked against ORCA's own values at 298.15 K).
+
+| Level | ΔG‡ (840 K, 1 atm) | k(TST) (L mol⁻¹ s⁻¹) | k(TST) (cm³ molecule⁻¹ s⁻¹) | k(TST) / k(experiment) |
+|---|---|---|---|---|
+| B3LYP-D3(BJ)/ma-def2-SVP (working) | 221.1 kJ/mol (52.8 kcal/mol) | 21.7 | 3.60 × 10⁻²⁰ | **10.2** |
+| B3LYP-D3(BJ)/ma-def2-TZVP (protocol) | 228.3 kJ/mol (54.6 kcal/mol) | 7.69 | 1.28 × 10⁻²⁰ | **3.63** |
+| M06-2X/ma-def2-TZVP | 232.5 kJ/mol (55.6 kcal/mol) | 4.19 | 6.96 × 10⁻²¹ | **1.98** |
+| DLPNO-CCSD(T)/ma-def2-TZVP | 246.1 kJ/mol (58.8 kcal/mol) | 0.604 | 1.00 × 10⁻²¹ | **0.29** |
+
+Experiment at 840 K, from the measured Arrhenius parameters (A = 4.98 × 10⁻¹⁴ cm³ molecule⁻¹ s⁻¹ = 3.00 × 10⁷ L mol⁻¹ s⁻¹, Ea = 115 kJ/mol): k = **2.12 L mol⁻¹ s⁻¹** (3.52 × 10⁻²¹ cm³ molecule⁻¹ s⁻¹).
+
+Experiment (gas phase): C₂H₄ + 1,3-butadiene → cyclohexene, second order, 760–921 K, Ea = 115 kJ/mol (27.5 kcal/mol), A = 4.98 × 10⁻¹⁴ cm³ molecule⁻¹ s⁻¹ (3.0 × 10⁷ L mol⁻¹ s⁻¹). Pressure 3.72 × 10⁴ to 1.01 × 10⁵ Pa; rate constant reported as pressure independent; static thermal experiment followed by pressure measurement; absolute values. Source: Rowley and Steiner 1951 (D. Rowley and H. Steiner, Discuss. Faraday Soc. 1951, 10, 198–213, doi:10.1039/DF9511000198), as compiled in the NIST Chemical Kinetics Database, squib 1951ROW/STE198-213. Activation energy and temperature range confirmed by J. Picione from the NIST entry (2026-11-10); the original paper has not yet been read. The measured activation energy refers to equilibrium butadiene (almost all s-trans) in the gas phase; this calculation is in SMD toluene and starts from s-cis butadiene, so the s-trans → s-cis energy is reported separately. Concerted, synchronous transition state: K. N. Houk, Y.-T. Lin and F. K. Brown, J. Am. Chem. Soc. 1986, 108, 554–556, doi:10.1021/ja00263a059; E. Goldstein, B. Beno and K. N. Houk, J. Am. Chem. Soc. 1996, 118, 6036–6043, doi:10.1021/ja9601494.
 
 ## Known artifacts and limitations
 

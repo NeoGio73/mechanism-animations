@@ -27,11 +27,11 @@ primary paper by J. Picione" (`experimental_confirmed = false` in `00_inputs/car
 | E. D. Hughes, C. K. Ingold, S. Masterman and B. J. McNulty, "Mechanism of elimination reactions. Part V. …", *J. Chem. Soc.* **1940**, 899–912. doi:[10.1039/JR9400000899](https://doi.org/10.1039/JR9400000899) | Companion paper: earlier isopropyl bromide kinetics in alkaline ethanol. | Companion |
 | M. L. Dhar, E. D. Hughes, C. K. Ingold, A. M. M. Mandour, G. A. Maw and L. I. Woolf, "Mechanism of elimination reactions. Part XVI. Constitutional influences in elimination. A general discussion", *J. Chem. Soc.* **1948**, 2093. doi:[10.1039/JR9480002093](https://doi.org/10.1039/JR9480002093) | Companion paper: general discussion. | Companion |
 
-### Diels–Alder: butadiene + ethylene (card not yet built)
+### Diels–Alder: butadiene + ethylene, gas phase
 
 | Source | Used for | Status |
 |---|---|---|
-| D. Rowley and H. Steiner, "Kinetics of diene reactions at high temperatures", *Discuss. Faraday Soc.* **1951**, *10*, 198–213. doi:[10.1039/DF9511000198](https://doi.org/10.1039/DF9511000198) | Gas-phase activation energy. | To confirm |
+| D. Rowley and H. Steiner, "Kinetics of diene reactions at high temperatures", *Discuss. Faraday Soc.* **1951**, *10*, 198–213. doi:[10.1039/DF9511000198](https://doi.org/10.1039/DF9511000198), as compiled in the NIST Chemical Kinetics Database (NIST Standard Reference Database 17, [kinetics.nist.gov](https://kinetics.nist.gov/)), squib 1951ROW/STE198-213. | C₂H₄ + 1,3-butadiene → cyclohexene, gas phase, second order, 760–921 K; Ea = 115 kJ/mol, A = 4.98 × 10⁻¹⁴ cm³ molecule⁻¹ s⁻¹ (3.0 × 10⁷ L mol⁻¹ s⁻¹), n = 0. Pressure 3.72 × 10⁴ to 1.01 × 10⁵ Pa; rate constant reported as pressure independent; static thermal experiment followed by pressure measurement; absolute values. NIST lists k(825 K) = 2.59 × 10⁻²¹ and k(850 K) = 4.23 × 10⁻²¹ cm³ molecule⁻¹ s⁻¹ (A and Ea above give 2.61 × 10⁻²¹ and 4.27 × 10⁻²¹, within 1 %, rounding of the listed parameters). Used for the gas-phase Ea comparison at 840 K (midpoint of the range) and for k(840 K) = 2.12 L mol⁻¹ s⁻¹ (3.52 × 10⁻²¹ cm³ molecule⁻¹ s⁻¹) against transition-state theory. | Confirmed by J. Picione from the NIST entry, 2026-11-10 (Ea and temperature range); original paper not yet read |
 | K. N. Houk, Y.-T. Lin and F. K. Brown, "Evidence for the concerted mechanism of the Diels–Alder reaction of butadiene with ethylene", *J. Am. Chem. Soc.* **1986**, *108*, 554–556. doi:[10.1021/ja00263a059](https://doi.org/10.1021/ja00263a059) | Concerted transition state. | Comparison |
 | E. Goldstein, B. Beno and K. N. Houk, "Density functional theory prediction of the relative energies and isotope effects for the concerted and stepwise mechanisms of the Diels–Alder reaction of butadiene and ethylene", *J. Am. Chem. Soc.* **1996**, *118*, 6036–6043. doi:[10.1021/ja9601494](https://doi.org/10.1021/ja9601494) | Concerted transition state. | Comparison |
 
@@ -125,7 +125,7 @@ ORCA's own citation list for the DLPNO jobs also names: F. Neese, F. Wennmohs an
 | K. Fukui, "The path of chemical reactions — the IRC approach", *Acc. Chem. Res.* **1981**, *14*, 363–368. doi:[10.1021/ar00072a001](https://doi.org/10.1021/ar00072a001) | Intrinsic reaction coordinate |
 | D. Bykov, T. Petrenko, R. Izsák, S. Kossmann, U. Becker, E. Valeev and F. Neese, "Efficient implementation of the analytic second derivatives of Hartree–Fock and hybrid DFT energies: a detailed analysis of different approximations", *Mol. Phys.* **2015**, *113*, 1961–1977. doi:[10.1080/00268976.2015.1025114](https://doi.org/10.1080/00268976.2015.1025114) | Analytic Hessians (TS search, frequencies) |
 | S. Grimme, "Supramolecular binding thermodynamics by dispersion-corrected density functional theory", *Chem. Eur. J.* **2012**, *18*, 9955–9964. doi:[10.1002/chem.201200497](https://doi.org/10.1002/chem.201200497) | Quasi-RRHO vibrational entropy (ORCA default, 100 cm⁻¹) |
-| H. Eyring, "The activated complex in chemical reactions", *J. Chem. Phys.* **1935**, *3*, 107–115. doi:[10.1063/1.1749604](https://doi.org/10.1063/1.1749604) | ΔG‡ from measured rate constants |
+| H. Eyring, "The activated complex in chemical reactions", *J. Chem. Phys.* **1935**, *3*, 107–115. doi:[10.1063/1.1749604](https://doi.org/10.1063/1.1749604) | ΔG‡ from measured rate constants and the transition-state-theory rate constant (Diels–Alder card) |
 
 ### Orbitals and tracking
 

@@ -266,12 +266,14 @@ def _bond(rx: Reaction, end: str) -> str:
 def _gas_phase_section(rx, gp: dict) -> list[str]:
     """Card section: gas phase against solution at each level, Ea = ΔH‡(T) + 2RT vs experiment."""
     T = f"{gp['T_K']:.0f} K" + (", provisional" if gp["T_provisional"] else "")
+    rng = gp.get("T_range_K")
+    T_long = T + (f", the midpoint of the measured range {rng[0]}–{rng[1]} K" if rng else "")
     ref = " + ".join(n.replace("_", " ") for n in gp["reference"])
     reac = " + ".join(n.replace("_", " ") for n in gp["reactants"])
     out = ["## Comparison with the gas-phase experiment", "",
            f"Stationary points recomputed without the solvent model at every level (same geometries). "
            f"Barriers from {ref} (the measured reference) unless marked; Ea = ΔH‡(T) + 2RT for a "
-           f"gas-phase bimolecular reaction, at T = {T}.", "",
+           f"gas-phase bimolecular reaction, with ΔH‡ recomputed at T = {T_long}.", "",
            f"| Level | Phase | ΔE‡ from {reac} | ΔE‡ | ΔH‡ (298.15 K) | ΔG‡ (298.15 K) | Ea ({T}) |",
            "|---|---|---|---|---|---|---|"]
     for row in gp["rows"]:
@@ -289,6 +291,30 @@ def _gas_phase_section(rx, gp: dict) -> list[str]:
                 f"({best['phase']})."]
     out += ["Thermal corrections: working-level harmonic frequencies (SMD), quasi-RRHO entropy for "
             "ΔG‡; the s-trans reference is why ΔE‡ here exceeds the barrier from the s-cis conformer.", ""]
+    tst = [r for r in gp["rows"] if r.get("k_TST_L_mol_s")]
+    if tst:
+        from .gas_phase import ratio_txt, sci
+        from .thermo import NA
+        out += [f"### Rate constant at {T}", "",
+                "Transition-state theory, gas phase: k = (k_B T/h)(RT/p°) exp(−ΔG‡/RT), with ΔG‡ at "
+                f"{T} for a 1 atm (101 325 Pa) standard state, no tunnelling correction, and the "
+                "reaction-path degeneracy carried by the rotational symmetry numbers. ΔG‡(T) uses each "
+                "level's gas-phase ΔE‡ and the working-level thermal corrections (quasi-RRHO entropy, "
+                "checked against ORCA's own values at 298.15 K).", "",
+                f"| Level | ΔG‡ ({T}, 1 atm) | k(TST) (L mol⁻¹ s⁻¹) | k(TST) (cm³ molecule⁻¹ s⁻¹) | "
+                "k(TST) / k(experiment) |", "|---|---|---|---|---|"]
+        for r in tst:
+            ratio = ratio_txt(r["k_ratio_to_exp"]) if r.get("k_ratio_to_exp") else "—"
+            out.append(f"| {r['level'].replace('_', '/')} | {fmt_kj(r['dG_T_kJ'])} | "
+                       f"{r['k_TST_L_mol_s']:.3g} | {sci(r['k_TST_L_mol_s'] * 1000 / NA)} | **{ratio}** |")
+        if gp.get("k_exp_L_mol_s"):
+            k = gp["k_exp_L_mol_s"]
+            A = gp["experimental_A_cm3_molecule_s"]
+            out += ["", f"Experiment at {T}, from the measured Arrhenius parameters (A = {sci(A)} "
+                        f"cm³ molecule⁻¹ s⁻¹ = {sci(A * NA / 1000)} L mol⁻¹ s⁻¹, Ea = "
+                        f"{gp['experimental_Ea_kJ']:g} kJ/mol): k = **{k:.3g} L mol⁻¹ s⁻¹** "
+                        f"({sci(k * 1000 / NA)} cm³ molecule⁻¹ s⁻¹)."]
+        out += [""]
     return out
 
 

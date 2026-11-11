@@ -28,7 +28,7 @@ import re
 
 import numpy as np
 
-from . import orca
+from . import orca, thermo
 from .geometry import formal_charge, read_xyz
 from .steps import Reaction, _read_json, _stationary_points, _write_json
 from .units import fmt_kj, kj
@@ -91,6 +91,26 @@ def _solution_energies(rx: Reaction, key: str) -> dict:
     return _read_json(rx.root / "01_ts/diagnostics.json")["energies_eh"][key]
 
 
+def sci(x: float, digits: int = 2) -> str:
+    """3.52 × 10⁻²¹ style."""
+    m, e = f"{x:.{digits}e}".split("e")
+    sup = str.maketrans("-0123456789", "⁻⁰¹²³⁴⁵⁶⁷⁸⁹")
+    e = int(e)
+    return m if e == 0 else f"{m} × 10{str(e).translate(sup)}"
+
+
+def ratio_txt(r: float) -> str:
+    return f"{r:.2f}" if r < 10 else f"{r:.1f}"
+
+
+def _tst(dG_kj: float, T: float, k_exp: float | None) -> dict:
+    """Bimolecular gas-phase TST rate constant (L mol⁻¹ s⁻¹) from ΔG‡ at T with a 1 atm standard state."""
+    kT_h = thermo.KB * T / thermo.H_PL                          # s⁻¹
+    v0 = thermo.R_KJ * 1000.0 * T / thermo.P_ATM * 1000.0       # L/mol at 1 atm
+    k = kT_h * v0 * math.exp(-dG_kj / (R_KJ * T))
+    return {"dG_T_kJ": dG_kj, "k_TST_L_mol_s": k, "k_ratio_to_exp": (k / k_exp) if k_exp else None}
+
+
 def gas_phase(rx: Reaction) -> None:
     cfg = rx.cfg["gas_phase"]
     names = cfg["species"]
@@ -108,6 +128,18 @@ def gas_phase(rx: Reaction) -> None:
         check[n] = round(Hcorr_298[n] - kj(o["H"] - o["E"]), 3)
         Hcorr_298[n] = kj(o["H"] - o["E"])          # use ORCA's own value at 298.15 K
     Gcorr_298 = {n: kj(_orca_thermo(rx, n)["G"] - _orca_thermo(rx, n)["E"]) for n in names}
+    # G(T) − E at the experimental temperature, 1 atm, same model as ORCA (checked at 298.15 K)
+    Gcorr_T, thermo_check = {}, {}
+    for n in names:
+        hp = _hess_path(rx, n)
+        sigma = thermo.symmetry_number(hp.with_suffix(".out"))
+        Gcorr_T[n] = thermo.thermo(hp, T, sigma)["G_minus_E_kJ"]
+        thermo_check[n] = thermo.check_against_orca(hp, hp.with_suffix(".out"))["G_minus_E_kJ"]
+    print(f"G(298.15 K) − E from frequencies minus ORCA's, kJ/mol:", thermo_check)
+    k_exp = None
+    if cfg.get("experimental_A_cm3_molecule_s") and cfg.get("experimental_Ea_kJ"):
+        A_L = cfg["experimental_A_cm3_molecule_s"] * thermo.NA / 1000.0
+        k_exp = A_L * math.exp(-cfg["experimental_Ea_kJ"] / (R_KJ * T))
     print("H(298.15 K) from frequencies minus ORCA's, kJ/mol:", check)
 
     rows = []
@@ -140,10 +172,18 @@ def gas_phase(rx: Reaction) -> None:
                 "standard_state": "1 atm" if phase == "gas phase" else "1 M",
                 "dH_T_kJ": dH_T,
                 "Ea_T_kJ": dH_T + 2 * R_KJ * T,
+                **(_tst(barrier(ref, Gcorr_T), T, k_exp) if phase == "gas phase" and len(ref) == 2 else {}),
                 "s_trans_to_s_cis_dE_kJ": kj(E[reac[0]] - E[ref[0]]) if reac[0] in E and ref[0] in E else None,
             })
 
     out = {"T_K": T, "T_provisional": bool(cfg.get("T_exp_provisional", True)),
+           "T_range_K": cfg.get("T_exp_range_K"), "k_exp_L_mol_s": k_exp,
+           "experimental_A_cm3_molecule_s": cfg.get("experimental_A_cm3_molecule_s"),
+           "G298_check_kJ": thermo_check,
+           "tst_note": "k = (kB T/h)(RT/p°) exp(−ΔG‡/RT), gas phase, p° = 1 atm (101325 Pa) standard state "
+                       "for ΔG‡, no tunnelling correction (κ = 1), reaction-path degeneracy through the "
+                       "rotational symmetry numbers; ΔG‡ = gas-phase ΔE‡ at each level + G(T) − E from the "
+                       "working-level frequencies (quasi-RRHO entropy)",
            "reference": ref, "reactants": reac,
            "experimental_Ea_kJ": cfg.get("experimental_Ea_kJ"),
            "thermal_note": "working-level (SMD) harmonic frequencies; H(298.15 K) and G(298.15 K) from ORCA "
@@ -166,5 +206,19 @@ def gas_phase(rx: Reaction) -> None:
     if out["experimental_Ea_kJ"]:
         md += ["", f"Experiment ({cfg.get('experimental_source', '')}, gas phase): "
                    f"Ea ≈ {fmt_kj(out['experimental_Ea_kJ'])}."]
+    tst = [r for r in rows if "k_TST_L_mol_s" in r]
+    if tst:
+        md += ["", f"Transition-state-theory rate constant at {tag}, gas phase ({out['tst_note']}):", "",
+               f"| Level | ΔG‡ ({tag}, 1 atm) | k(TST) (L mol⁻¹ s⁻¹) | k(TST) (cm³ molecule⁻¹ s⁻¹) | "
+               f"k(TST) / k(experiment) |", "|---|---|---|---|---|"]
+        for r in tst:
+            ratio = ratio_txt(r["k_ratio_to_exp"]) if r.get("k_ratio_to_exp") else "—"
+            md.append(f"| {r['level']} | {fmt_kj(r['dG_T_kJ'])} | {r['k_TST_L_mol_s']:.3g} | "
+                      f"{sci(r['k_TST_L_mol_s'] * 1000 / thermo.NA)} | {ratio} |")
+        if k_exp:
+            md += ["", f"Experiment at {tag} from A = {sci(cfg['experimental_A_cm3_molecule_s'])} cm³ molecule⁻¹ s⁻¹ "
+                       f"({sci(k_exp / math.exp(-cfg['experimental_Ea_kJ'] / (R_KJ * T)))} L mol⁻¹ s⁻¹) and "
+                       f"Ea = {cfg['experimental_Ea_kJ']:g} kJ/mol: k = {k_exp:.3g} L mol⁻¹ s⁻¹ "
+                       f"({sci(k_exp * 1000 / thermo.NA)} cm³ molecule⁻¹ s⁻¹)."]
     (rx.root / "01_ts/gas_phase.md").write_text("\n".join(md) + "\n", encoding="utf-8")
     print("\n".join(md))
