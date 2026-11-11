@@ -37,13 +37,14 @@ primary paper by J. Picione" (`experimental_confirmed = false` in `00_inputs/car
 
 ### Nucleophilic addition: cyanide + acetone, water
 
-Leads supplied by J. Picione (2026-11-10), checked against Crossref only; no measured value is on
-the card until J. Picione supplies one. The measured rate depends on pH, because only free cyanide
-(CN⁻, not HCN) adds to the carbonyl.
+Leads supplied by J. Picione (2026-11-10); the values on the card were read by J. Picione from
+Guthrie 1998, Table 1 (2026-11-11). Water, 25 °C. The measured rate refers to free cyanide (CN⁻, not
+HCN), which is the species that adds to the carbonyl, so observed rates depend on pH.
 
 | Source | Used for | Status |
 |---|---|---|
-| J. P. Guthrie, "Prediction of rate constants for cyanohydrin formation using equilibrium constants and distortion energies", *J. Am. Chem. Soc.* **1998**, *120*, 1688–1694. doi:[10.1021/ja970506q](https://doi.org/10.1021/ja970506q) | Lead for both the rate constant and the equilibrium constant of cyanohydrin formation from acetone (the equilibrium constant bears on the computed free energy of the alkoxide step). No value from it is on the card. | Lead, to be confirmed by J. Picione |
+| J. P. Guthrie, "Prediction of rate constants for cyanohydrin formation using equilibrium constants and distortion energies", *J. Am. Chem. Soc.* **1998**, *120*, 1688–1694. doi:[10.1021/ja970506q](https://doi.org/10.1021/ja970506q) | Compilation (Table 1) for acetone: log K = −1.84 for K = [R₂C(O⁻)CN]/([R₂C=O][CN⁻]), so K = 0.0145 M⁻¹ and ΔG° = +10.5 kJ/mol (+2.5 kcal/mol); rate = k[CN⁻][R₂C=O], log k = 0.60, so k = 4.0 M⁻¹ s⁻¹ and ΔG‡ = 69.6 kJ/mol (16.6 kcal/mol) (298.15 K, 1 M standard state, Eyring with no transmission correction; conversions checked by Claude). Both values on the card, cited as the compilation. | Confirmed by J. Picione from Table 1, 2026-11-11 |
+| G. Schlesinger and S. L. Miller, "Equilibrium and kinetics of glyconitrile formation in aqueous solution", *J. Am. Chem. Soc.* **1973**, *95*, 3729–3735. doi:[10.1021/ja00792a043](https://doi.org/10.1021/ja00792a043) | Original source of the measurements as cited by Guthrie 1998; cited on the card as such. Not yet read; its title names glyconitrile (the formaldehyde cyanohydrin), so whether the acetone values come from this paper is still to be checked. | Not yet read |
 | W. J. Svirbely and J. F. Roth, "Carbonyl reactions. I. The kinetics of cyanohydrin formation in aqueous solution", *J. Am. Chem. Soc.* **1953**, *75*, 3106–3111. doi:[10.1021/ja01109a020](https://doi.org/10.1021/ja01109a020) | Lead: measured kinetics in aqueous solution. | Lead, to be confirmed by J. Picione |
 
 ### Carbocation 1,2-hydride shift: 2,3-dimethyl-2-butyl cation (degenerate), low-temperature NMR

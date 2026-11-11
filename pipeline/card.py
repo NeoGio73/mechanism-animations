@@ -167,10 +167,27 @@ def card(rx: Reaction) -> None:
             if full:
                 cells += [f(row["dG_TS_vs_complex_kJ"]), f(row["dG_reaction_1M_kJ"])]
             lines.append("| " + " | ".join(cells) + " |")
+        xr = notes.get("experiment_row")          # measured values in the same table
+        if xr and full:
+            cells = [f"**{xr['label']}**", "—", "—", "—", f(xr.get("dG_TS_vs_separated_1M_kJ")), "—",
+                     f(xr.get("dG_reaction_1M_kJ"))]
+            lines.append("| " + " | ".join(cells) + " |")
         lines += ["", "ΔG adds the working-level thermal corrections (298.15 K) and the 1 atm → 1 M "
                   "standard-state correction to each level's electronic energies"
                   + ("; the reactant complex → TS step is unimolecular and needs no standard-state "
                      "correction" if full else "") + ".", ""]
+        if xr and full:
+            sg = lambda x: f"{x:+.1f} kJ/mol ({x / 4.184:+.1f} kcal/mol)"
+            lines += ["### Computed − measured", "",
+                      "| Level | ΔG‡ from separated reactants | Reaction free energy ΔG |", "|---|---|---|"]
+            for row in diag["rows"]:
+                a = row["dG_TS_vs_separated_1M_kJ"]
+                b = row["dG_reaction_1M_kJ"]
+                ea, eb = xr.get("dG_TS_vs_separated_1M_kJ"), xr.get("dG_reaction_1M_kJ")
+                lines.append(f"| {row['level'].replace('_', '/')} | "
+                             f"{sg(a - ea) if a is not None and ea is not None else '—'} | "
+                             f"{sg(b - eb) if b is not None and eb is not None else '—'} |")
+            lines += [""]
     gp_path = r / "01_ts/gas_phase.json"
     if gp_path.exists():
         lines += _gas_phase_section(rx, _read_json(gp_path))
@@ -182,7 +199,9 @@ def card(rx: Reaction) -> None:
     lines += ["## Known artifacts and limitations", ""]
     lines += [f"- {x}" for x in _auto_limitations(rx, tz, svp, ts, diag, tr,
                                                   has_exp=bool(notes.get("experimental")),
-                                                  gas=gp_path.exists())]
+                                                  gas=gp_path.exists(),
+                                                  exp_dg=(notes.get("experiment_row") or {}).get(
+                                                      "dG_TS_vs_separated_1M_kJ"))]
     lines += [f"- {x}" for x in notes.get("limitations", [])]
     lines += ["", "## Files", "",
               "- `02_irc/energies.csv`: frame, s (bohr·amu^1/2), E (Eh, kJ/mol, kcal/mol), key distances (Å)",
@@ -318,7 +337,8 @@ def _gas_phase_section(rx, gp: dict) -> list[str]:
     return out
 
 
-def _auto_limitations(rx, tz, svp, ts, diag, tr, has_exp: bool = True, gas: bool = False) -> list[str]:
+def _auto_limitations(rx, tz, svp, ts, diag, tr, has_exp: bool = True, gas: bool = False,
+                      exp_dg: float | None = None) -> list[str]:
     """Limitations written from the numbers, so they stay true when results change."""
     out = []
     wb, sb = rx.basis(), rx.basis(sp=True)
@@ -341,6 +361,8 @@ def _auto_limitations(rx, tz, svp, ts, diag, tr, has_exp: bool = True, gas: bool
                    f"at the protocol level versus {fmt_kj(best['dG_TS_vs_separated_1M_kJ'])} at "
                    f"{best['level'].replace('_', '/')} ({abs(gap):.0f} kJ/mol {'lower' if gap > 0 else 'higher'})."
                    + (" The comparison with experiment is the gas-phase Ea table above." if gas else
+                      " The measured value is in the table above, with the differences below it."
+                      if exp_dg is not None and abs(best["dG_TS_vs_separated_1M_kJ"] - exp_dg) > 4 else
                       " The experimental value is given above; the close agreement of the "
                       "coupled-cluster number is partly fortuitous (implicit solvent, working-level "
                       "geometries and thermal corrections)." if has_exp else ""))
