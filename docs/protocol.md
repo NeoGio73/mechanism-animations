@@ -43,6 +43,8 @@ The tertiary cation lies 56.9 kJ/mol (13.6 kcal/mol) below this minimum in DCM a
 
 This is a chemical result, not a failure of the calculation. A secondary cation next to a tertiary centre does not survive as a classical ion at this level; it is held only by its conformation. The degenerate tertiary → tertiary shift in the 2,3-dimethyl-2-butyl cation is used instead.
 
+The literature on the simplest secondary case, the 2-butyl cation, points the same way. Experimentally, its hydrogen scrambling is not frozen out even at −190 °C in the solid (barrier below 2.4 kcal/mol, 10 kJ/mol), and isotope experiments indicate two forms in rapid equilibrium, a hydrogen-bridged form about 0.4 kcal/mol (1.7 kJ/mol) more stable (Saunders and Jiménez-Vázquez, *Chem. Rev.* 1991, 91, 375–397). Ab initio, Carneiro, Schleyer, Koch and Raghavachari found two minima within 1 kcal/mol (4 kJ/mol): a symmetric hydrogen-bridged ion and a cation distorted toward C–C hyperconjugation, described in the review as partially methyl-bridged (*J. Am. Chem. Soc.* 1990, 112, 4064–4066; not read here, cited through the review). The partially methyl-bridged minimum found here for the 3-methyl-2-butyl cation is the same kind of structure reported for the 2-butyl cation. Full references in docs/references.md.
+
 Two follow-ups were asked for:
 - whether the partial methyl bridging survives at M06-2X and at a wavefunction level;
 - whether a C2–C3 rotation transition state connects this minimum to the tertiary cation.
