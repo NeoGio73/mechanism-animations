@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 
 from .steps import STEPS, Reaction
-from . import card, gas_phase, meshes, orbital_steps, video
+from . import card, figure, gas_phase, meshes, orbital_steps, video
 
 STEPS.update({"orbital_sps": orbital_steps.orbital_sps,
               "orbital_track": orbital_steps.orbital_track,
@@ -13,7 +13,8 @@ STEPS.update({"orbital_sps": orbital_steps.orbital_sps,
               "video": video.video,
               "video_composite": video.video_composite,
               "gas_phase": gas_phase.gas_phase,
-              "card": card.card})
+              "card": card.card,
+              "figure": figure.figure})
 
 
 def main(argv: list[str]) -> None:

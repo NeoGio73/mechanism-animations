@@ -4,7 +4,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
-const rid = new URLSearchParams(location.search).get('r') || 'sn2_hydroxide_bromomethane';
+const params = new URLSearchParams(location.search);
+const rid = params.get('r') || 'sn2_hydroxide_bromomethane';
+const t0 = parseFloat(params.get('t'));   // optional starting frame (e.g. ?t=17), for screenshots
 const base = `../../reactions/${rid}/04_meshes/`;
 const KCAL = 4.184;
 
@@ -47,7 +49,7 @@ async function init() {
   buildOrbitalList();
   setupDiagram();
   setupControls();
-  state.t = 0;
+  state.t = Number.isFinite(t0) ? Math.max(0, Math.min(N - 1, t0)) : 0;
   setCamera('side');
   update();
   $('loading').classList.add('hidden');
