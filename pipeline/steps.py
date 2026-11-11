@@ -848,6 +848,28 @@ def profile(rx: Reaction) -> None:
     frag = _read_json(rx.root / "01_ts/fragments.json")
     e_reac = sum(v["E_eh"] for v in frag.values() if v["role"] == "reactants")
     e_prod = sum(v["E_eh"] for v in frag.values() if v["role"] == "products")
+    # A side with one molecule: zero is the lowest structure found for it, the separately
+    # optimized molecule or the optimized IRC end, which can be a lower conformer.
+    ref = {"reactants": "optimized molecule", "products": "optimized molecule"}
+    epj = wd / "endpoints.json"
+    if epj.exists():
+        ep = _read_json(epj)
+        for role, key in (("reactants", "reactant_complex"), ("products", "product_complex")):
+            one = sum(1 for v in frag.values() if v["role"] == role) == 1
+            e_end = ep.get(key, {}).get("E_eh")
+            if not one or e_end is None or ep[key].get("imaginary_cm"):
+                if not one:
+                    ref[role] = "separated molecules"
+                continue
+            e_frag = e_reac if role == "reactants" else e_prod
+            if e_end < e_frag - 1e-6:
+                print(f"NOTE optimized IRC end ({key}) lies {kj(e_frag - e_end):.2f} kJ/mol below the "
+                      f"separately optimized {role[:-1]}: a lower conformer; it is the zero/reference")
+                ref[role] = f"optimized IRC end, {kj(e_frag - e_end):.1f} kJ/mol below the separately optimized molecule"
+                if role == "reactants":
+                    e_reac = e_end
+                else:
+                    e_prod = e_end
     rel = np.array([kj(e - e_reac) for e in E])
 
     kb = rx.key_bonds(frames[0].symbols)
@@ -863,7 +885,9 @@ def profile(rx: Reaction) -> None:
     (wd / "irc_full_trj.xyz").write_text("".join(traj))
     meta = {"n_frames": len(frames), "ts_frame": its, "s_min": float(s[0]), "s_max": float(s[-1]),
             "E_separated_reactants_kJ": 0.0, "E_separated_products_kJ": kj(e_prod - e_reac),
-            "units": {"s": "bohr*amu^0.5", "E": "kJ/mol relative to separated reactants"}}
+            "reference": ref,
+            "units": {"s": "bohr*amu^0.5", "E": "kJ/mol relative to separated reactants "
+                      "(one-molecule side: its lowest structure found, see 'reference')"}}
     if above:
         meta["display_excluded_frames"] = [
             {"frame": k, "s_bohr_amu05": float(s[k]), "dE_above_TS_kJ": kj(E[k] - E[its]),
@@ -900,15 +924,26 @@ def plot_profile(rx: Reaction, s, rel, its, e_prod_kj, path: Path, level=None, f
     ax.axhline(0, color="#888", lw=1, ls="--")
     ax.axhline(e_prod_kj, color="#888", lw=1, ls=":")
     x1 = s[-1]
-    ax.text(x1, 2, "separated reactants  0 kJ/mol", fontsize=8, color="#555", va="bottom", ha="right")
-    # products label at the left end, away from the product-end label, unless the curve runs
-    # along the line there (then at the right end)
-    left = abs(rel[0] - e_prod_kj) > 15
     neg = lambda x, f: f"{x:{f}}".replace("-", "−")
     n = {r: sum(1 for role, _ in rx.species() if role == r) for r in ("reactants", "products")}
-    prods = [sp["name"].replace("_", " ") for role, sp in rx.species() if role == "products"]
-    plab = f"{prods[0]} (optimized)" if n["products"] == 1 else "separated products"
-    if left or abs(rel[-1] - e_prod_kj) > 15:
+    names = {r: [sp["name"].replace("_", " ") for role, sp in rx.species() if role == r]
+             for r in ("reactants", "products")}
+    rlab = f"{names['reactants'][0]} (optimized)" if n["reactants"] == 1 else "separated reactants"
+    plab = f"{names['products'][0]} (optimized)" if n["products"] == 1 else "separated products"
+    left = abs(rel[0] - e_prod_kj) > 15
+    if n["reactants"] == 1 and n["products"] == 1 and abs(e_prod_kj) < 0.5:
+        # degenerate reaction: one line, one label, under the TS
+        ax.text(s[its], -2, "reactant and product: the same cation, lowest structure found "
+                "(optimized)  0 kJ/mol", fontsize=8, color="#555", va="top", ha="center")
+    elif n["reactants"] == 1:
+        ax.text(s[0], 2, f"{rlab}  0 kJ/mol", fontsize=8, color="#555", va="bottom", ha="left")
+    else:
+        ax.text(x1, 2, f"{rlab}  0 kJ/mol", fontsize=8, color="#555", va="bottom", ha="right")
+    # products label at the left end, away from the product-end label, unless the curve runs
+    # along the line there (then at the right end)
+    if n["reactants"] == 1 and n["products"] == 1 and abs(e_prod_kj) < 0.5:
+        pass
+    elif left or abs(rel[-1] - e_prod_kj) > 15:
         ax.text(s[0] if left else x1, e_prod_kj + 2, f"{plab}  {neg(e_prod_kj, '.0f')} kJ/mol",
                 fontsize=8, color="#555", va="bottom", ha="left" if left else "right")
     else:   # the curve meets the line at both ends: put the label under the TS, below the line
@@ -920,7 +955,7 @@ def plot_profile(rx: Reaction, s, rel, its, e_prod_kj, path: Path, level=None, f
     for k, lab in ((0, ends[0]), (its, "TS"), (len(s) - 1, ends[len(s) - 1])):
         ax.annotate(f"{lab}\n{neg(rel[k], '.1f')} kJ/mol\n({neg(rel[k] / 4.184, '.1f')} kcal/mol)",
                     (s[k], rel[k]), textcoords="offset points",
-                    xytext=(16, -6) if k == its else (0, -38),
+                    xytext=(16, -6) if k == its else ((0, 8) if 0 < rel[k] < 25 else (0, -38)),
                     ha="left" if k in (0, its) else "right", fontsize=8)
     ax.set_xlabel("reaction coordinate s (bohr·amu$^{1/2}$)")
     ax.set_ylabel("electronic energy (kJ/mol)")
