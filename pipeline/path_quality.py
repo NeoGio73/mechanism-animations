@@ -1,5 +1,7 @@
 """Path-quality rule (decided by J. Picione, 2026-11-11): within the bond-changing region, flag any
-IRC step longer than 1.5 times the median step of the path; the card states every flagged step.
+IRC step longer than 1.5 times the median step of that region (not of the whole path, whose long
+flat approach lowers the median); the card states the flagged steps compactly and
+02_irc/path_quality.json keeps the full list.
 
 Steps are differences of the mass-weighted path length s between consecutive IRC frames
 (02_irc/energies.csv). The bond-changing region is the set of frames at which at least one
@@ -38,13 +40,15 @@ def quality(rx) -> dict:
     prog = (D - D[0]) / np.where(np.abs(D[-1] - D[0]) > 1e-9, D[-1] - D[0], 1.0)
     inreg = ((prog > LO) & (prog < HI)).any(axis=1)
     ds = np.diff(s)
-    med = float(np.median(ds))
+    step_in = np.array([inreg[k] or inreg[k + 1] for k in range(len(ds))])
+    med = float(np.median(ds[step_in])) if step_in.any() else float(np.median(ds))
     flagged = []
     for k, d in enumerate(ds):
-        if (inreg[k] or inreg[k + 1]) and d > FACTOR * med:
+        if step_in[k] and d > FACTOR * med:
             flagged.append({"from_frame": frames[k], "to_frame": frames[k + 1], "step_s": float(d),
                             "ratio_to_median": float(d / med), "s_from": float(s[k]), "s_to": float(s[k + 1])})
-    out = {"median_step_s": med, "factor": FACTOR, "region_frames": [frames[i] for i in np.where(inreg)[0][[0, -1]]]
+    out = {"median_step_s": med, "median_of": "steps in the bond-changing region",
+           "median_step_whole_path_s": float(np.median(ds)), "factor": FACTOR, "region_frames": [frames[i] for i in np.where(inreg)[0][[0, -1]]]
            if inreg.any() else None, "bonds": cols, "flagged": flagged,
            "first_steps_at_TS": None}
     ts = int(np.argmin(np.abs(s)))
@@ -56,8 +60,8 @@ def quality(rx) -> dict:
 
 def card_text(q: dict) -> str:
     """Card sentence: count, the largest step, the two steps at the TS; full list in path_quality.json."""
-    base = (f"median step {q['median_step_s']:.3f} bohr·amu½; steps longer than {q['factor']:g} × median in "
-            f"the bond-changing region (IRC frames {q['region_frames'][0]}–{q['region_frames'][1]}): ")
+    base = (f"bond-changing region IRC frames {q['region_frames'][0]}–{q['region_frames'][1]}, median step there "
+            f"{q['median_step_s']:.3f} bohr·amu½; steps longer than {q['factor']:g} × that median: ")
     fl = q["flagged"]
     if not fl:
         return base + "none"

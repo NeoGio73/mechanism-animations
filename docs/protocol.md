@@ -59,8 +59,9 @@ TS with ORCA 6.1.1: first point at s = 0.210 bohr·amu½ as requested).
 ### Path-quality rule (decided by J. Picione, 2026-11-11)
 
 Within the bond-changing region (frames at which a forming or breaking bond has covered more than
-5 % and less than 95 % of its change), every IRC step longer than 1.5 times the median step of the
-path is flagged and stated on the card (pipeline/path_quality.py; full list in
+5 % and less than 95 % of its change), every IRC step longer than 1.5 times the median step of that
+region (not of the whole path, whose long flat approach lowers the median; J. Picione, 2026-11-11)
+is flagged and stated on the card (pipeline/path_quality.py; full list in
 `02_irc/path_quality.json`).
 
 ### Barrier from the TS frame and from the curve maximum (decided by J. Picione, 2026-11-11)
