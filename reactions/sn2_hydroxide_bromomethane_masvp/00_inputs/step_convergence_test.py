@@ -330,6 +330,13 @@ if __name__ == "__main__":
             print("rerunning", n, d, flush=True)
             job(rx, n, d)
         after(rx)
+    elif sys.argv[1] == "rerun_new":
+        # J. Picione, 2026-11-11: s010 backward shared its folder (15:44–16:07); rerun alone in its own
+        # folder (<name>/<direction>/) with identical settings; the old run stays in <name>/ for the
+        # old-vs-new comparison. jd() then points the verdict at the rerun.
+        n, d = sys.argv[2], sys.argv[3]
+        print("rerunning in its own folder", n, d, flush=True)
+        job(rx, n, d)
     elif sys.argv[1] == "rerun_alone":
         # a finished job that failed check 1 (it shared its folder with another running job) is not a
         # result: outputs moved to shared_folder_<time>_<direction>/, rerun alone in its own folder

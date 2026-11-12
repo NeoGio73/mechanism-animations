@@ -214,14 +214,49 @@ def save(key: str, val) -> None:
     p.write_text(json.dumps(d, indent=1, default=float), encoding="utf-8")
 
 
+S010B_NEW = OUT / "s010/backward/irc_b.out"
+
+
+def compare_s010_backward() -> dict:
+    """J. Picione, 2026-11-11: s010 backward rerun alone (s010/backward/) vs the run that shared its
+    folder (s010/), frame by frame (identical settings, so the paths should coincide): energy in kJ/mol,
+    C–O and C–Br in Å."""
+    old = read_trj(OUT / "s010/irc_b_IRC_B_trj.xyz")
+    new = read_trj(OUT / "s010/backward/irc_b_IRC_B_trj.xyz")
+    H = 2625.4996
+
+    def bond(f, i, j):
+        return float(np.linalg.norm(f["bohr"][i] - f["bohr"][j])) * BOHR
+
+    rows = []
+    for a, b in zip(old, new):
+        rows.append({"frame": a["frame"], "dE_kJ": (b["E"] - a["E"]) * H,
+                     "dCO_A": bond(b, 0, 2) - bond(a, 0, 2), "dCBr_A": bond(b, 0, 1) - bond(a, 0, 1)})
+    out = {"n_frames_old": len(old), "n_frames_new": len(new), "n_compared": len(rows)}
+    for k in ("dE_kJ", "dCO_A", "dCBr_A"):
+        w = max(rows, key=lambda r: abs(r[k]))
+        out[f"max_abs_{k}"] = abs(w[k])
+        out[f"max_abs_{k}_at_frame"] = w["frame"]
+    out["end_bonds_old_A"] = {"C–O": bond(old[-1], 0, 2), "C–Br": bond(old[-1], 0, 1)}
+    out["end_bonds_new_A"] = {"C–O": bond(new[-1], 0, 2), "C–Br": bond(new[-1], 0, 1)}
+    out["rows"] = rows
+    (CK / "s010_backward_old_vs_new.json").write_text(json.dumps(out, indent=1), encoding="utf-8")
+    print("s010 backward old vs new", json.dumps({k: v for k, v in out.items() if k != "rows"}), flush=True)
+    return out
+
+
 def gate() -> dict:
     """check1.json for the verdict. s010 forward and s005 backward ran alone (check 1a: clear);
-    s010 backward and s005 forward are clear only if part B finds no mismatch."""
+    s010 backward counts only as its rerun alone in s010/backward/ (J. Picione: rerun instead of the
+    frame check), clear once that run ended normally; s005 forward is clear only if part B finds no
+    mismatch."""
     d = json.loads((CK / "results.json").read_text(encoding="utf-8")) if (CK / "results.json").exists() else {}
     pb = d.get("partB", {})
     st = {"s010/forward": "clear", "s005/backward": "clear"}
-    for j in PART_B:
-        st[j] = "not checked" if j not in pb else ("clear" if pb[j]["n_over_tol"] == 0 else "mismatch")
+    ok = S010B_NEW.exists() and "ORCA TERMINATED NORMALLY" in S010B_NEW.read_text(errors="replace")
+    st["s010/backward"] = "clear" if ok else "rerun alone not finished"
+    j = "s005/forward"
+    st[j] = "not checked" if j not in pb else ("clear" if pb[j]["n_over_tol"] == 0 else "mismatch")
     (OUT / "check1.json").write_text(json.dumps({"status": st}, indent=1), encoding="utf-8")
     print(st)
     return st
@@ -235,22 +270,28 @@ def _wait_for(pattern: str) -> None:
 
 
 def lane() -> None:
-    """The whole check-1 lane, in order:
-    part A; part B for s010 backward; part B for s005 forward once it has finished; reruns alone of
-    any job with a mismatch; the step-test verdict (after the s005 backward rerun has finished); then
-    the redirect repro (point 3b, 4 cores, when the queue has them)."""
+    """The whole check-1 lane, in order (J. Picione, 2026-11-11):
+    the s010 backward rerun alone in its own folder is queued first (it decides the verdict for that
+    path); part B for s005 forward once that job has finished;
+    the old-vs-new s010 backward comparison; reruns alone of any job with a mismatch; then the
+    step-test verdict, after the s005 backward rerun has finished; then part A (evidence on the
+    crashed jobs, not part of the gate). The reproduction (point 3) runs after the E2 lane."""
     import subprocess
     py = [sys.executable, "-X", "utf8"]
     step = str(OUT.parents[2] / "00_inputs/step_convergence_test.py")
     d = json.loads((CK / "results.json").read_text(encoding="utf-8")) if (CK / "results.json").exists() else {}
-    if "partA" not in d:
-        save("partA", part_a())
-    if "s010/backward" not in d.get("partB", {}):
-        save("s010/backward", part_b("s010/backward"))
-    gate()
+    rr = None
+    if not (S010B_NEW.exists() and "ORCA TERMINATED NORMALLY" in S010B_NEW.read_text(errors="replace")):
+        rr = subprocess.Popen(py + [step, "rerun_new", "s010", "backward"], cwd=ROOT,
+                              stdout=open(CK / "console_s010_backward_rerun.txt", "w"), stderr=subprocess.STDOUT)
+        __import__("time").sleep(20)          # its request enters the queue before this lane's jobs
     _wait_for("rerun_one s005 forward")
     if "s005/forward" not in d.get("partB", {}):
         save("s005/forward", part_b("s005/forward"))
+    if rr:
+        rr.wait()
+    if S010B_NEW.exists():
+        compare_s010_backward()
     st = gate()
     for j, s in st.items():
         if s == "mismatch":
@@ -261,9 +302,24 @@ def lane() -> None:
             (OUT / "check1.json").write_text(json.dumps({"status": st}, indent=1), encoding="utf-8")
     _wait_for("rerun_one s005 backward")
     subprocess.run(py + [step, "after"], cwd=ROOT)
-    # point 3b, when cores are free: the queue gives the repro its 4 cores in turn
-    if not (OUT.parent / "redirect_repro/results.json").exists():
-        subprocess.run(py + ["-m", "pipeline.redirect_repro", "run"], cwd=ROOT)
+    # evidence, not part of the gate: part A on the crashed jobs, then how large an exchanged D3
+    # value would have been for s005 forward
+    if "partA" not in d:
+        save("partA", part_a())
+    exchange("s005/forward")
+
+
+def exchange(job: str) -> None:
+    p = CK / "results.json"
+    d = json.loads(p.read_text(encoding="utf-8"))
+    spec, rows = PART_B[job], d["partB"][job]["rows"]
+    partner = d["partA"].get(spec["partner"])
+    ps, os_ = spec["partner_slice"], spec["own_slice"]
+    diffs = [abs(r["d3_own"] - q) for r in rows[os_[0]:os_[1]] for q in partner["d3_used"][ps[0]:ps[1]]]
+    d["partB"][job]["exchange_size_Eh"] = {"smallest": min(diffs), "largest": max(diffs),
+                                           "note": "|own D3 − a D3 value the job sharing the folder used|"}
+    p.write_text(json.dumps(d, indent=1, default=float), encoding="utf-8")
+    print(job, "exchange size", d["partB"][job]["exchange_size_Eh"], flush=True)
 
 
 if __name__ == "__main__":
@@ -278,3 +334,5 @@ if __name__ == "__main__":
         gate()
     elif sys.argv[1] == "gate":
         gate()
+    elif sys.argv[1] == "compare":
+        compare_s010_backward()

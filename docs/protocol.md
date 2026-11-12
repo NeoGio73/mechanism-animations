@@ -48,8 +48,12 @@ No two ORCA jobs ever run in the same folder at the same time. ORCA writes fixed
 job folder (redirect.tmp, the text output of sub-steps such as the dispersion printout, from
 orca_tools/qcmsg.cpp), so two jobs running in one folder can overwrite each other's files. The queue
 enforces this: a job whose folder is busy waits. Jobs that run strictly one after the other in one
-folder (for example the forward and then the backward IRC in 02_irc) cannot overlap. The only
-exception is the deliberate reproduction test of this effect (point 3b), in a scratch folder.
+folder (for example the forward and then the backward IRC in 02_irc) cannot overlap; the folder
+layout of the pipeline stays as it is (J. Picione, 2026-11-11: no layout change mid-project). The
+only exception is the deliberate reproduction test of this effect, in a scratch folder; it is low
+priority, runs after the step-size verdict and the E2 lane, and takes the whole machine for each
+round so it never runs beside a production job. If it does not crash, the cause of the step-test
+crashes is recorded as unknown.
 
 ## Standard for the reaction set (decided by J. Picione, 2026-11-09; replaced 2026-11-11, see above)
 
