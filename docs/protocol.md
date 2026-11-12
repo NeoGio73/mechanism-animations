@@ -44,6 +44,11 @@ normally after a pause is rerun from scratch with no wall time reported.
 
 ### One ORCA job per folder, always (J. Picione, 2026-11-11)
 
+A job starts in a folder with no files left from any other job, or from a crashed run of the same job
+(J. Picione, 2026-11-11). A rerun after a crash starts in a new folder; the crashed run's folder is
+kept whole under crashed_<time>_<direction>/. Before a test job starts, anything in its folder besides
+its own input and the Hessian is moved aside (leftover_<time>_<direction>/).
+
 No two ORCA jobs ever run in the same folder at the same time. ORCA writes fixed-name files in the
 job folder (redirect.tmp, the text output of sub-steps such as the dispersion printout, from
 orca_tools/qcmsg.cpp), so two jobs running in one folder can overwrite each other's files. The queue

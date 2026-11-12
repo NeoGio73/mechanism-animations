@@ -62,6 +62,12 @@ def trj(name, d):
 def job(rx, name, d):
     r = RUNS[name]
     wd = OUT / name / d
+    # J. Picione, 2026-11-11: a job starts in a folder with no files left from any other job or from a
+    # crashed run of the same job; anything besides its own input and the Hessian is moved aside first
+    own = {"ts.hess", f"irc_{d[0]}.inp"}
+    if wd.exists() and any(p.name not in own for p in wd.iterdir()):
+        import time
+        wd.rename(wd.with_name(f"leftover_{time.strftime('%H%M%S')}_{d}"))
     wd.mkdir(parents=True, exist_ok=True)
     shutil.copy(ROOT / "01_ts/ts/ts.hess", wd / "ts.hess")
     sc = irc_init_scale(ROOT / "01_ts/ts/ts.hess", r["target"])
@@ -328,13 +334,21 @@ if __name__ == "__main__":
         import time
         n, d = sys.argv[2], sys.argv[3]
         if not finished(n, d):
-            t_crash = (jd(n, d) / f"irc_{d[0]}.out").stat().st_mtime
+            src = jd(n, d)
+            t_crash = (src / f"irc_{d[0]}.out").stat().st_mtime
             dest = OUT / n / f"crashed_{time.strftime('%H%M', time.localtime(t_crash))}_{d}"
-            dest.mkdir(exist_ok=True)
-            for f in jd(n, d).glob(f"irc_{d[0]}*"):
-                if f.is_file():
-                    shutil.move(str(f), dest / f.name)
-            print("rerunning", n, d, flush=True)
+            if src == OUT / n / d:
+                # J. Picione, 2026-11-11: the rerun starts in a folder with no files from any other job
+                # or from the crashed run: the whole crashed folder (redirect.tmp included) moves aside
+                if dest.exists():
+                    dest = dest.with_name(dest.name + time.strftime("_%H%M%S"))
+                src.rename(dest)
+            else:
+                dest.mkdir(exist_ok=True)
+                for f in src.glob(f"irc_{d[0]}*"):
+                    if f.is_file():
+                        shutil.move(str(f), dest / f.name)
+            print("rerunning", n, d, "in a new folder", flush=True)
             job(rx, n, d)
         after(rx)
     elif sys.argv[1] == "rerun_new":
