@@ -345,15 +345,26 @@ def report4_md(o):
         L.append(f"| {lab} | {o['first_step_setting_bohr_amu05'][n]:.3f} | "
                  + ", ".join(f"{x:.3f}" for x in s["first_steps"])
                  + f" | {s['median_region']:.4f} | {s['n_region_steps']} | {o['covers_region'][n]} |")
+    # noise floor (J. Picione, 2026-11-12): the same geometry evaluated twice inside one IRC run at this
+    # level (TightSCF), check1/scf_noise_inrun.json; a difference of two paths carries two such errors
+    nf = OUT / "check1/scf_noise_inrun.json"
+    noise = json.loads(nf.read_text(encoding="utf-8")) if nf.exists() else None
+    if noise:
+        one, typ = noise["dE_max_Eh"] * H, noise["dE_median_Eh"] * H
+        L += ["", "SCF noise floor at this level (TightSCF), measured on " f"{noise['n_pairs']} geometries evaluated twice "
+              f"inside one IRC run: typical {typ:.3f} kJ/mol, largest {one:.3f} kJ/mol ({one / 4.184:.4f} kcal/mol) per point; "
+              f"for a difference of two paths up to {2 * one:.3f} kJ/mol ({2 * one / 4.184:.4f} kcal/mol). "
+              "Six isolated evaluations in two crashed runs reached 0.13–0.19 kJ/mol (check 1, cause not found)."]
     for title, p in o["pairs"].items():
         L += ["", f"## {title}", "",
-              "| Side (matched by) | Points | Largest energy difference | at distance | Largest other-bond difference | Within 0.2 kJ/mol and 0.005 Å |",
-              "|---|---|---|---|---|---|"]
+              "| Side (matched by) | Points | Largest energy difference | at distance | Noise floor, two paths | Largest other-bond difference | Within 0.2 kJ/mol and 0.005 Å |",
+              "|---|---|---|---|---|---|---|"]
+        nfs = f"{2 * one:.3f} kJ/mol" if noise else "—"
         for side, v in p["sides"].items():
             if not v.get("n"):
-                L.append(f"| {side} | 0 | — | — | — | — |")
+                L.append(f"| {side} | 0 | — | — | {nfs} | — | — |")
                 continue
-            L.append(f"| {side} ({v['match_by']}) | {v['n']} | {kc(v['max_dE_kJ'])} | {v['match_by']} {v['at_dist_A']:.3f} Å | "
+            L.append(f"| {side} ({v['match_by']}) | {v['n']} | {kc(v['max_dE_kJ'])} | {v['match_by']} {v['at_dist_A']:.3f} Å | {nfs} | "
                      f"{v['other']} {v['max_dbond_A']:+.4f} Å | {'yes' if v['pass'] else 'no'}"
                      + ("" if v["pass"] else f" ({v['n_failing']} points outside, s {v['failing_s'][0]:+.2f} to {v['failing_s'][1]:+.2f})")
                      + " |")
