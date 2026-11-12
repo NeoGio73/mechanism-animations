@@ -51,12 +51,14 @@ def make_input(keywords: str, geom: Geometry, charge: int, mult: int,
 
 
 def run(workdir: Path, name: str, inp: str, log: "RunLog", note: str = "",
-        reuse: bool = True, watch=None, poll_s: float = 30.0) -> OrcaResult:
+        reuse: bool = True, watch=None, poll_s: float = 30.0, front: bool = False) -> OrcaResult:
     """Run one ORCA job in workdir/name.inp. Reuses a finished job unless reuse=False.
 
     watch: optional function called every poll_s seconds while ORCA runs; when it returns a
     reason (string), the job is ended and the reason goes to <name>.stopped.txt and the run log.
-    A job ended that way is reused like a finished one."""
+    A job ended that way is reused like a finished one.
+    front: the job goes to the head of the core queue (short jobs a decision waits on, e.g. the
+    gradient-by-gradient IRC test of 2026-11-12); default off, first come first served."""
     workdir.mkdir(parents=True, exist_ok=True)
     inp_path, out_path = workdir / f"{name}.inp", workdir / f"{name}.out"
     stop_path = workdir / f"{name}.stopped.txt"
@@ -80,7 +82,7 @@ def run(workdir: Path, name: str, inp: str, log: "RunLog", note: str = "",
         what = str(workdir.relative_to(Path(__file__).resolve().parents[1] / "reactions")).replace("\\", "/")
     except ValueError:
         what = workdir.name
-    rid = cores.acquire(*cores.request(inp), what=f"{what}/{name}", folder=str(workdir.resolve()))
+    rid = cores.acquire(*cores.request(inp), what=f"{what}/{name}", folder=str(workdir.resolve()), front=front)
     print(f"[run] {workdir.name}/{name} ...", flush=True)
     t0 = time.time()
     reason = None

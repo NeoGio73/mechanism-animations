@@ -178,6 +178,34 @@ phase is not quieter); DefGrid3 halves it at B3LYP.
 The path method itself (ORCA's IRC, which follows steepest descent in plain Cartesian coordinates,
 or a mass-weighted IRC integrator) is not decided yet; no production path starts before it is.
 
+### Mass-weighted IRC test with pysisyphus (2026-11-12; a test, not yet the method)
+
+Software: pysisyphus 1.0.0 (GPL-3), in its own environment `.venv-pysis` (CPython 3.12.15 from uv's
+user folder; numpy 2.5.4, scipy 1.18.1, h5py 3.16.0; full list `docs/pysisyphus_env_freeze.txt`),
+with ORCA 6.1.1 for every energy and gradient through `pipeline/true_irc.py` (one ORCA job per call,
+alone in its own folder, through the core ledger). The pipeline's own environment (Python 3.15) cannot
+host pysisyphus: h5py has no package for Python 3.15.
+
+Integrator and settings: EulerPC, the Euler predictor–corrector of Hratchian, Frisch and Schlegel, in
+mass-weighted Cartesian coordinates; Bofill Hessian updates; start Hessian = ORCA's exact TS Hessian at
+the same level; corrector on the distance-weighted interpolant (pysisyphus `corr_func = "mbs"`), up to
+500 Euler predictor steps per corrector, 3 loose cycles (pysisyphus defaults). Step length 0.10
+bohr·amu^1/2 (and 0.05 for the step test of this method); first step 0.10 bohr·amu^1/2 along the
+mass-weighted TS mode (`displ = "length"`). A direction ends when the RMS of the (non-mass-weighted)
+gradient falls below 5e-4 Eh/bohr after the inflection point, when the energy rises, or after 30
+bohr·amu^1/2. Test level: B3LYP-D3(BJ)/ma-def2-SVP, RIJCOSX, SMD water, VeryTightSCF.
+
+References to cite if adopted:
+- J. Steinmetzer, S. Kupfer, S. Gräfe, "pysisyphus: Exploring potential energy surfaces in ground and
+  excited states", Int. J. Quantum Chem. 2021, 121, e26390. doi:10.1002/qua.26390
+- H. P. Hratchian, M. J. Frisch, H. B. Schlegel, "Steepest descent reaction path integration using a
+  first-order predictor–corrector method", J. Chem. Phys. 2010, 133, 224101. doi:10.1063/1.3514202
+- H. P. Hratchian, H. B. Schlegel, "Accurate reaction paths using a Hessian based predictor–corrector
+  integrator", J. Chem. Phys. 2004, 120, 9918–9924. doi:10.1063/1.1724823
+- J. M. Bofill, "Updated Hessian matrix and the restricted step method for locating transition
+  structures", J. Comput. Chem. 1994, 15, 1–11. doi:10.1002/jcc.540150102 (Hessian update)
+(Metadata checked against Crossref, 2026-11-12.)
+
 Each card states the first step, the median, the shortest and the longest step in the
 bond-changing region, the largest change of a key bond in one step, and one sentence on the
 convergence test.

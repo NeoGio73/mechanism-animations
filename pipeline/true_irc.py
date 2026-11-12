@@ -6,15 +6,23 @@ pipeline itself is imported unchanged: every energy and gradient is one ORCA 6.1
 new folder, through the core ledger (pipeline/orca.py, pipeline/cores.py).
 
 Integrator: EulerPC (Hratchian–Schlegel Euler predictor–corrector, Bofill Hessian updates) in
-mass-weighted Cartesian coordinates. Step 0.10 bohr·amu½, first step 0.10 bohr·amu½ along the
-mass-weighted TS mode (displ "length"). Start Hessian: ORCA's TS Hessian (01_ts/ts/ts.hess, same level).
-End: RMS gradient below 5e-4 Eh/bohr (ORCA's TolRMSG) or 300 steps.
+mass-weighted Cartesian coordinates. pysisyphus measures step_length in plain (un-mass-weighted)
+Cartesian bohr (EulerPC.get_integration_length), like ORCA's Scale_Displ_SD; only the first displacement
+(displ_length) is in bohr·amu½. The step target in bohr·amu½ (0.10, or 0.05 for the step test of this
+method) is therefore converted with the same calibration as the ORCA step-test paths (0.10 -> 0.02359
+bohr, 0.05 -> 0.01179 bohr), so both methods take the same Cartesian steps; the mass-weighted steps
+are measured afterwards. First step 0.10 bohr·amu½ along the mass-weighted TS mode (displ "length").
+max_pred_steps 5000 (pysisyphus default 500): with 500 Euler substeps the predictor did not reach the
+step length in the flat tail and the path stalled (attempt 1). Start Hessian: ORCA's TS Hessian
+(01_ts/ts/ts.hess, same level). End: RMS gradient below 5e-4 Eh/bohr (ORCA's TolRMSG) after the
+inflection point, an energy rise, or 1500 steps. Each run writes its own pysisyphus log (irc.log in its
+pysis folder).
 Level: the B3LYP step-test level, B3LYP-D3(BJ)/ma-def2-SVP, RIJCOSX, SMD water, 2 cores, with VeryTightSCF
 (decided for production 2026-11-12; pysisyphus ends a direction at the first energy rise, so SCF noise matters),
 so the path compares directly with the four ORCA step-test paths.
-Output: <step_convergence>/true_irc/<direction>/: g####/ (one ORCA job each), path.xyz (TS-ordered
+Output: <step_convergence>/true_irc/s<step>/<direction>/: g####/ (one ORCA job each), path.xyz (TS-ordered
 frames, comment = energy in Eh), path.json (gradients, timing).
-Usage: .venv-pysis/Scripts/python.exe -m pipeline.true_irc forward|backward
+Usage: .venv-pysis/Scripts/python.exe -X utf8 -m pipeline.true_irc forward|backward [step, default 0.10]
 """
 from __future__ import annotations
 
@@ -59,7 +67,8 @@ class OrcaQueue(Calculator):
         geo = "\n".join(f"{a:2s} {x:20.12f} {y:20.12f} {z:20.12f}" for a, (x, y, z) in zip(atoms, c))
         inp = (f"! {LEVEL} EnGrad Bohrs NoPop\n%pal nprocs {NPROCS} end\n%maxcore 3000\n{SMD}\n\n"
                f"* xyz {CHARGE} {MULT}\n{geo}\n*\n")
-        r = orca.run(wd, "g", inp, self.log_, note=f"true IRC test (pysisyphus EulerPC), call {self.n - 1}")
+        r = orca.run(wd, "g", inp, self.log_, note=f"true IRC test (pysisyphus EulerPC), call {self.n - 1}",
+                     front=True)
         if not r.ok:
             raise orca.OrcaError(f"{wd} did not end normally")
         t = (wd / "g.engrad").read_text().splitlines()
@@ -91,14 +100,21 @@ class OrcaQueue(Calculator):
         return {"energy": E_TS, "hessian": read_hess_matrix(RX / "01_ts/ts/ts.hess")}
 
 
-def main(direction: str) -> dict:
-    wd = OUT / direction
-    wd.mkdir(parents=True, exist_ok=True)
+CART_PER_MW = {0.10: 0.02359, 0.05: 0.01179}   # bohr per target bohr·amu½: the ORCA step-test settings
+
+
+def main(direction: str, step: float = 0.10) -> dict:
+    wd = OUT / f"s{step:.3f}".replace(".", "") / direction
+    wd.mkdir(parents=True, exist_ok=False)
+    (wd / "pysis").mkdir()
+    import os
+    os.chdir(wd / "pysis")                          # pysisyphus writes irc.log to the working directory
     ts = read_xyz(RX / "01_ts/ts/ts.xyz")
     geom = Geometry(list(ts.symbols), np.asarray(ts.coords).ravel() / 0.529177210903)
     calc = OrcaQueue(wd, RX / "01_ts/ts/ts.hess", out_dir=str(wd / "pysis"))
     geom.set_calculator(calc)
-    irc = EulerPC(geom, step_length=0.10, max_cycles=300, forward=direction == "forward",
+    irc = EulerPC(geom, step_length=CART_PER_MW[step], max_cycles=1500, max_pred_steps=5000,
+                  forward=direction == "forward",
                   backward=direction == "backward", displ="length", displ_length=0.10,
                   hessian_init="calc", rms_grad_thresh=5e-4, energy_thresh=1e-8, out_dir=str(wd / "pysis"))
     irc.run()
@@ -113,7 +129,8 @@ def main(direction: str) -> dict:
             xyz = c.reshape(-1, 3) * 0.529177210903
             fh.write(f"{len(ts.symbols)}\ntrue IRC {direction} E {e:.12f}\n")
             fh.write("".join(f"{a:2s} {x:16.10f} {y:16.10f} {z:16.10f}\n" for a, (x, y, z) in zip(ts.symbols, xyz)))
-    res = {"direction": direction, "integrator": "pysisyphus 1.0.0 EulerPC", "step_length": 0.10,
+    res = {"direction": direction, "integrator": "pysisyphus 1.0.0 EulerPC", "step_target_bohr_amu05": step,
+           "step_length_bohr_cartesian": CART_PER_MW[step], "max_pred_steps": 5000,
            "first_step": 0.10, "n_points": len(C), "converged": bool(getattr(irc, f"{direction}_is_converged")),
            "n_orca_calls": calc.n, "wall_s_per_call": [c["wall_s"] for c in calc.calls],
            "gradients": [g.tolist() for g in G], "energies": E}
@@ -123,4 +140,4 @@ def main(direction: str) -> dict:
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    main(sys.argv[1], float(sys.argv[2]) if len(sys.argv) > 2 else 0.10)
