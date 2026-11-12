@@ -67,7 +67,7 @@ crashes is recorded as unknown.
 
 A side has reached its end point when ORCA ends it with "THE IRC HAS CONVERGED" and it is not a false
 stop next to the TS (at least 10 steps, end at least 1 kJ/mol below the TS), or when the IRC stopping
-rule above is met within it. A side ended by MaxIter before the rule, by a crash, or by the gradient
+rule (section below) is met within it. A side ended by MaxIter before the rule, by a crash, or by the gradient
 criterion while still next to the TS (the SN2 0.025 runs stopped after one step that way: near the TS
 the gradient was already below ORCA's thresholds) is incomplete, never finished. pipeline/path_quality.py
 applies this to every IRC (docs/irc_completeness.json); the card marks an incomplete path, and the
