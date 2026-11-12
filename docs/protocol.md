@@ -44,10 +44,13 @@ normally after a pause is rerun from scratch with no wall time reported.
 
 ### One ORCA job per folder, always (J. Picione, 2026-11-11)
 
-A job starts in a folder with no files left from any other job, or from a crashed run of the same job
-(J. Picione, 2026-11-11). A rerun after a crash starts in a new folder; the crashed run's folder is
-kept whole under crashed_<time>_<direction>/. Before a test job starts, anything in its folder besides
-its own input and the Hessian is moved aside (leftover_<time>_<direction>/).
+A job starts in a folder with no files left from a different job (one outside its own production
+chain), or from a crashed run (J. Picione, 2026-11-11). Jobs that run one after another in one production chain may share a
+folder, as before (J. Picione, 2026-11-12): for example the backward IRC after the forward IRC in
+02_irc, or the single points of one path chain. A rerun after a crash starts in a new folder; the
+crashed run's folder is kept whole under crashed_<time>_<direction>/. Before a test job starts,
+anything in its folder besides its own input and the Hessian is moved aside
+(leftover_<time>_<direction>/).
 
 No two ORCA jobs ever run in the same folder at the same time. ORCA writes fixed-name files in the
 job folder (redirect.tmp, the text output of sub-steps such as the dispersion printout, from

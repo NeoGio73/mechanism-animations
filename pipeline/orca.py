@@ -70,6 +70,7 @@ def run(workdir: Path, name: str, inp: str, log: "RunLog", note: str = "",
             res.stopped = stop_path.read_text(encoding="utf-8").strip()
             print(f"[reuse] {workdir.name}/{name}: stopped earlier ({res.stopped})")
             return res
+    _move_crashed_run(workdir, name, out_path, stop_path)
     inp_path.write_text(inp)
     stop_path.unlink(missing_ok=True)
     env = os.environ.copy()
@@ -111,6 +112,28 @@ def run(workdir: Path, name: str, inp: str, log: "RunLog", note: str = "",
     print(f"[done] {workdir.name}/{name}: ok={res.ok} wall={res.wall_s:.0f} s "
           f"E={res.energy_eh}", flush=True)
     return res
+
+
+def _move_crashed_run(workdir: Path, name: str, out_path: Path, stop_path: Path) -> None:
+    """Clean-folder rule (J. Picione, 2026-11-11/12): a rerun after a crash must not start among the
+    crashed run's files (ORCA would even take its .gbw as the starting guess). Jobs of one production
+    chain may share the folder, so the layout stays; the crashed run's files (<name>.*, <name>_*, and
+    the fixed-name *.tmp files, which only a crashed job leaves behind) move whole to
+    crashed_<time>_<name>/."""
+    if not out_path.exists() or stop_path.exists():
+        return
+    if "ORCA TERMINATED NORMALLY" in out_path.read_text(errors="replace"):
+        return
+    dest = workdir / f"crashed_{time.strftime('%H%M%S')}_{name}"
+    dest.mkdir()
+    # other chain jobs with longer names (plus_min beside plus) keep their files
+    longer = [q.stem for q in workdir.glob("*.inp") if q.stem != name and q.stem.startswith(name)]
+    for p in list(workdir.iterdir()):
+        if not p.is_file() or any(p.name.startswith(o + ".") or p.name.startswith(o + "_") for o in longer):
+            continue
+        if p.name.startswith(f"{name}.") or p.name.startswith(f"{name}_") or p.suffix == ".tmp":
+            p.rename(dest / p.name)
+    print(f"[crashed earlier] {workdir.name}/{name}: earlier run moved to {dest.name}/", flush=True)
 
 
 def parse(workdir: Path, name: str, wall_s: float) -> OrcaResult:
