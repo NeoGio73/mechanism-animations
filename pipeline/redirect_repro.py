@@ -120,6 +120,10 @@ def round_(rx, name: str, shared: bool, overload: bool = False) -> dict:
         (p / f"irc_{d[0]}.inp").write_text(inp(rx, d))
     # J. Picione: never beside a production job. The round takes the whole budget, so it starts only
     # when nothing else holds cores and nothing can start beside it; no ORCA outside the ledger either.
+    # J. Picione, 2026-11-11: no reproduction round during or near a reserved window (from 3 h before
+    # the reservation starts until it is released)
+    while cores.window_active(3.0):
+        time.sleep(60)
     rid = cores.acquire(8, 28000, f"redirect repro {name} (whole machine; "
                         f"{'one folder' if shared else 'two folders'}{', 12 cores of load' if overload else ''})",
                         lane="redirect_repro")

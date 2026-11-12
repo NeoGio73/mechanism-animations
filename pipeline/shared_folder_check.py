@@ -215,6 +215,7 @@ def save(key: str, val) -> None:
 
 
 S010B_NEW = OUT / "s010/backward/irc_b.out"
+RXLOG = OUT.parents[2] / "run_log.md"
 
 
 def compare_s010_backward() -> dict:
@@ -245,68 +246,90 @@ def compare_s010_backward() -> dict:
     return out
 
 
+def _done(path: Path) -> bool:
+    return path.exists() and "ORCA TERMINATED NORMALLY" in path.read_text(errors="replace")
+
+
+# the four jobs of the 0.10/0.05 comparison, each as it now counts for the verdict
+JOBS = {"s010/forward": OUT / "s010/irc_f.out",                 # rerun 17:06–18:11, alone (check 1a)
+        "s010/backward": OUT / "s010/backward/irc_b.out",       # rerun alone (J. Picione), not the shared run
+        "s005/forward": OUT / "s005/forward/irc_f.out",         # 4th run, alone in its own folder
+        "s005/backward": OUT / "s005/backward/irc_b.out"}       # rerun alone in its own folder
+
+
 def gate() -> dict:
-    """check1.json for the verdict. s010 forward and s005 backward ran alone (check 1a: clear);
-    s010 backward counts only as its rerun alone in s010/backward/ (J. Picione: rerun instead of the
-    frame check), clear once that run ended normally; s005 forward is clear only if part B finds no
-    mismatch."""
-    d = json.loads((CK / "results.json").read_text(encoding="utf-8")) if (CK / "results.json").exists() else {}
-    pb = d.get("partB", {})
-    st = {"s010/forward": "clear", "s005/backward": "clear"}
-    ok = S010B_NEW.exists() and "ORCA TERMINATED NORMALLY" in S010B_NEW.read_text(errors="replace")
-    st["s010/backward"] = "clear" if ok else "rerun alone not finished"
-    j = "s005/forward"
-    st[j] = "not checked" if j not in pb else ("clear" if pb[j]["n_over_tol"] == 0 else "mismatch")
+    """check1.json for the verdict: each of the four jobs is clear once its run alone in its own
+    folder has ended normally (s010 forward ran alone in s010/, check 1a)."""
+    st = {j: ("clear" if _done(p) else "not finished alone") for j, p in JOBS.items()}
     (OUT / "check1.json").write_text(json.dumps({"status": st}, indent=1), encoding="utf-8")
-    print(st)
+    print(st, flush=True)
     return st
 
 
-def _wait_for(pattern: str) -> None:
+def _running(pattern: str) -> bool:
+    import os
     import psutil
-    while any(pattern in " ".join(p.info["cmdline"] or []) for p in psutil.process_iter(["cmdline"])
-              if p.info["cmdline"] and p.pid != __import__("os").getpid() and "python" in (p.info["cmdline"][0] or "").lower()):
+    return any(pattern in " ".join(p.info["cmdline"] or []) for p in psutil.process_iter(["cmdline"])
+               if p.info["cmdline"] and p.pid != os.getpid() and "python" in (p.info["cmdline"][0] or "").lower())
+
+
+def _wait_for(pattern: str) -> None:
+    while _running(pattern):
         __import__("time").sleep(60)
 
 
 def lane() -> None:
-    """The whole check-1 lane, in order (J. Picione, 2026-11-11):
-    the s010 backward rerun alone in its own folder is queued first (it decides the verdict for that
-    path); part B for s005 forward once that job has finished;
-    the old-vs-new s010 backward comparison; reruns alone of any job with a mismatch; then the
-    step-test verdict, after the s005 backward rerun has finished; then part A (evidence on the
-    crashed jobs, not part of the gate). The reproduction (point 3) runs after the E2 lane."""
+    """The check-1 lane (J. Picione, 2026-11-11), in order:
+    s010 backward rerun alone in s010/backward/ (instead of the frame check) and the s005 forward run
+    alone in s005/forward/ (its 17:06 and 19:41 runs crashed; the 21:21 crash came while it was alone in
+    s005/, so this is the 4th run with identical settings); a run that does not end normally is rerun
+    with the same settings, at most twice more, and logged. Then the old-vs-new s010 backward
+    comparison, the gate, the step-test verdict once the s005 backward rerun has ended, and part A
+    (evidence on the crashed jobs, not part of the gate). The reproduction runs after the E2 lane."""
     import subprocess
+    import time
     py = [sys.executable, "-X", "utf8"]
     step = str(OUT.parents[2] / "00_inputs/step_convergence_test.py")
     d = json.loads((CK / "results.json").read_text(encoding="utf-8")) if (CK / "results.json").exists() else {}
-    rr = None
-    if not (S010B_NEW.exists() and "ORCA TERMINATED NORMALLY" in S010B_NEW.read_text(errors="replace")):
-        rr = subprocess.Popen(py + [step, "rerun_new", "s010", "backward"], cwd=ROOT,
-                              stdout=open(CK / "console_s010_backward_rerun.txt", "w"), stderr=subprocess.STDOUT)
-        __import__("time").sleep(20)          # its request enters the queue before this lane's jobs
-    _wait_for("rerun_one s005 forward")
-    if "s005/forward" not in d.get("partB", {}):
-        save("s005/forward", part_b("s005/forward"))
-    if rr:
-        rr.wait()
-    if S010B_NEW.exists():
+
+    def ensure(n: str, dr: str, first_mode: str, tries: int = 3) -> None:
+        j = f"{n}/{dr}"
+        for k in range(tries):
+            if _done(JOBS[j]):
+                return
+            if _running(f"rerun_new {n} {dr}") or _running(f"rerun_one {n} {dr}"):
+                # a run already under way (started before this lane): wait for it
+                _wait_for(f"rerun_new {n} {dr}")
+                _wait_for(f"rerun_one {n} {dr}")
+            else:
+                mode = first_mode if k == 0 else "rerun_one"
+                with open(CK / f"console_{n}_{dr}_try{k + 1}.txt", "w") as fh:
+                    subprocess.run(py + [step, mode, n, dr], cwd=ROOT, stdout=fh, stderr=subprocess.STDOUT)
+            if not _done(JOBS[j]):
+                nxt = "rerun with identical settings" if k + 1 < tries else "no more automatic reruns; reported"
+                row = (f"| {time.strftime('%Y-%m-%d %H:%M')} | `02_irc/attempts/step_convergence/{j}` | "
+                       f"as started 15:40 | — | crashed | check-1 lane, try {k + 1}: did not end normally; {nxt} |")
+                with open(RXLOG, "a", encoding="utf-8") as fh:
+                    fh.write(row + chr(10))
+        if not _done(JOBS[j]):
+            print(f"{j}: not finished normally after {tries} runs", flush=True)
+
+    import threading
+    th = [threading.Thread(target=ensure, args=("s010", "backward", "rerun_new")),
+          threading.Thread(target=ensure, args=("s005", "forward", "rerun_one"))]
+    th[0].start()
+    time.sleep(20)              # the s010 request stays ahead in the queue
+    th[1].start()
+    for t_ in th:
+        t_.join()
+    if _done(JOBS["s010/backward"]):
         compare_s010_backward()
-    st = gate()
-    for j, s in st.items():
-        if s == "mismatch":
-            n, dr = j.split("/")
-            subprocess.run(py + [step, "rerun_alone", n, dr], cwd=ROOT, check=True)
-            st[j] = "clear"
-            st[j + " note"] = "mismatch in check 1; rerun alone in its own folder"
-            (OUT / "check1.json").write_text(json.dumps({"status": st}, indent=1), encoding="utf-8")
     _wait_for("rerun_one s005 backward")
+    ensure("s005", "backward", "rerun_one")
+    gate()
     subprocess.run(py + [step, "after"], cwd=ROOT)
-    # evidence, not part of the gate: part A on the crashed jobs, then how large an exchanged D3
-    # value would have been for s005 forward
     if "partA" not in d:
         save("partA", part_a())
-    exchange("s005/forward")
 
 
 def exchange(job: str) -> None:

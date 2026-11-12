@@ -126,11 +126,11 @@ def request(inp: str) -> tuple[int, int]:
 
 
 def acquire(cores: int, mem_mb: int, what: str, pid: int | None = None, lane: str | None = None,
-            folder: str | None = None) -> str:
+            folder: str | None = None, front: bool = False) -> str:
     """Wait until the job fits in the budget and no older request is waiting; then hold it.
     folder: the job folder; two ORCA jobs never run in the same folder at once (ORCA writes fixed-name
     files such as redirect.tmp there), so a job waits while its folder is busy, without holding up
-    the jobs behind it."""
+    the jobs behind it. front: the request goes to the head of the queue (reserved windows)."""
     if cores > CORES or mem_mb > MEM_MB:
         raise RuntimeError(f"{what}: {cores} cores / {mem_mb} MB exceeds the budget {CORES} / {MEM_MB} MB")
     pid = pid or os.getpid()
@@ -141,8 +141,12 @@ def acquire(cores: int, mem_mb: int, what: str, pid: int | None = None, lane: st
         if pid not in _lane_logged and not any(h["pid"] == pid for h in s["held"]):
             _log(f"lane start  {lane} (pid {pid}); {_summary(s)}")
             _lane_logged.add(pid)
-        s["waiting"].append({"id": rid, "pid": pid, "lane": lane, "what": what, "cores": cores,
-                             "mem_mb": mem_mb, "folder": folder, "since": time.strftime("%H:%M:%S")})
+        entry = {"id": rid, "pid": pid, "lane": lane, "what": what, "cores": cores,
+                 "mem_mb": mem_mb, "folder": folder, "since": time.strftime("%H:%M:%S")}
+        if front:
+            s["waiting"].insert(0, entry)
+        else:
+            s["waiting"].append(entry)
         _write(s)
     logged_wait = False
     while True:
@@ -211,6 +215,66 @@ def resume_after(marker: str, paused_json: str, n_cores: int, mem_mb: int) -> No
     set_paused(None, lane)
 
 
+WINDOW = Q / "window.json"
+
+
+def window(start: str, cores_n: int, mem_mb: int, who: str) -> None:
+    """A reserved window for other work on the machine (J. Picione, 2026-11-11: Unity from about 04:00,
+    up to 1 h). From `start` (YYYY-mm-dd HH:MM, two hours before the window) a reservation of
+    cores_n / mem_mb goes to the head of the queue. No job starts while it waits; once it is held,
+    everything else together stays within (CORES − cores_n) / (MEM_MB − mem_mb). Running jobs are
+    never stopped or paused. The reservation is held by this process until the release file
+    window_release appears (J. Picione says he is done); then the full budget returns.
+    The reservation is data in the ledger, so lanes started before this code respect it too."""
+    t0 = time.mktime(time.strptime(start, "%Y-%m-%d %H:%M"))
+    st = {"who": who, "reservation_from": start, "cores": cores_n, "mem_mb": mem_mb,
+          "left_for_jobs": {"cores": CORES - cores_n, "mem_mb": MEM_MB - mem_mb},
+          "status": "planned", "pid": os.getpid()}
+    WINDOW.write_text(json.dumps(st, indent=1), encoding="utf-8")
+    _log(f"window planned: {who}; from {start} no job starts unless all jobs together stay within "
+         f"{CORES - cores_n} cores, {MEM_MB - mem_mb} MB")
+    while time.time() < t0:
+        time.sleep(30)
+    st["status"] = "waiting for running jobs to fall within the window budget"
+    st["waiting_since"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    WINDOW.write_text(json.dumps(st, indent=1), encoding="utf-8")
+    rid = acquire(cores_n, mem_mb, f"reserved window: {who}", lane="window", front=True)
+    with _locked():
+        s = _read()
+        others = [h for h in s["held"] if h["id"] != rid]
+    st["status"] = "granted"
+    st["granted_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    st["others_at_grant"] = {"cores": sum(h["cores"] for h in others), "mem_mb": sum(h["mem_mb"] for h in others),
+                             "jobs": [f"{h['lane']}: {h['what']}" for h in others]}
+    st["orca_ram_mb_at_grant"] = round(sum(p.memory_info().private for p in psutil.process_iter(["name"])
+                                           if (p.info["name"] or "").lower().startswith(("orca", "mpiexec", "smpd")))
+                                       / 2**20)
+    WINDOW.write_text(json.dumps(st, indent=1), encoding="utf-8")
+    _log(f"window granted: {who}; other jobs now {st['others_at_grant']['cores']} cores, "
+         f"{st['others_at_grant']['mem_mb']} MB declared, ORCA processes {st['orca_ram_mb_at_grant']} MB in RAM")
+    rel = Q / "window_release"
+    while not rel.exists():
+        time.sleep(10)
+    release(rid, "  (window over)")
+    st["status"] = "released"
+    st["released_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    WINDOW.write_text(json.dumps(st, indent=1), encoding="utf-8")
+    _log(f"window released: {who}; full budget {CORES} cores, {MEM_MB} MB again")
+    rel.unlink(missing_ok=True)
+
+
+def window_active(margin_h: float = 3.0) -> bool:
+    """True from margin_h hours before the reservation starts until the window is released: the
+    crash reproduction (whole machine) does not start a round then."""
+    if not WINDOW.exists():
+        return False
+    st = json.loads(WINDOW.read_text(encoding="utf-8"))
+    if st.get("status") == "released":
+        return False
+    t0 = time.mktime(time.strptime(st["reservation_from"], "%Y-%m-%d %H:%M"))
+    return time.time() >= t0 - margin_h * 3600
+
+
 def status() -> str:
     with _locked():
         s = _read()
@@ -230,5 +294,7 @@ if __name__ == "__main__":
     elif sys.argv[1] == "hold":
         pid, c, m = int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4])
         print(hold_for_pid(pid, c, m, sys.argv[5], sys.argv[6]))
+    elif sys.argv[1] == "window":
+        window(sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), sys.argv[5])
     elif sys.argv[1] == "resume_after":
         resume_after(sys.argv[2], sys.argv[3], int(sys.argv[4]), int(sys.argv[5]))
