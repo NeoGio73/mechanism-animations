@@ -40,7 +40,14 @@ RUNS = {"s010": {"target": 0.10, "maxiter": {"forward": 100, "backward": 160}},
         "s0025": {"target": 0.025, "maxiter": {"forward": 380, "backward": 620},     # 2 cores per job, as 0.05 and 0.10 (J. Picione)
                   # J. Picione, 2026-11-12: first step 0.10 as in production; with a first step of 0.025 the
                   # gradient next to the TS is below ORCA's IRC thresholds and the IRC stopped after one step
-                  "first": 0.10}}
+                  "first": 0.10},
+        # J. Picione, 2026-11-12: 0.05 steps after a first step of 0.10, so 0.10 vs 0.05 and 0.05 vs 0.025
+        # compare step size alone (all with first step 0.10); old vs new 0.05 shows the first step alone
+        "s005f10": {"target": 0.05, "first": 0.10, "maxiter": {"forward": 190, "backward": 300}}}
+R3 = ("s010", "s005", "s0025")                                  # the three-way report (report3)
+R4 = ("s010", "s005", "s005f10", "s0025")                       # the four-way report (report4)
+LABEL = {"s010": "0.10 (first step 0.10)", "s005": "0.05 (first step 0.05)",
+         "s005f10": "0.05 (first step 0.10)", "s0025": "0.025 (first step 0.10)"}
 OUT = ROOT / "02_irc/attempts/step_convergence"
 MASS = {"C": 12.011, "H": 1.008, "O": 15.999, "Br": 79.904}
 CO, CBR = (0, 2), (0, 1)
@@ -260,15 +267,15 @@ def report3():
     # J. Picione, 2026-11-12: a path is used only if both sides reached their end point by the stopping
     # rule (pipeline/path_quality.py); otherwise no three-way report
     from pipeline.path_quality import path_completeness
-    comp = {n: path_completeness([jd(n, "forward") / "irc_f.out", jd(n, "backward") / "irc_b.out"], n) for n in RUNS}
+    comp = {n: path_completeness([jd(n, "forward") / "irc_f.out", jd(n, "backward") / "irc_b.out"], n) for n in R3}
     if any(c["verdict"] != "complete" for c in comp.values()):
         (OUT / "report3_blocked.json").write_text(json.dumps(comp, indent=1), encoding="utf-8")
         print("no three-way report: a path is incomplete", {n: c["verdict"] for n, c in comp.items()}, flush=True)
         return None
     ts = read_xyz(ROOT / "01_ts/ts/ts.xyz")
     ends = adaptive_ends()
-    P = {n: load(n, ts, ends) for n in RUNS}
-    out = {"first_step_setting_bohr_amu05": {n: RUNS[n].get("first", RUNS[n]["target"]) for n in RUNS},
+    P = {n: load(n, ts, ends) for n in R3}
+    out = {"first_step_setting_bohr_amu05": {n: RUNS[n].get("first", RUNS[n]["target"]) for n in R3},
            "completeness": {n: {s: {k: v[k] for k in ("ended", "steps", "drop_from_TS_kJ")} for s, v in c["sides"].items()}
                             for n, c in comp.items()},
            "stats": {n: stats(p) for n, p in P.items()},
@@ -286,6 +293,71 @@ def report3():
     out["0.10_vs_0.05"] = {k: {a: b for a, b in v.items() if a != "rows"} for k, v in c.items()}
     (OUT / "report3.json").write_text(json.dumps(out, indent=1), encoding="utf-8")
     print(json.dumps(out, indent=1))
+
+
+def report4():
+    """J. Picione, 2026-11-12: four paths side by side; the verdict table for each neighbouring pair with a
+    0.10 first step (0.10 vs 0.05, 0.05 vs 0.025), and old 0.05 vs new 0.05 (first step alone). Written
+    only if all four paths pass the completeness check (pipeline/path_quality.py)."""
+    from pipeline.path_quality import path_completeness
+    comp = {n: path_completeness([jd(n, "forward") / "irc_f.out", jd(n, "backward") / "irc_b.out"], n) for n in R4}
+    if any(c["verdict"] != "complete" for c in comp.values()):
+        (OUT / "report4_blocked.json").write_text(json.dumps(comp, indent=1), encoding="utf-8")
+        print("no four-way report: a path is incomplete", {n: c["verdict"] for n, c in comp.items()}, flush=True)
+        return None
+    ts = read_xyz(ROOT / "01_ts/ts/ts.xyz")
+    ends = adaptive_ends()
+    P = {n: load(n, ts, ends) for n in R4}
+    pairs = [("0.10 vs 0.05, both first step 0.10", "s010", "s005f10"),
+             ("0.05 vs 0.025, both first step 0.10", "s005f10", "s0025"),
+             ("old 0.05 (first step 0.05) vs new 0.05 (first step 0.10)", "s005", "s005f10")]
+    out = {"paths": {n: LABEL[n] for n in R4},
+           "first_step_setting_bohr_amu05": {n: RUNS[n].get("first", RUNS[n]["target"]) for n in R4},
+           "completeness": {n: {s: {k: v[k] for k in ("ended", "steps", "drop_from_TS_kJ")} for s, v in c["sides"].items()}
+                            for n, c in comp.items()},
+           "stats": {n: stats(p) for n, p in P.items()},
+           "covers_region": {n: covers_region(p) for n, p in P.items()},
+           "pairs": {}}
+    for title, a, b in pairs:
+        c = compare(P[a], P[b])
+        row = {}
+        for side, v in c.items():
+            row[side] = {k: x for k, x in v.items() if k != "rows"}
+            bad = [r[0] for r in v.get("rows", []) if abs(r[2]) > TOL_E or abs(r[3]) > TOL_B]
+            row[side]["failing_s"] = [min(bad), max(bad)] if bad else None
+            row[side]["n_failing"] = len(bad)
+            # beyond this |s| every compared point is within both limits
+            row[side]["within_limits_beyond_abs_s"] = max(abs(x) for x in bad) if bad else 0.0
+        out["pairs"][title] = {"coarse": a, "fine": b, "sides": row}
+    (OUT / "report4.json").write_text(json.dumps(out, indent=1), encoding="utf-8")
+    (OUT / "report4.md").write_text(report4_md(out), encoding="utf-8")
+    print(report4_md(out), flush=True)
+    return out
+
+
+def report4_md(o):
+    kc = lambda x: f"{x:+.3f} kJ/mol ({x / 4.184:+.4f} kcal/mol)"
+    L = ["# Step-size test, four paths (SN2, B3LYP-D3(BJ)/ma-def2-SVP, SMD water)", "",
+         "| Path | First step set (bohr·amu½) | First steps measured (fwd, bwd) | Median step in region | Steps in region | Covers region |",
+         "|---|---|---|---|---|---|"]
+    for n, lab in o["paths"].items():
+        s = o["stats"][n]
+        L.append(f"| {lab} | {o['first_step_setting_bohr_amu05'][n]:.3f} | "
+                 + ", ".join(f"{x:.3f}" for x in s["first_steps"])
+                 + f" | {s['median_region']:.4f} | {s['n_region_steps']} | {o['covers_region'][n]} |")
+    for title, p in o["pairs"].items():
+        L += ["", f"## {title}", "",
+              "| Side (matched by) | Points | Largest energy difference | at distance | Largest other-bond difference | Within 0.2 kJ/mol and 0.005 Å |",
+              "|---|---|---|---|---|---|"]
+        for side, v in p["sides"].items():
+            if not v.get("n"):
+                L.append(f"| {side} | 0 | — | — | — | — |")
+                continue
+            L.append(f"| {side} ({v['match_by']}) | {v['n']} | {kc(v['max_dE_kJ'])} | {v['match_by']} {v['at_dist_A']:.3f} Å | "
+                     f"{v['other']} {v['max_dbond_A']:+.4f} Å | {'yes' if v['pass'] else 'no'}"
+                     + ("" if v["pass"] else f" ({v['n_failing']} points outside, s {v['failing_s'][0]:+.2f} to {v['failing_s'][1]:+.2f})")
+                     + " |")
+    return "\n".join(L) + "\n"
 
 
 def after(rx):
@@ -407,6 +479,15 @@ if __name__ == "__main__":
         with ThreadPoolExecutor(2) as ex:
             list(ex.map(lambda d: job(rx, "s0025", d), ("forward", "backward")))
         (OUT / "S0025_JOBS_ENDED").write_text("0.025 jobs ended; completeness check and report3 next\n")
+    elif sys.argv[1] == "run_path":
+        # J. Picione, 2026-11-12: one step-test path, both directions at once, 2 cores per job, each
+        # direction alone in a new clean folder; jobs wait in the core ledger until cores are free
+        n = sys.argv[2]
+        with ThreadPoolExecutor(2) as ex:
+            list(ex.map(lambda d: job(rx, n, d), ("forward", "backward")))
+        (OUT / f"{n.upper()}_JOBS_ENDED").write_text(f"{n} jobs ended\n")
+    elif sys.argv[1] == "report4":
+        report4()
     elif sys.argv[1] == "report3":
         report3()
     elif sys.argv[1] == "run":
