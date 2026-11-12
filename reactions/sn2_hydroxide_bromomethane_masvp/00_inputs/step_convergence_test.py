@@ -46,9 +46,22 @@ TOL_E, TOL_B = 0.2, 0.005
 E_TS = -2689.43410109009   # Eh, the TS energy every IRC job here computes first (same input, same TS)
 
 
+def jd(name, d):
+    """Folder of one direction's job. From 19:45 each direction runs in its own folder
+    (<name>/<direction>/): ORCA writes the dispersion output to a fixed file, redirect.tmp, in the job
+    folder, and two IRC jobs side by side in one folder overwrote it (the likely cause of the crashes).
+    Jobs that finished earlier stay in <name>/."""
+    sub = OUT / name / d
+    return sub if (sub / f"irc_{d[0]}.inp").exists() else OUT / name
+
+
+def trj(name, d):
+    return jd(name, d) / f"irc_{d[0]}_IRC_{d[0].upper()}_trj.xyz"
+
+
 def job(rx, name, d):
     r = RUNS[name]
-    wd = OUT / name
+    wd = OUT / name / d
     wd.mkdir(parents=True, exist_ok=True)
     shutil.copy(ROOT / "01_ts/ts/ts.hess", wd / "ts.hess")
     sc = irc_init_scale(ROOT / "01_ts/ts/ts.hess", r["target"])
@@ -168,7 +181,7 @@ def compare(ref, fine, span=None):
 def report(early=False):
     ts = read_xyz(ROOT / "01_ts/ts/ts.xyz")
     ends = adaptive_ends()
-    f05 = path(OUT / "s005/irc_f_IRC_F_trj.xyz", OUT / "s005/irc_b_IRC_B_trj.xyz", ts)
+    f05 = path(trj("s005", "forward"), trj("s005", "backward"), ts)
     E_ts = E_TS
     f05 = region_flags(with_energy(f05, E_ts), ends)
     n80 = [r["s"] for r in f05 if r["side"] != "TS"]
@@ -182,7 +195,7 @@ def report(early=False):
                "compare": compare(ref, f05, span80), "stats_ref": stats(ref), "stats_s005_so_far": stats(f05)}
         name = "report_early.json"
     else:
-        ref = region_flags(with_energy(path(OUT / "s010/irc_f_IRC_F_trj.xyz", OUT / "s010/irc_b_IRC_B_trj.xyz", ts),
+        ref = region_flags(with_energy(path(trj("s010", "forward"), trj("s010", "backward"), ts),
                                        E_ts), ends)
         out = {"ref": "s010", "span_first_80_steps_of_s005": span80,
                "compare_span80": compare(ref, f05, span80), "compare_region": compare(ref, f05),
@@ -201,8 +214,7 @@ def report(early=False):
 
 
 def load(name, ts, ends):
-    return region_flags(with_energy(path(OUT / f"{name}/irc_f_IRC_F_trj.xyz", OUT / f"{name}/irc_b_IRC_B_trj.xyz", ts),
-                                    E_TS), ends)
+    return region_flags(with_energy(path(trj(name, "forward"), trj(name, "backward"), ts), E_TS), ends)
 
 
 def covers_region(p):
@@ -211,7 +223,7 @@ def covers_region(p):
 
 
 def finished(name, d):
-    o = OUT / name / f"irc_{d[0]}.out"
+    o = jd(name, d) / f"irc_{d[0]}.out"
     return o.exists() and "ORCA TERMINATED NORMALLY" in o.read_text(errors="replace")
 
 
@@ -294,10 +306,10 @@ if __name__ == "__main__":
         import time
         n, d = sys.argv[2], sys.argv[3]
         if not finished(n, d):
-            t_crash = (OUT / n / f"irc_{d[0]}.out").stat().st_mtime
+            t_crash = (jd(n, d) / f"irc_{d[0]}.out").stat().st_mtime
             dest = OUT / n / f"crashed_{time.strftime('%H%M', time.localtime(t_crash))}_{d}"
             dest.mkdir(exist_ok=True)
-            for f in (OUT / n).glob(f"irc_{d[0]}*"):
+            for f in jd(n, d).glob(f"irc_{d[0]}*"):
                 if f.is_file():
                     shutil.move(str(f), dest / f.name)
             print("rerunning", n, d, flush=True)
