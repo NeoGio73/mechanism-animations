@@ -79,7 +79,7 @@ def run(workdir: Path, name: str, inp: str, log: "RunLog", note: str = "",
         what = str(workdir.relative_to(Path(__file__).resolve().parents[1] / "reactions")).replace("\\", "/")
     except ValueError:
         what = workdir.name
-    rid = cores.acquire(*cores.request(inp), what=f"{what}/{name}")
+    rid = cores.acquire(*cores.request(inp), what=f"{what}/{name}", folder=str(workdir.resolve()))
     print(f"[run] {workdir.name}/{name} ...", flush=True)
     t0 = time.time()
     reason = None

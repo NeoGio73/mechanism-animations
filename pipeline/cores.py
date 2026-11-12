@@ -125,8 +125,12 @@ def request(inp: str) -> tuple[int, int]:
     return cores, cores * (int(mc.group(1)) if mc else 1000)
 
 
-def acquire(cores: int, mem_mb: int, what: str, pid: int | None = None, lane: str | None = None) -> str:
-    """Wait until the job fits in the budget and no older request is waiting; then hold it."""
+def acquire(cores: int, mem_mb: int, what: str, pid: int | None = None, lane: str | None = None,
+            folder: str | None = None) -> str:
+    """Wait until the job fits in the budget and no older request is waiting; then hold it.
+    folder: the job folder; two ORCA jobs never run in the same folder at once (ORCA writes fixed-name
+    files such as redirect.tmp there), so a job waits while its folder is busy, without holding up
+    the jobs behind it."""
     if cores > CORES or mem_mb > MEM_MB:
         raise RuntimeError(f"{what}: {cores} cores / {mem_mb} MB exceeds the budget {CORES} / {MEM_MB} MB")
     pid = pid or os.getpid()
@@ -138,7 +142,7 @@ def acquire(cores: int, mem_mb: int, what: str, pid: int | None = None, lane: st
             _log(f"lane start  {lane} (pid {pid}); {_summary(s)}")
             _lane_logged.add(pid)
         s["waiting"].append({"id": rid, "pid": pid, "lane": lane, "what": what, "cores": cores,
-                             "mem_mb": mem_mb, "since": time.strftime("%H:%M:%S")})
+                             "mem_mb": mem_mb, "folder": folder, "since": time.strftime("%H:%M:%S")})
         _write(s)
     logged_wait = False
     while True:
@@ -146,7 +150,9 @@ def acquire(cores: int, mem_mb: int, what: str, pid: int | None = None, lane: st
             s = _read()
             c = sum(h["cores"] for h in s["held"])
             m = sum(h["mem_mb"] for h in s["held"])
-            first = s["waiting"] and s["waiting"][0]["id"] == rid
+            busy = {h.get("folder") for h in s["held"]} - {None}
+            ready = [w for w in s["waiting"] if w.get("folder") not in busy]
+            first = bool(ready) and ready[0]["id"] == rid
             if first and c + cores <= CORES and m + mem_mb <= MEM_MB:
                 me = next(w for w in s["waiting"] if w["id"] == rid)
                 s["waiting"] = [w for w in s["waiting"] if w["id"] != rid]

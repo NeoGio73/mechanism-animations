@@ -37,7 +37,9 @@ machine and about 28 GB of memory (31 GB installed). Memory is counted as declar
 asks for its cores and memory before it starts and waits, first come first served, until they are
 free. Each lane start, job start, wait and job end is logged with the allocation in
 `docs/level_test_queue/allocation.log`. Lanes are run one behind another when they would not fit
-side by side; the E2 arbitration runs behind the step-size test.
+side by side; the E2 arbitration runs behind the step-size test. The queue also never runs two ORCA
+jobs in the same folder at once: ORCA writes fixed-name files there (redirect.tmp, the dispersion
+output), and two IRC jobs sharing a folder were the likely cause of the step-test crashes.
 
 ## Standard for the reaction set (decided by J. Picione, 2026-11-09; replaced 2026-11-11, see above)
 
