@@ -208,10 +208,7 @@ def resume_after(marker: str, paused_json: str, n_cores: int, mem_mb: int) -> No
     hold_for_pid(e["root_pid"], n_cores, mem_mb, lane,
                  f"paused lane resumed: {n_cores // 2} chains × 2 cores, maxcore 2000")
     for pid in e["pids"]:
-        try:
-            psutil.Process(pid).resume()
-        except psutil.Error:
-            pass
+        _resume_fully(pid)
     set_paused(None, lane)
 
 
@@ -293,12 +290,10 @@ def guard(protect: str, until_marker: str, suspend_pids: list[int]) -> None:
                 s["waiting"] = [w for w in s["waiting"] if w["id"] != bid]
             _write(s)
         new = "block" if prot else "open"
-        for pid in suspend_pids:
-            try:
-                p = psutil.Process(pid)
-                p.suspend() if prot else p.resume()
-            except psutil.Error:
-                pass
+        # Windows counts suspends: suspend once per change of state, resume until running.
+        if new != state:
+            for pid in suspend_pids:
+                _resume_fully(pid) if new == "open" else _suspend_once(pid)
         if new != state:
             _log(f"guard {new}: " + ("; ".join(h["what"] for h in prot) if prot else "no protected job running"))
             state = new
@@ -308,11 +303,29 @@ def guard(protect: str, until_marker: str, suspend_pids: list[int]) -> None:
         s["waiting"] = [w for w in s["waiting"] if w["id"] != bid]
         _write(s)
     for pid in suspend_pids:
-        try:
-            psutil.Process(pid).resume()
-        except psutil.Error:
-            pass
+        _resume_fully(pid)
     _log("guard off: verdict given")
+
+
+def _suspend_once(pid: int) -> None:
+    try:
+        p = psutil.Process(pid)
+        if p.status() != psutil.STATUS_STOPPED:
+            p.suspend()
+    except psutil.Error:
+        pass
+
+
+def _resume_fully(pid: int) -> None:
+    """On Windows each suspend adds to a count and each resume removes one; resume until running."""
+    try:
+        p = psutil.Process(pid)
+        for _ in range(300):
+            if p.status() != psutil.STATUS_STOPPED:
+                break
+            p.resume()
+    except psutil.Error:
+        pass
 
 
 def window_active(margin_h: float = 3.0) -> bool:
