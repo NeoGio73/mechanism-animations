@@ -189,11 +189,17 @@ host pysisyphus: h5py has no package for Python 3.15.
 Integrator and settings: EulerPC, the Euler predictor–corrector of Hratchian, Frisch and Schlegel, in
 mass-weighted Cartesian coordinates; Bofill Hessian updates; start Hessian = ORCA's exact TS Hessian at
 the same level; corrector on the distance-weighted interpolant (pysisyphus `corr_func = "mbs"`), up to
-500 Euler predictor steps per corrector, 3 loose cycles (pysisyphus defaults). Step length 0.10
-bohr·amu^1/2 (and 0.05 for the step test of this method); first step 0.10 bohr·amu^1/2 along the
-mass-weighted TS mode (`displ = "length"`). A direction ends when the RMS of the (non-mass-weighted)
-gradient falls below 5e-4 Eh/bohr after the inflection point, when the energy rises, or after 30
-bohr·amu^1/2. Test level: B3LYP-D3(BJ)/ma-def2-SVP, RIJCOSX, SMD water, VeryTightSCF.
+5000 Euler predictor substeps per step (pysisyphus default 500; with 500 the predictor fell short
+of the step in the flat tail and the path stalled), 3 loose cycles. pysisyphus measures
+`step_length` in plain (un-mass-weighted) Cartesian bohr, like ORCA's `Scale_Displ_SD`; only the first
+displacement is mass-weighted. Steps: 0.02359 bohr for the 0.10 bohr·amu^1/2 path and 0.01179 bohr
+for the 0.05 path (the ORCA step-test calibration, so both methods take the same Cartesian steps;
+mass-weighted steps are measured and reported); first step 0.10 bohr·amu^1/2 along the mass-weighted
+TS mode (`displ = "length"`). A first attempt with `step_length` read as bohr·amu^1/2 took steps of
+0.35 and 0.18 bohr·amu^1/2 and is kept as not a result (`true_irc/attempt1_step_in_plain_bohr`).
+A direction ends when the RMS of the (non-mass-weighted) gradient falls below 5e-4 Eh/bohr after the
+inflection point, when the energy rises, or after 1500 steps. Test level: B3LYP-D3(BJ)/ma-def2-SVP,
+RIJCOSX, SMD water, VeryTightSCF.
 
 References to cite if adopted:
 - J. Steinmetzer, S. Kupfer, S. Gräfe, "pysisyphus: Exploring potential energy surfaces in ground and
