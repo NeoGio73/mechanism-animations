@@ -17,8 +17,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1] / "reactions"
-M_SVP = "M062X D3ZERO ma-def2-SVP def2/J RIJCOSX TightSCF DefGrid3"
-M_TZVP = "M062X D3ZERO ma-def2-TZVP def2/J RIJCOSX TightSCF DefGrid3"
+M_SVP = "M062X D3ZERO ma-def2-SVP def2/J RIJCOSX VeryTightSCF DefGrid3"
+M_TZVP = "M062X D3ZERO ma-def2-TZVP def2/J RIJCOSX VeryTightSCF DefGrid3"
 SD_PLACEHOLDER = 0.02359
 
 
@@ -54,6 +54,8 @@ def make(src: str, dst: str) -> None:
     t = head + t + ('\n[[diagnostic_levels]]\nlabel = "B3LYP_ma-def2-TZVP"\n'
                     'why = "the former working functional, for comparison"\n'
                     'method = "B3LYP D3BJ ma-def2-TZVP def2/J RIJCOSX TightSCF"\n')
+    # VeryTightSCF for every IRC gradient and every per-frame single point (J. Picione, 2026-11-12)
+    t = re.sub(r'^((?:sp_)?method = ".*?) TightSCF', r'\1 VeryTightSCF', t, flags=re.M)
     (d / "00_inputs/reaction.toml").write_text(t, encoding="utf-8")
     print(f"made {d}")
 

@@ -3,7 +3,8 @@
 ## Working level for all six reactions (decided by J. Picione, 2026-11-11)
 
 The working level for geometries, transition states, IRCs and orbitals of all six reactions is
-**M06-2X-D3(0)/ma-def2-SVP** on the DefGrid3 integration grid, RIJCOSX (def2/J), TightSCF, in each
+**M06-2X-D3(0)/ma-def2-SVP** on the DefGrid3 integration grid, RIJCOSX (def2/J), VeryTightSCF (from
+2026-11-12; TightSCF before, see "Step, first step and SCF for production"), in each
 reaction's SMD solvent model. This replaces the B3LYP-D3(BJ)/ma-def2-SVP standard below and the
 3-methyl-2-butyl exception, both kept below as the record of earlier work.
 
@@ -148,7 +149,34 @@ Step-size convergence test, on SN2 before any path is recomputed: the same non-a
 first step and median at 0.05 bohr·amu^1/2, compared with the 0.10 path at matching C–O distance
 on the reactant side and at matching C–Br distance on the product side (energy and the other key
 bond). Criterion: within 0.2 kJ/mol and 0.005 Å throughout the bond-changing region. If it passes,
-0.10 is the step for the whole set. Result: pending.
+0.10 is the step for the whole set.
+
+Result (2026-11-12): four paths (0.10; 0.05 with first step 0.05; 0.05 and 0.025 with first step
+0.10; `02_irc/attempts/step_convergence/report4.md`). Near the TS (|s| ≤ 1 bohr·amu^1/2) every pair is
+within 0.154 kJ/mol and 0.0028 Å, and the DLPNO-CCSD(T)/ma-def2-TZVP maximum lies at the same place on
+all four paths (s −0.175 to −0.187 bohr·amu^1/2, C–Br 2.3967–2.3978 Å, height within 0.06 kJ/mol;
+`cc_near_ts.md`). Further down the product side the paths differ by up to 0.75 kJ/mol and 0.008 Å,
+and the differences do not shrink with the step: they come from the O–H bond, which drifts by up
+to 0.03 Å along every path (`oh_check.json`, `angle_check.md`), not from the step size. SCF noise
+contributes at most 0.094 kJ/mol to a difference of two paths.
+
+### Step, first step and SCF for production (decided by J. Picione, 2026-11-12)
+
+For all six reactions: IRC step **0.10 bohr·amu^1/2** (ORCA sets it in plain bohr through
+`Scale_Displ_SD`, calibrated per reaction; `Adapt_Scale_Displ false`), first step **0.10
+bohr·amu^1/2** (`Init_Displ length`, `Scale_Init_Displ` from the TS mode), and **VeryTightSCF** for
+every IRC gradient and every per-frame single point at all three levels (M06-2X/ma-def2-TZVP,
+B3LYP/ma-def2-TZVP, DLPNO-CCSD(T)/ma-def2-TZVP).
+
+Why VeryTightSCF: each IRC step starts its SCF from the previous step's orbitals, so the same
+geometry gives slightly different energies depending on the starting orbitals. Measured at the
+M06-2X working level (DefGrid3, SMD water, six SN2 geometries; `check1/scf_noise.json`): TightSCF
+up to 3.9e-5 Eh (0.102 kJ/mol) and 1.4e-5 Eh/bohr; VeryTightSCF 1.3e-5 Eh (0.034 kJ/mol) and
+2.6e-6 Eh/bohr, for about 2 s (9 %) more per evaluation. The solvent model adds no scatter (gas
+phase is not quieter); DefGrid3 halves it at B3LYP.
+
+The path method itself (ORCA's IRC, which follows steepest descent in plain Cartesian coordinates,
+or a mass-weighted IRC integrator) is not decided yet; no production path starts before it is.
 
 Each card states the first step, the median, the shortest and the longest step in the
 bond-changing region, the largest change of a key bond in one step, and one sentence on the
