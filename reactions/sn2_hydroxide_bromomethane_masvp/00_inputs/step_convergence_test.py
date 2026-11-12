@@ -271,9 +271,24 @@ def report3():
 def after(rx):
     """Verdict, then the standing instruction (J. Picione, 2026-11-11): on a whole-region fail, run
     0.025 overnight and write the three-way report. Exactly one marker (PASS, FAIL, INCOMPLETE) is
-    left; the 0.025 run starts at most once (two lanes may reach this point). STEP_TEST_DONE marks
-    the end of the step test (the E2 arbitration lane waits for it)."""
+    left; the 0.025 run starts at most once (two lanes may reach this point). STEP_TEST_COMPLETE marks
+    the end of the step test (the E2 arbitration lane waits for it).
+
+    Gate (J. Picione, 2026-11-11, check 1): no verdict until every finished 0.10 and 0.05 job has
+    been cleared of folder sharing: check1.json (pipeline/shared_folder_check.py) must list all four
+    as "clear". Until then: HELD, and any marker written by older copies of this script is removed."""
     import os
+    gate = OUT / "check1.json"
+    need = [f"{n}/{d}" for n in ("s010", "s005") for d in ("forward", "backward")]
+    st = json.loads(gate.read_text(encoding="utf-8")).get("status", {}) if gate.exists() else {}
+    if not all(st.get(k) == "clear" for k in need):
+        for m in ("PASS", "FAIL", "INCOMPLETE", "STEP_TEST_DONE", "STEP_TEST_COMPLETE"):
+            (OUT / m).unlink(missing_ok=True)
+        (OUT / "HELD").write_text("no verdict yet: check 1 (shared folders) has not cleared all four jobs: "
+                                  + json.dumps({k: st.get(k, "not checked") for k in need}) + "\n")
+        print("HELD: check 1 not cleared", flush=True)
+        return
+    (OUT / "HELD").unlink(missing_ok=True)
     v = verdict()
     for m in ("PASS", "FAIL", "INCOMPLETE"):
         (OUT / m).unlink(missing_ok=True)
@@ -282,18 +297,18 @@ def after(rx):
                                         "region: no step-size verdict, no 0.025 run\n")
     elif v:
         (OUT / "PASS").write_text("whole-region comparison passed\n")
-        (OUT / "STEP_TEST_DONE").write_text("whole-region comparison passed\n")
+        (OUT / "STEP_TEST_COMPLETE").write_text("whole-region comparison passed\n")
     else:
         (OUT / "FAIL").write_text("whole-region comparison failed; running 0.025\n")
-        try:
-            os.close(os.open(OUT / "s0025.started", os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+        try:   # s0025.started is a block for copies of this script loaded before 19:55
+            os.close(os.open(OUT / "s0025.claimed", os.O_CREAT | os.O_EXCL | os.O_WRONLY))
         except FileExistsError:
             print("0.025 already started by another lane", flush=True)
             return
         with ThreadPoolExecutor(2) as ex:
             list(ex.map(lambda d: job(rx, "s0025", d), ("forward", "backward")))
         report3()
-        (OUT / "STEP_TEST_DONE").write_text("0.025 finished; report3.json written\n")
+        (OUT / "STEP_TEST_COMPLETE").write_text("0.025 finished; report3.json written\n")
 
 
 if __name__ == "__main__":
@@ -315,6 +330,21 @@ if __name__ == "__main__":
             print("rerunning", n, d, flush=True)
             job(rx, n, d)
         after(rx)
+    elif sys.argv[1] == "rerun_alone":
+        # a finished job that failed check 1 (it shared its folder with another running job) is not a
+        # result: outputs moved to shared_folder_<time>_<direction>/, rerun alone in its own folder
+        import time
+        n, d = sys.argv[2], sys.argv[3]
+        src = jd(n, d)
+        dest = OUT / n / f"shared_folder_{time.strftime('%H%M')}_{d}"
+        dest.mkdir(exist_ok=True)
+        for f in src.glob(f"irc_{d[0]}*"):
+            if f.is_file():
+                shutil.move(str(f), dest / f.name)
+        if src != OUT / n:
+            (src / f"irc_{d[0]}.inp").unlink(missing_ok=True)
+        print("rerunning alone", n, d, flush=True)
+        job(rx, n, d)
     elif sys.argv[1] == "rerun_crashed":
         # jobs that ended without "ORCA TERMINATED NORMALLY": outputs moved aside, same settings rerun
         import time

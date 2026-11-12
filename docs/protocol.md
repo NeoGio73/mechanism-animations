@@ -37,9 +37,19 @@ machine and about 28 GB of memory (31 GB installed). Memory is counted as declar
 asks for its cores and memory before it starts and waits, first come first served, until they are
 free. Each lane start, job start, wait and job end is logged with the allocation in
 `docs/level_test_queue/allocation.log`. Lanes are run one behind another when they would not fit
-side by side; the E2 arbitration runs behind the step-size test. The queue also never runs two ORCA
-jobs in the same folder at once: ORCA writes fixed-name files there (redirect.tmp, the dispersion
-output), and two IRC jobs sharing a folder were the likely cause of the step-test crashes.
+side by side; the E2 arbitration runs behind the step-size test. Paused jobs count against the
+budget with the memory they actually hold. A lane is not paused when that would take the total above
+28 GB or make Windows page; it is stopped and later rerun from scratch, and any job that does not end
+normally after a pause is rerun from scratch with no wall time reported.
+
+### One ORCA job per folder, always (J. Picione, 2026-11-11)
+
+No two ORCA jobs ever run in the same folder at the same time. ORCA writes fixed-name files in the
+job folder (redirect.tmp, the text output of sub-steps such as the dispersion printout, from
+orca_tools/qcmsg.cpp), so two jobs running in one folder can overwrite each other's files. The queue
+enforces this: a job whose folder is busy waits. Jobs that run strictly one after the other in one
+folder (for example the forward and then the backward IRC in 02_irc) cannot overlap. The only
+exception is the deliberate reproduction test of this effect (point 3b), in a scratch folder.
 
 ## Standard for the reaction set (decided by J. Picione, 2026-11-09; replaced 2026-11-11, see above)
 
