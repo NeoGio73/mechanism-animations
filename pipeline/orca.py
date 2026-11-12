@@ -11,6 +11,7 @@ from pathlib import Path
 
 import numpy as np
 
+from . import cores
 from .geometry import Geometry
 
 ORCA_DIR = Path(os.environ.get("ORCA_DIR", r"F:\ORCA"))
@@ -73,24 +74,34 @@ def run(workdir: Path, name: str, inp: str, log: "RunLog", note: str = "",
     stop_path.unlink(missing_ok=True)
     env = os.environ.copy()
     env["PATH"] = f"{MSMPI_BIN};{ORCA_DIR};" + env.get("PATH", "")
+    # core and memory budget across all lanes (pipeline/cores.py): wait for a free slot first
+    try:
+        what = str(workdir.relative_to(Path(__file__).resolve().parents[1] / "reactions")).replace("\\", "/")
+    except ValueError:
+        what = workdir.name
+    rid = cores.acquire(*cores.request(inp), what=f"{what}/{name}")
     print(f"[run] {workdir.name}/{name} ...", flush=True)
     t0 = time.time()
     reason = None
-    with open(out_path, "w") as fh:
-        proc = subprocess.Popen([str(ORCA_DIR / "orca.exe"), inp_path.name], cwd=workdir,
-                                stdout=fh, stderr=subprocess.STDOUT, env=env)
-        while True:
-            try:
-                proc.wait(timeout=poll_s if watch else None)
-                break
-            except subprocess.TimeoutExpired:
-                reason = watch()
-                if reason:
-                    # ORCA starts MPI child processes: end the whole process tree
-                    subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
-                                   capture_output=True)
-                    proc.wait()
+    try:
+        with open(out_path, "w") as fh:
+            proc = subprocess.Popen([str(ORCA_DIR / "orca.exe"), inp_path.name], cwd=workdir,
+                                    stdout=fh, stderr=subprocess.STDOUT, env=env)
+            while True:
+                try:
+                    proc.wait(timeout=poll_s if watch else None)
                     break
+                except subprocess.TimeoutExpired:
+                    reason = watch()
+                    if reason:
+                        # ORCA starts MPI child processes: end the whole process tree
+                        subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                                       capture_output=True)
+                        proc.wait()
+                        break
+    finally:
+        done = "ORCA TERMINATED NORMALLY" in out_path.read_text(errors="replace") if out_path.exists() else False
+        cores.release(rid, "" if done else "  (did not terminate normally)")
     res = parse(workdir, name, wall_s=time.time() - t0)
     if reason:
         res.stopped = reason

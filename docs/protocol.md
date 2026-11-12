@@ -29,6 +29,16 @@ with ORCA's normal termination, or a path that did not reach the range it was me
 incomplete: no value is taken from it and no follow-up decision is made on it. It is logged in
 `run_log.md` and rerun with the same settings, or reported.
 
+### Core and memory budget (J. Picione, 2026-11-11)
+
+All ORCA jobs running at the same time, across all lanes, use at most the 8 physical cores of the
+machine and about 28 GB of memory (31 GB installed). Memory is counted as declared: nprocs ×
+%maxcore per job. The budget is enforced by the queue itself (`pipeline/cores.py`): every ORCA job
+asks for its cores and memory before it starts and waits, first come first served, until they are
+free. Each lane start, job start, wait and job end is logged with the allocation in
+`docs/level_test_queue/allocation.log`. Lanes are run one behind another when they would not fit
+side by side; the E2 arbitration runs behind the step-size test.
+
 ## Standard for the reaction set (decided by J. Picione, 2026-11-09; replaced 2026-11-11, see above)
 
 From E2 onward, every reaction uses one working level for geometries, the TS, the IRC and the

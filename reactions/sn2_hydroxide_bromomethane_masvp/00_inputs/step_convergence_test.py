@@ -256,21 +256,53 @@ def report3():
     print(json.dumps(out, indent=1))
 
 
+def after(rx):
+    """Verdict, then the standing instruction (J. Picione, 2026-11-11): on a whole-region fail, run
+    0.025 overnight and write the three-way report. Exactly one marker (PASS, FAIL, INCOMPLETE) is
+    left; the 0.025 run starts at most once (two lanes may reach this point). STEP_TEST_DONE marks
+    the end of the step test (the E2 arbitration lane waits for it)."""
+    import os
+    v = verdict()
+    for m in ("PASS", "FAIL", "INCOMPLETE"):
+        (OUT / m).unlink(missing_ok=True)
+    if v is None:
+        (OUT / "INCOMPLETE").write_text("a job did not finish normally or a path does not cover the "
+                                        "region: no step-size verdict, no 0.025 run\n")
+    elif v:
+        (OUT / "PASS").write_text("whole-region comparison passed\n")
+        (OUT / "STEP_TEST_DONE").write_text("whole-region comparison passed\n")
+    else:
+        (OUT / "FAIL").write_text("whole-region comparison failed; running 0.025\n")
+        try:
+            os.close(os.open(OUT / "s0025.started", os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+        except FileExistsError:
+            print("0.025 already started by another lane", flush=True)
+            return
+        with ThreadPoolExecutor(2) as ex:
+            list(ex.map(lambda d: job(rx, "s0025", d), ("forward", "backward")))
+        report3()
+        (OUT / "STEP_TEST_DONE").write_text("0.025 finished; report3.json written\n")
+
+
 if __name__ == "__main__":
     rx = Reaction.load(ROOT)
     if sys.argv[1] == "after":
-        # standing instruction (J. Picione, 2026-11-11): on a whole-region fail, run 0.025 overnight
-        v = verdict()
-        if v is None:
-            (OUT / "INCOMPLETE").write_text("a job did not finish normally or a path does not cover the "
-                                            "region: no step-size verdict, no 0.025 run\n")
-        elif v:
-            (OUT / "PASS").write_text("whole-region comparison passed\n")
-        else:
-            (OUT / "FAIL").write_text("whole-region comparison failed; running 0.025\n")
-            with ThreadPoolExecutor(2) as ex:
-                list(ex.map(lambda d: job(rx, "s0025", d), ("forward", "backward")))
-            report3()
+        after(rx)
+    elif sys.argv[1] == "rerun_one":
+        # one job that ended without "ORCA TERMINATED NORMALLY": outputs moved aside, same settings
+        # rerun, then the verdict (J. Picione, 2026-11-11: a crashed job is never a result)
+        import time
+        n, d = sys.argv[2], sys.argv[3]
+        if not finished(n, d):
+            t_crash = (OUT / n / f"irc_{d[0]}.out").stat().st_mtime
+            dest = OUT / n / f"crashed_{time.strftime('%H%M', time.localtime(t_crash))}_{d}"
+            dest.mkdir(exist_ok=True)
+            for f in (OUT / n).glob(f"irc_{d[0]}*"):
+                if f.is_file():
+                    shutil.move(str(f), dest / f.name)
+            print("rerunning", n, d, flush=True)
+            job(rx, n, d)
+        after(rx)
     elif sys.argv[1] == "rerun_crashed":
         # jobs that ended without "ORCA TERMINATED NORMALLY": outputs moved aside, same settings rerun
         import time
