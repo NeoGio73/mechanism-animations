@@ -37,7 +37,7 @@ SD_PER_S = 0.02116 / 0.0897
 RUNS = {"s010": {"target": 0.10, "maxiter": {"forward": 100, "backward": 160}},
         "s005": {"target": 0.05, "maxiter": {"forward": 190, "backward": 300}},
         # third path, only if the whole-region 0.05/0.10 comparison fails (J. Picione, 2026-11-11)
-        "s0025": {"target": 0.025, "maxiter": {"forward": 380, "backward": 620}, "nprocs": 4}}
+        "s0025": {"target": 0.025, "maxiter": {"forward": 380, "backward": 620}}}   # 2 cores per job, as 0.05 and 0.10 (J. Picione)
 OUT = ROOT / "02_irc/attempts/step_convergence"
 MASS = {"C": 12.011, "H": 1.008, "O": 15.999, "Br": 79.904}
 CO, CBR = (0, 2), (0, 1)
@@ -297,14 +297,21 @@ def after(rx):
                                         "region: no step-size verdict, no 0.025 run\n")
     elif v:
         (OUT / "PASS").write_text("whole-region comparison passed\n")
+        (OUT / "VERDICT_GIVEN").write_text("PASS\n")
         (OUT / "STEP_TEST_COMPLETE").write_text("whole-region comparison passed\n")
     else:
         (OUT / "FAIL").write_text("whole-region comparison failed; running 0.025\n")
+        (OUT / "VERDICT_GIVEN").write_text("FAIL\n")      # the E2 lane starts on this (J. Picione)
         try:   # s0025.started is a block for copies of this script loaded before 19:55
             os.close(os.open(OUT / "s0025.claimed", os.O_CREAT | os.O_EXCL | os.O_WRONLY))
         except FileExistsError:
             print("0.025 already started by another lane", flush=True)
             return
+        # J. Picione, 2026-11-11: hold the 0.025 path until the Unity window is over
+        import time
+        win = ROOT.parents[1] / "docs/level_test_queue/window.json"
+        while win.exists() and json.loads(win.read_text(encoding="utf-8")).get("status") != "released":
+            time.sleep(60)
         with ThreadPoolExecutor(2) as ex:
             list(ex.map(lambda d: job(rx, "s0025", d), ("forward", "backward")))
         report3()

@@ -104,16 +104,48 @@ def load_worker(k: int, stop: threading.Event, env: dict, log: list) -> None:
         i += 1
 
 
+def starter_worker(k: int, stop: threading.Event, env: dict, log: list) -> None:
+    """Starts-beside round (J. Picione, 2026-11-11): short 2-core ORCA single points (the IRC's own level,
+    B3LYP-D3(BJ)/ma-def2-SVP SMD water at the SN2 TS, maxcore 1000, about 10–20 s each), each in a new
+    folder, started and stopped one after another until stop is set: many job starts and ends beside
+    the IRC, within 8 cores (3 workers × 2 + the IRC's 2)."""
+    rx = Reaction.load(RXD)
+    g = read_xyz(RXD / "01_ts/ts/ts.xyz")
+    time.sleep(7 * k)                         # staggered, so starts and ends spread out
+    i = 0
+    while not stop.is_set():
+        wd = BASE / "starts_beside" / f"starter{k}" / f"run{i:03d}"
+        wd.mkdir(parents=True, exist_ok=True)
+        (wd / "sp.inp").write_text(orca.make_input(rx.cfg["method"] + f' CPCM({rx.cfg["solvent"]})', g,
+                                                   rx.cfg["charge"], rx.cfg["mult"], blocks=rx.solvent_block,
+                                                   nprocs=2, maxcore_mb=1000))
+        with open(wd / "sp.out", "w") as fh:
+            pr = subprocess.Popen([str(orca.ORCA_DIR / "orca.exe"), "sp.inp"], cwd=wd, stdout=fh,
+                                  stderr=subprocess.STDOUT, env=env)
+            log.append({"t": time.strftime("%H:%M:%S"), "starter": k, "run": i, "event": "start"})
+            while pr.poll() is None:
+                if stop.is_set():
+                    subprocess.run(["taskkill", "/F", "/T", "/PID", str(pr.pid)], capture_output=True)
+                    pr.wait()
+                time.sleep(0.5)
+            log.append({"t": time.strftime("%H:%M:%S"), "starter": k, "run": i, "event": "end"})
+        for f in wd.glob("*"):
+            if f.suffix not in (".inp", ".out"):
+                f.unlink(missing_ok=True)
+        i += 1
+
+
 def _foreign_orca() -> list[int]:
     import psutil
     return [p.pid for p in psutil.process_iter(["name"]) if (p.info["name"] or "").lower() == "orca.exe"]
 
 
-def round_(rx, name: str, shared: bool, overload: bool = False) -> dict:
+def round_(rx, name: str, shared: bool, overload: bool = False, starts: bool = False) -> dict:
     wd = BASE / name
     if wd.exists():
         shutil.rmtree(wd)
-    dirs = {d: (wd if shared else wd / d) for d in ("forward", "backward")}
+    # starts-beside round: one IRC (forward) alone in its folder, no file watcher
+    dirs = {d: (wd if shared else wd / d) for d in (("forward",) if starts else ("forward", "backward"))}
     for d, p in dirs.items():
         p.mkdir(parents=True, exist_ok=True)
         shutil.copy(RXD / "01_ts/ts/ts.hess", p / "ts.hess")
@@ -133,7 +165,8 @@ def round_(rx, name: str, shared: bool, overload: bool = False) -> dict:
     env["PATH"] = f"{orca.MSMPI_BIN};{orca.ORCA_DIR};" + env.get("PATH", "")
     stop, wlog = threading.Event(), []
     th = threading.Thread(target=watch, args=(sorted(set(dirs.values())), stop, wlog), daemon=True)
-    th.start()
+    if not starts:                           # the starts-beside round touches no file of the IRC job
+        th.start()
     loads, llog = [], []
     if overload:
         for k in (1, 2):
@@ -141,6 +174,11 @@ def round_(rx, name: str, shared: bool, overload: bool = False) -> dict:
             t.start()
             loads.append(t)
         time.sleep(15)                       # the load is running before the IRCs start
+    if starts:
+        for k in (1, 2, 3):
+            t = threading.Thread(target=starter_worker, args=(k, stop, env, llog), daemon=True)
+            t.start()
+            loads.append(t)
     t0 = time.time()
     procs = {}
     try:
@@ -158,7 +196,8 @@ def round_(rx, name: str, shared: bool, overload: bool = False) -> dict:
             time.sleep(1)
     finally:
         stop.set()
-        th.join(5)
+        if th.is_alive():
+            th.join(5)
         for t in loads:
             t.join(120)
         cores.release(rid)
@@ -177,6 +216,14 @@ def round_(rx, name: str, shared: bool, overload: bool = False) -> dict:
                        "ended_normally": sum("ORCA TERMINATED NORMALLY" in r.read_text(errors="replace") for r in runs),
                        "note": "2 load workers × 4 cores beside the 2 × 2-core IRC jobs: 12 cores on 8; the "
                                "last load job of each worker is ended when the IRC jobs have ended"}
+    if starts:
+        runs = sorted((BASE / name).glob("starter*/run*/sp.out"))
+        st = [e["t"] for e in llog if e["event"] == "start"]
+        res["starts_beside"] = {"orca_starts": len(st), "first": st[:1], "last": st[-1:],
+                                "ended_normally": sum("ORCA TERMINATED NORMALLY" in r.read_text(errors="replace")
+                                                      for r in runs),
+                                "note": "3 workers × 2 cores of short single points, each a new ORCA job in a new "
+                                        "folder, beside 1 IRC (2 cores) alone in its folder: 8 cores; no watcher"}
     return res
 
 
@@ -205,12 +252,13 @@ if __name__ == "__main__":
     R = {}
     # J. Picione, 2026-11-11: the shared-folder reproduction as planned, then one overload round
     # (separate folders, 12 cores on 8); every round has the machine to itself
-    for name, shared, ovl in (("shared_round1", True, False), ("separate", False, False),
-                              ("shared_round2", True, False), ("overload", False, True)):
+    for name, shared, ovl, stb in (("shared_round1", True, False, False), ("separate", False, False, False),
+                                   ("shared_round2", True, False, False), ("starts_beside", False, False, True),
+                                   ("overload", False, True, False)):
         if name in R or ((BASE / "results.json").exists()
                          and name in json.loads((BASE / "results.json").read_text(encoding="utf-8"))):
             continue
-        R[name] = round_(rx, name, shared, overload=ovl)
+        R[name] = round_(rx, name, shared, overload=ovl, starts=stb)
         print(name, json.dumps({k: v for k, v in R[name].items() if k != "redirect_writes"}), flush=True)
         (BASE / "results.json").write_text(json.dumps(R, indent=1), encoding="utf-8")
     R["d3_check"] = d3_check(rx, R)

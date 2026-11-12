@@ -233,8 +233,12 @@ def window(start: str, cores_n: int, mem_mb: int, who: str) -> None:
     WINDOW.write_text(json.dumps(st, indent=1), encoding="utf-8")
     _log(f"window planned: {who}; from {start} no job starts unless all jobs together stay within "
          f"{CORES - cores_n} cores, {MEM_MB - mem_mb} MB")
-    while time.time() < t0:
+    early = Q / "window_start_now"            # written when the verdict comes first: E2 then runs
+    while time.time() < t0 and not early.exists():      # within the window budget from the start
         time.sleep(30)
+    if early.exists():
+        st["started_early"] = early.read_text(encoding="utf-8").strip()
+        early.unlink(missing_ok=True)
     st["status"] = "waiting for running jobs to fall within the window budget"
     st["waiting_since"] = time.strftime("%Y-%m-%d %H:%M:%S")
     WINDOW.write_text(json.dumps(st, indent=1), encoding="utf-8")
@@ -261,6 +265,54 @@ def window(start: str, cores_n: int, mem_mb: int, who: str) -> None:
     WINDOW.write_text(json.dumps(st, indent=1), encoding="utf-8")
     _log(f"window released: {who}; full budget {CORES} cores, {MEM_MB} MB again")
     rel.unlink(missing_ok=True)
+
+
+def guard(protect: str, until_marker: str, suspend_pids: list[int]) -> None:
+    """J. Picione, 2026-11-11: until the step-size verdict, start a new ORCA job only when no protected
+    job (held entry whose job path contains `protect`) is running. While one runs: a blocker stands at
+    the head of the queue (cores 9, so it never fits and nothing behind it starts), and the driver
+    processes in suspend_pids (lanes started before the ledger, which launch jobs without asking it)
+    are suspended; their running ORCA jobs are not touched. Lifted when no protected job runs; ends
+    when until_marker exists. The blocker is data in the ledger, so older lanes respect it too."""
+    me = os.getpid()
+    bid = f"guard-{me}"
+    entry = {"id": bid, "pid": me, "lane": "guard", "folder": None, "cores": CORES + 1, "mem_mb": 0,
+             "what": f"no new ORCA job while a {protect} job runs (J. Picione, until the verdict)",
+             "since": time.strftime("%H:%M:%S")}
+    state = None
+    _log(f"guard on: no new ORCA job while a '{protect}' job runs; drivers held between jobs: {suspend_pids}")
+    while not Path(until_marker).exists():
+        with _locked():
+            s = _read()
+            prot = [h for h in s["held"] if protect in h["what"]]
+            have = any(w["id"] == bid for w in s["waiting"])
+            if prot and not have:
+                entry["since"] = time.strftime("%H:%M:%S")
+                s["waiting"].insert(0, entry)
+            elif not prot and have:
+                s["waiting"] = [w for w in s["waiting"] if w["id"] != bid]
+            _write(s)
+        new = "block" if prot else "open"
+        for pid in suspend_pids:
+            try:
+                p = psutil.Process(pid)
+                p.suspend() if prot else p.resume()
+            except psutil.Error:
+                pass
+        if new != state:
+            _log(f"guard {new}: " + ("; ".join(h["what"] for h in prot) if prot else "no protected job running"))
+            state = new
+        time.sleep(15)
+    with _locked():
+        s = _read()
+        s["waiting"] = [w for w in s["waiting"] if w["id"] != bid]
+        _write(s)
+    for pid in suspend_pids:
+        try:
+            psutil.Process(pid).resume()
+        except psutil.Error:
+            pass
+    _log("guard off: verdict given")
 
 
 def window_active(margin_h: float = 3.0) -> bool:
@@ -294,6 +346,8 @@ if __name__ == "__main__":
     elif sys.argv[1] == "hold":
         pid, c, m = int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4])
         print(hold_for_pid(pid, c, m, sys.argv[5], sys.argv[6]))
+    elif sys.argv[1] == "guard":
+        guard(sys.argv[2], sys.argv[3], [int(x) for x in sys.argv[4].split(",") if x])
     elif sys.argv[1] == "window":
         window(sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), sys.argv[5])
     elif sys.argv[1] == "resume_after":
