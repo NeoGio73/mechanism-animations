@@ -37,7 +37,10 @@ SD_PER_S = 0.02116 / 0.0897
 RUNS = {"s010": {"target": 0.10, "maxiter": {"forward": 100, "backward": 160}},
         "s005": {"target": 0.05, "maxiter": {"forward": 190, "backward": 300}},
         # third path, only if the whole-region 0.05/0.10 comparison fails (J. Picione, 2026-11-11)
-        "s0025": {"target": 0.025, "maxiter": {"forward": 380, "backward": 620}}}   # 2 cores per job, as 0.05 and 0.10 (J. Picione)
+        "s0025": {"target": 0.025, "maxiter": {"forward": 380, "backward": 620},     # 2 cores per job, as 0.05 and 0.10 (J. Picione)
+                  # J. Picione, 2026-11-12: first step 0.10 as in production; with a first step of 0.025 the
+                  # gradient next to the TS is below ORCA's IRC thresholds and the IRC stopped after one step
+                  "first": 0.10}}
 OUT = ROOT / "02_irc/attempts/step_convergence"
 MASS = {"C": 12.011, "H": 1.008, "O": 15.999, "Br": 79.904}
 CO, CBR = (0, 2), (0, 1)
@@ -70,7 +73,7 @@ def job(rx, name, d):
         wd.rename(wd.with_name(f"leftover_{time.strftime('%H%M%S')}_{d}"))
     wd.mkdir(parents=True, exist_ok=True)
     shutil.copy(ROOT / "01_ts/ts/ts.hess", wd / "ts.hess")
-    sc = irc_init_scale(ROOT / "01_ts/ts/ts.hess", r["target"])
+    sc = irc_init_scale(ROOT / "01_ts/ts/ts.hess", r.get("first", r["target"]))
     sd = SD_PER_S * r["target"]
     blk = (f'%irc\n  MaxIter {r["maxiter"][d]}\n  Direction {d}\n  InitHess read\n  Hess_Filename "ts.hess"\n'
            f'  Scale_Displ_SD {sd:.5f}\n  Adapt_Scale_Displ false\n  Init_Displ length\n'
@@ -80,7 +83,7 @@ def job(rx, name, d):
                           maxcore_mb=rx.cfg["maxcore_mb"])
     orca.run(wd, f"irc_{d[0]}", inp, rx.log,
              note=f"step-size convergence test {name}, {d}, Adapt_Scale_Displ false, Scale_Displ_SD {sd:.5f}, "
-                  f"first step {r['target']} bohr·amu½, MaxIter {r['maxiter'][d]}")
+                  f"first step {r.get('first', r['target'])} bohr·amu½, MaxIter {r['maxiter'][d]}")
 
 
 def dist(c, ij):
@@ -254,10 +257,21 @@ def verdict():
 def report3():
     """0.10, 0.05, 0.025 side by side; 0.025 is the reference. For each coarser path: largest energy
     and other-bond difference per side, where, and whether within 0.2 kJ/mol and 0.005 Å."""
+    # J. Picione, 2026-11-12: a path is used only if both sides reached their end point by the stopping
+    # rule (pipeline/path_quality.py); otherwise no three-way report
+    from pipeline.path_quality import path_completeness
+    comp = {n: path_completeness([jd(n, "forward") / "irc_f.out", jd(n, "backward") / "irc_b.out"], n) for n in RUNS}
+    if any(c["verdict"] != "complete" for c in comp.values()):
+        (OUT / "report3_blocked.json").write_text(json.dumps(comp, indent=1), encoding="utf-8")
+        print("no three-way report: a path is incomplete", {n: c["verdict"] for n, c in comp.items()}, flush=True)
+        return None
     ts = read_xyz(ROOT / "01_ts/ts/ts.xyz")
     ends = adaptive_ends()
     P = {n: load(n, ts, ends) for n in RUNS}
-    out = {"stats": {n: stats(p) for n, p in P.items()},
+    out = {"first_step_setting_bohr_amu05": {n: RUNS[n].get("first", RUNS[n]["target"]) for n in RUNS},
+           "completeness": {n: {s: {k: v[k] for k in ("ended", "steps", "drop_from_TS_kJ")} for s, v in c["sides"].items()}
+                            for n, c in comp.items()},
+           "stats": {n: stats(p) for n, p in P.items()},
            "covers_region": {n: covers_region(p) for n, p in P.items()},
            "vs_0.025": {}, "0.10_vs_0.05": {}}
     for n in ("s010", "s005"):
@@ -387,6 +401,12 @@ if __name__ == "__main__":
         with ThreadPoolExecutor(max(len(todo), 1)) as ex:
             list(ex.map(lambda a: job(rx, *a), todo))
         report()
+    elif sys.argv[1] == "run0025":
+        # J. Picione, 2026-11-12: 0.025 path with first step 0.10, 2 cores per job, each direction alone in
+        # a clean folder; the three-way report follows only after the completeness check
+        with ThreadPoolExecutor(2) as ex:
+            list(ex.map(lambda d: job(rx, "s0025", d), ("forward", "backward")))
+        (OUT / "S0025_JOBS_ENDED").write_text("0.025 jobs ended; completeness check and report3 next\n")
     elif sys.argv[1] == "report3":
         report3()
     elif sys.argv[1] == "run":

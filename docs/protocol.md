@@ -63,6 +63,16 @@ priority, runs after the step-size verdict and the E2 lane, and takes the whole 
 round so it never runs beside a production job. If it does not crash, the cause of the step-test
 crashes is recorded as unknown.
 
+### An IRC is a result only if both sides reached their end point (J. Picione, 2026-11-12)
+
+A side has reached its end point when ORCA ends it with "THE IRC HAS CONVERGED" and it is not a false
+stop next to the TS (at least 10 steps, end at least 1 kJ/mol below the TS), or when the IRC stopping
+rule above is met within it. A side ended by MaxIter before the rule, by a crash, or by the gradient
+criterion while still next to the TS (the SN2 0.025 runs stopped after one step that way: near the TS
+the gradient was already below ORCA's thresholds) is incomplete, never finished. pipeline/path_quality.py
+applies this to every IRC (docs/irc_completeness.json); the card marks an incomplete path, and the
+step-size report is not written from one.
+
 ## Standard for the reaction set (decided by J. Picione, 2026-11-09; replaced 2026-11-11, see above)
 
 From E2 onward, every reaction uses one working level for geometries, the TS, the IRC and the
