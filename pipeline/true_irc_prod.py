@@ -185,7 +185,18 @@ def join(rx_root: Path) -> dict:
         "note": "frames = backward (reversed) + TS + forward; energies from the true IRC (ORCA EnGrad at the working level)"})
     rx.log.note(f"`02_irc/irc_IRC_Full_trj.xyz`: true IRC joined, {len(frames)} frames (backward {len(fb)} + TS + "
                 f"forward {len(ff)}), both sides ended by the stopping rule")
-    return {"frames": len(frames), "ts_index": len(fb)}
+    # angle check on every production path (J. Picione, 2026-11-13)
+    from .path_angles import check
+    a = check(rx.root)
+    zs = "; ".join(f"{d}: {v['angles_near']['median_deg']:.2f}° / {v['angles_near']['p90_deg']:.2f}° within |s| ≤ 1, "
+                   + (f"{v['angles_beyond']['median_deg']:.2f}° / {v['angles_beyond']['p90_deg']:.2f}° beyond"
+                      if v["angles_beyond"] else "none beyond")
+                   + (f", end nearest {v['end']['nearest']['minimum']} (RMSD {v['end']['nearest']['rmsd_A']:.3f} Å, "
+                      f"{v['end']['nearest']['end_above_min_kJ']:+.3f} kJ/mol)" if v["end"] else "")
+                   for d, v in a["sides"].items())
+    rx.log.note(f"`02_irc/true_irc/angles.md`: angle check {'passes' if a['passes'] else 'FAILS (flagged)'} "
+                f"(median / 90th percentile; rule median < 5°, 90 % < 15°): {zs}")
+    return {"frames": len(frames), "ts_index": len(fb), "angles_pass": a["passes"]}
 
 
 if __name__ == "__main__":
