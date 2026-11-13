@@ -106,7 +106,8 @@ def main() -> dict:
             rms = float(np.sqrt(np.mean(g_last ** 2)))
             ok = (sd["ended"] == "rms(grad) converged!" and len(sd["X"]) >= 10 and drop >= 1.0) or hit is not None
             comp[side] = {"ended": sd["ended"], "steps": len(sd["X"]), "drop_from_TS_kJ": drop,
-                          "rms_grad_last": rms, "stopping_rule_met_at_step": None if hit is None else int(hit[0]),
+                          "rms_grad_last": rms, "stopping_rule_met_at_frame": None if hit is None else int(hit[1]),
+                          "last_bond_event_frame": None if hit is None else int(hit[0]),
                           "verdict": "complete" if ok else "INCOMPLETE"}
         out["completeness"][tag] = comp
         # path in the step-test format (energies relative to this run's own TS energy)
@@ -191,12 +192,12 @@ def md(o):
                 continue
             f = lambda k: f"{v[k + '_median']:.2f} / {v[k + '_max']:.2f}"
             L.append(f"| {p} | {zone} | {v['n']} | {f('plain')} | {f('mw')} | {f('cart_Minv')} |")
-    L += ["", "## Completeness (pysisyphus sides)", "", "| Path | Side | Ended | Steps | Drop from TS (kJ/mol) | RMS grad last | Stopping rule met | Verdict |",
+    L += ["", "## Completeness (pysisyphus sides)", "", "| Path | Side | Ended | Steps | Drop from TS (kJ/mol) | RMS grad last | Own stopping rule met at frame | Verdict |",
           "|---|---|---|---|---|---|---|---|"]
     for t, c in o["completeness"].items():
         for sd, v in c.items():
             L.append(f"| {t} | {sd} | {v['ended']} | {v['steps']} | {v['drop_from_TS_kJ']:.2f} | {v['rms_grad_last']:.1e} | "
-                     f"{v['stopping_rule_met_at_step']} | {v['verdict']} |")
+                     f"{v['stopping_rule_met_at_frame'] or 'not met'} | {v['verdict']} |")
     for title, z in o["pairs"].items():
         L += ["", f"## {title}", "", "| Zone | Side | Points | Largest energy difference (kJ/mol) | at | Largest other-bond difference (Å) | Within limits |",
               "|---|---|---|---|---|---|---|"]

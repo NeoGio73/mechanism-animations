@@ -49,9 +49,20 @@ def opt(side: str) -> dict:
     wd = T / "ends" / side
     r = orca.run(wd, side, inp, orca.RunLog(T / "ends" / "run_log_ends.md"),
                  note=f"minimum nearest the end of the pysisyphus 0.05 {side} side (completeness check)", front=True)
-    xm = np.asarray(read_xyz(wd / f"{side}.xyz").coords) if r.ok else None
-    res = {"ok": bool(r.ok), "opt_converged": r.opt_converged, "E_eh": r.energy_eh,
-           "imaginary_cm": r.imaginary if r.ok else None, "ends": {}}
+    first = {"E_eh": r.energy_eh, "imaginary_cm": r.imaginary if r.ok else None}
+    jn = side
+    if r.ok and r.opt_converged and r.imaginary:      # as pipeline/steps.endpoints: displace 0.1 Å, TightOpt again
+        h = orca.read_hess(wd / f"{side}.hess")
+        v = h["modes"][:, int(np.argmin(h["freqs"]))].reshape(-1, 3)
+        xd = np.asarray(read_xyz(wd / f"{side}.xyz").coords) + 0.1 * v / np.linalg.norm(v, axis=1).max()
+        geo = "\n".join(f"{a:2s} {p[0]:16.10f} {p[1]:16.10f} {p[2]:16.10f}" for a, p in zip(sym, xd))
+        jn = f"{side}_tight"
+        r = orca.run(wd, jn, inp.split("* xyz")[0] + f"* xyz -1 1\n{geo}\n*\n", orca.RunLog(T / "ends" / "run_log_ends.md"),
+                     note=f"rerun: {side} had imaginary mode(s) {[round(f, 1) for f in first['imaginary_cm']]} cm-1; "
+                          "displaced 0.1 Å along it, TightOpt", front=True)
+    xm = np.asarray(read_xyz(wd / f"{jn}.xyz").coords) if r.ok else None
+    res = {"ok": bool(r.ok), "opt_converged": r.opt_converged, "E_eh": r.energy_eh, "job": jn,
+           "imaginary_cm": r.imaginary if r.ok else None, "first_job": first, "ends": {}}
     if not (r.ok and r.opt_converged):
         return res
     for name, p in ((f"pysisyphus 0.10", T / "s0100" / d / f"{side}_trj.xyz"),

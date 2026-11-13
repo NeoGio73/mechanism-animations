@@ -33,6 +33,12 @@ Q = Path(__file__).resolve().parents[1] / "docs/level_test_queue"
 STATE = Q / "allocation.json"
 LOG = Q / "allocation.log"
 LOCK = Q / "allocation.lock"
+# Every waiting request records a check-in ("beat") at each poll. A request whose waiter has not
+# checked in for SKIP_S seconds no longer holds up the queue; after LOST_S it is dropped from the
+# ledger (logged). A waiter that finds its request dropped puts it back at its original place.
+POLL_S = 10
+SKIP_S = 120
+LOST_S = 900
 _lane_logged: set[int] = set()
 
 
@@ -51,21 +57,29 @@ def _locked():
         try:
             fd = os.open(LOCK, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
             break
-        except FileExistsError:
+        except (FileExistsError, PermissionError):
+            # Windows gives PermissionError, not FileExistsError, while another process is deleting
+            # the lock file ("delete pending"). Before 2026-11-13 that error escaped and killed the
+            # waiting thread, leaving its queue entry behind; the queue stalled from 23:34 to 06:xx.
             try:
                 if time.time() - LOCK.stat().st_mtime > 60:      # a lock left by a killed process
                     LOCK.unlink(missing_ok=True)
                     continue
-            except FileNotFoundError:
+            except OSError:
                 continue
             if time.time() - t0 > 600:
                 raise RuntimeError("allocation ledger lock held for 10 min")
-            time.sleep(0.2)
+            time.sleep(0.05)
     try:
         yield
     finally:
         os.close(fd)
-        LOCK.unlink(missing_ok=True)
+        for _ in range(100):
+            try:
+                LOCK.unlink(missing_ok=True)
+                break
+            except PermissionError:
+                time.sleep(0.05)
 
 
 def _alive(pid: int) -> bool:
@@ -76,10 +90,18 @@ def _alive(pid: int) -> bool:
 
 
 def _read() -> dict:
-    try:
-        s = json.loads(STATE.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError):
-        s = {}
+    s = None
+    for k in range(100):
+        try:
+            s = json.loads(STATE.read_text(encoding="utf-8"))
+            break
+        except (FileNotFoundError, json.JSONDecodeError):
+            s = {}
+            break
+        except PermissionError:
+            if k == 99:
+                raise
+            time.sleep(0.1)
     s.setdefault("budget", {"cores": CORES, "mem_mb": MEM_MB})
     s.setdefault("held", [])
     s.setdefault("waiting", [])
@@ -89,20 +111,38 @@ def _read() -> dict:
         _log(f"release (process ended)  {h['lane']}: {h['what']}  {h['cores']} cores, {h['mem_mb']} MB")
     s["held"] = [h for h in s["held"] if _alive(h["pid"])]
     s["waiting"] = [w for w in s["waiting"] if _alive(w["pid"])]
+    now = time.time()
+    lost = [w for w in s["waiting"] if "beat" in w and now - w["beat"] > LOST_S]
+    for w in lost:
+        _log(f"drop (waiter silent {now - w['beat']:.0f} s)  {w['lane']}: {w['what']}")
+    s["waiting"] = [w for w in s["waiting"] if w not in lost]
     return s
 
 
 def _write(s: dict) -> None:
     s["in_use"] = {"cores": sum(h["cores"] for h in s["held"]), "mem_mb": sum(h["mem_mb"] for h in s["held"])}
     tmp = STATE.with_suffix(".tmp")
-    tmp.write_text(json.dumps(s, indent=1, ensure_ascii=False), encoding="utf-8")
-    os.replace(tmp, STATE)
+    txt = json.dumps(s, indent=1, ensure_ascii=False)
+    for k in range(100):                        # a reader (virus scanner, an editor) may hold the file briefly
+        try:
+            tmp.write_text(txt, encoding="utf-8")
+            os.replace(tmp, STATE)
+            return
+        except PermissionError:
+            if k == 99:
+                raise
+            time.sleep(0.1)
 
 
 def _log(msg: str) -> None:
     Q.mkdir(parents=True, exist_ok=True)
-    with open(LOG, "a", encoding="utf-8") as fh:
-        fh.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')}  {msg}\n")
+    for _ in range(50):                            # the log is a record; a clash must not fail a job
+        try:
+            with open(LOG, "a", encoding="utf-8") as fh:
+                fh.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')}  {msg}\n")
+            return
+        except OSError:
+            time.sleep(0.1)
 
 
 def _summary(s: dict) -> str:
@@ -142,43 +182,76 @@ def acquire(cores: int, mem_mb: int, what: str, pid: int | None = None, lane: st
             _log(f"lane start  {lane} (pid {pid}); {_summary(s)}")
             _lane_logged.add(pid)
         entry = {"id": rid, "pid": pid, "lane": lane, "what": what, "cores": cores,
-                 "mem_mb": mem_mb, "folder": folder, "since": time.strftime("%H:%M:%S")}
-        if front:
-            s["waiting"].insert(0, entry)
+                 "mem_mb": mem_mb, "folder": folder, "since": time.strftime("%H:%M:%S"),
+                 "beat": time.time(), "front": front}
+        if front:   # ahead of all ordinary requests, behind earlier front requests (two front lanes must alternate)
+            k = next((i for i, w in enumerate(s["waiting"]) if not w.get("front")), len(s["waiting"]))
+            s["waiting"].insert(k, entry)
         else:
             s["waiting"].append(entry)
         _write(s)
     logged_wait = False
-    while True:
-        with _locked():
-            s = _read()
-            c = sum(h["cores"] for h in s["held"])
-            m = sum(h["mem_mb"] for h in s["held"])
-            busy = {h.get("folder") for h in s["held"]} - {None}
-            ready = [w for w in s["waiting"] if w.get("folder") not in busy]
-            first = bool(ready) and ready[0]["id"] == rid
-            if first and c + cores <= CORES and m + mem_mb <= MEM_MB:
-                me = next(w for w in s["waiting"] if w["id"] == rid)
+    try:
+        while True:
+            try:
+                with _locked():
+                    s = _read()
+                    me = next((w for w in s["waiting"] if w["id"] == rid), None)
+                    if me is None:                # dropped while this waiter was silent: back to its place
+                        me = entry
+                        s["waiting"].append(me)
+                        s["waiting"].sort(key=lambda w: (not w.get("front", False), int(w["id"].split("-")[1])))
+                        _log(f"requeue {lane}: {what}")
+                    me["beat"] = time.time()
+                    c = sum(h["cores"] for h in s["held"])
+                    m = sum(h["mem_mb"] for h in s["held"])
+                    busy = {h.get("folder") for h in s["held"]} - {None}
+                    now = time.time()
+                    ready = [w for w in s["waiting"] if w.get("folder") not in busy
+                             and now - w.get("beat", now) <= SKIP_S]
+                    first = bool(ready) and ready[0]["id"] == rid
+                    if first and c + cores <= CORES and m + mem_mb <= MEM_MB:
+                        s["waiting"] = [w for w in s["waiting"] if w["id"] != rid]
+                        me["since"] = time.strftime("%H:%M:%S")
+                        s["held"].append(me)
+                        _write(s)
+                        _log(f"start  {lane}: {what}  {cores} cores, {mem_mb} MB -> {_summary(s)}")
+                        return rid
+                    _write(s)
+                    if not logged_wait:
+                        _log(f"wait   {lane}: {what}  needs {cores} cores, {mem_mb} MB; {_summary(s)}")
+                        logged_wait = True
+            except OSError as e:                  # a passing file-access clash: try again at the next poll
+                _log(f"retry  {lane}: {what}  ({type(e).__name__}: {e})")
+            time.sleep(POLL_S)
+    except BaseException:
+        # any other failure while waiting: take this request out of the queue, so it cannot block it
+        try:
+            with _locked():
+                s = _read()
                 s["waiting"] = [w for w in s["waiting"] if w["id"] != rid]
-                me["since"] = time.strftime("%H:%M:%S")
-                s["held"].append(me)
                 _write(s)
-                _log(f"start  {lane}: {what}  {cores} cores, {mem_mb} MB -> {_summary(s)}")
-                return rid
-            if not logged_wait:
-                _log(f"wait   {lane}: {what}  needs {cores} cores, {mem_mb} MB; {_summary(s)}")
-                logged_wait = True
-        time.sleep(10)
+            _log(f"withdrawn {lane}: {what}  (waiter failed)")
+        except Exception:
+            pass                                   # the silent-waiter rule removes it after SKIP_S / LOST_S
+        raise
 
 
 def release(rid: str, note: str = "") -> None:
-    with _locked():
-        s = _read()
-        h = next((x for x in s["held"] if x["id"] == rid), None)
-        s["held"] = [x for x in s["held"] if x["id"] != rid]
-        _write(s)
-        if h:
-            _log(f"end    {h['lane']}: {h['what']}  {h['cores']} cores, {h['mem_mb']} MB{note} -> {_summary(s)}")
+    for k in range(60):                            # a failed release would keep the cores held while the lane lives
+        try:
+            with _locked():
+                s = _read()
+                h = next((x for x in s["held"] if x["id"] == rid), None)
+                s["held"] = [x for x in s["held"] if x["id"] != rid]
+                _write(s)
+            break
+        except OSError:
+            if k == 59:
+                raise
+            time.sleep(1)
+    if h:
+        _log(f"end    {h['lane']}: {h['what']}  {h['cores']} cores, {h['mem_mb']} MB{note} -> {_summary(s)}")
 
 
 def hold_for_pid(pid: int, cores: int, mem_mb: int, lane: str, what: str) -> str:
