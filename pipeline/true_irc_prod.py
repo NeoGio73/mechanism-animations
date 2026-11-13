@@ -169,7 +169,9 @@ def join(rx_root: Path) -> dict:
         sides[tag] = ([fr[k] for k in keep], [js["energies"][k] for k in keep], js)
     fb, eb, jb = sides["B"]
     ff, ef, jf = sides["F"]
-    e_ts = e_final(tso)
+    # TS energy from the path's own gradient job at the TS (g0000 of the forward side), so every frame's
+    # energy comes from the same kind of job (the OptTS output differs by ~1e-5 Eh, SCF scatter)
+    e_ts = e_final(wd / "true_irc/forward/g0000/j.out")
     frames, E = fb[::-1] + [ts] + ff, eb[::-1] + [e_ts] + ef
     (wd / "irc_IRC_Full_trj.xyz").write_text(
         "".join(g.to_xyz(f"IRC frame {k} E {e:.12f}") for k, (g, e) in enumerate(zip(frames, E))))
