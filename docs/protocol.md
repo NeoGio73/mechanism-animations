@@ -175,8 +175,45 @@ up to 3.9e-5 Eh (0.102 kJ/mol) and 1.4e-5 Eh/bohr; VeryTightSCF 1.3e-5 Eh (0.034
 2.6e-6 Eh/bohr, for about 2 s (9 %) more per evaluation. The solvent model adds no scatter (gas
 phase is not quieter); DefGrid3 halves it at B3LYP.
 
-The path method itself (ORCA's IRC, which follows steepest descent in plain Cartesian coordinates,
-or a mass-weighted IRC integrator) is not decided yet; no production path starts before it is.
+The path method is set by the rule below (2026-11-13); ORCA's IRC is no longer the production path.
+
+### Production path method (by J. Picione's rule of 2026-11-13; validated 2026-11-13, 15:58)
+
+Rule (J. Picione, 2026-11-13): take the pysisyphus tail option that completes both sides with a
+mass-weighted angle in the tails of median below 5° and 90th percentile below 15° (the cheaper one if
+both pass); if neither passes at 0.10, test at 0.05; then the full SN2 path must end both sides
+complete, each end within 0.5 kJ/mol of its optimized minimum.
+
+Applied: at 0.10 neither option passed. At 0.05 Gonzalez–Schlegel passed (reactant tail 1.25° / 4.29°,
+product tail 0.00° / 1.29°) and EulerPC with a Hessian every 5 steps failed (reactant 90th percentile
+59.0°) (`true_irc2/tails.md`). Full SN2 validation path `true_irc2/final_gs_s005` (`final_final_gs_s005.md`):
+**PASS**. Reactant side 179 steps, s = 8.94 bohr·amu^1/2, end −0.005 kJ/mol from the minimum (RMSD
+0.027 Å); product side 203 steps, s = 10.15, end +0.322 kJ/mol (0.077 kcal/mol) above the minimum
+(RMSD 0.080 Å); both ended by the stopping rule; mass-weighted angle median / 90th percentile
+0.28° / 5.44° (reactant) and 0.14° / 5.22° (product) within |s| ≤ 1. 939 gradients, 3.0 h wall.
+
+Production settings (all reactions, working level M06-2X-D3(0)/ma-def2-SVP, DefGrid3, SMD as in each
+reaction.toml, VeryTightSCF; `pipeline/true_irc_prod.py`):
+- Integrator: pysisyphus 1.0.0 Gonzalez–Schlegel in mass-weighted Cartesian coordinates, with the
+  project's 2026-11-13 fixes (Bofill update; translations and rotations projected out in the current
+  frame; bracketed λ search; a failed search stops the side as a failure, never a result).
+- Step 0.05 bohr·amu^1/2, measured in mass-weighted coordinates; first step 0.05 along the
+  mass-weighted TS mode.
+- Hessian: ORCA's exact TS Hessian at the working level at the start (`01_stationary/ts/ts.hess`),
+  Bofill updates after that, no recomputed Hessians.
+- End of a side: the project stopping rule only (|ΔE| < 0.05 kJ/mol per step for 20 consecutive steps
+  after the last bond event); pysisyphus's own gradient and energy stops are switched off; 3000 steps
+  at most. A side that ends any other way makes the path incomplete; nothing is joined.
+- One ORCA job per folder (`02_irc/true_irc/<direction>/g####`), through the core ledger.
+- Joined path: backward (reversed) + TS + forward, all energies from ORCA EnGrad jobs at the working
+  level (the TS energy from the path's own gradient job at the TS).
+
+References:
+- C. Gonzalez, H. B. Schlegel, "An improved algorithm for reaction path following", J. Chem. Phys.
+  1989, 90, 2154–2161. doi:10.1063/1.456010
+- C. Gonzalez, H. B. Schlegel, "Reaction path following in mass-weighted internal coordinates",
+  J. Phys. Chem. 1990, 94, 5523–5527. doi:10.1021/j100377a021
+(Metadata checked against Crossref, 2026-11-13.)
 
 ### Mass-weighted IRC test with pysisyphus (2026-11-12; a test, not yet the method)
 
