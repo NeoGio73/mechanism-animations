@@ -7,8 +7,12 @@
 | reactant: tail_eulerpc_reactant | not run |
 | reactant: tail_eulerpc_r5_reactant | 53 | 1.21 | 73.02 | 82.97 | 12 | 55.1 | energy increased | 2.02 | 11 | 57.1 | 0.223 | 0.018 |
 | reactant: tail_gs_reactant | 70 | 0.70 | 25.32 | 86.05 | 16 | 72.8 | own stopping rule | 5.34 | 1 | 116.8 | 0.103 | 0.013 |
+| reactant: tail_eulerpc_r5_s005_reactant | not run |
+| reactant: tail_gs_s005_reactant | not run |
 | product: earlier pysisyphus s0100 (same stretch) | 45 | 7.98 | 45.84 | 60.66 | 22 | 8.8 | — | nan | — | nan | nan | nan |
 | product: earlier pysisyphus s0050 (same stretch) | 89 | 0.12 | 26.76 | 52.61 | 27 | 6.6 | — | nan | — | nan | nan | nan |
 | product: tail_eulerpc_product | not run |
-| product: tail_eulerpc_r5_product | not run |
+| product: tail_eulerpc_r5_product | 57 | 0.34 | 4.03 | 79.37 | 4 | 33.5 | own stopping rule | 2.02 | 12 | 56.2 | -0.008 | 0.003 |
 | product: tail_gs_product | 57 | 0.55 | 3.84 | 22.60 | 2 | 34.3 | own stopping rule | 2.95 | 1 | 64.2 | -0.009 | 0.003 |
+| product: tail_eulerpc_r5_s005_product | not run |
+| product: tail_gs_s005_product | 78 | 0.00 | 1.29 | 1.54 | 0 | 0.4 | own stopping rule | 2.19 | 1 | 47.7 | 0.313 | 0.003 |
