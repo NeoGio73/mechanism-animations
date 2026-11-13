@@ -296,7 +296,11 @@ function drawDiagram() {
   svg.innerHTML = '';
   const s0 = sArr[0], s1 = sArr[N - 1];
   const ep = curve.E_separated_products_kJ;
-  const eMin = Math.min(...eArr, ep), eMax = Math.max(...eArr, 0);
+  // a sparse level (coupled cluster, 2026-11-13) has null where a frame was not computed: only
+  // computed points are drawn and read out, nothing is interpolated between them
+  const done = computedFrames();
+  const eDone = done.map((k) => eArr[k]);
+  const eMin = Math.min(...eDone, ep), eMax = Math.max(...eDone, 0);
   const pad = (eMax - eMin) * 0.12;
   const y0 = eMin - pad, y1 = eMax + pad * 1.8;
   xs = (s) => D.ml + (s - s0) / (s1 - s0) * (W - D.ml - D.mr);
@@ -330,7 +334,7 @@ function drawDiagram() {
   add('text', { x: (D.ml + W - D.mr) / 2, y: H - 4, 'text-anchor': 'middle' },
       'reaction coordinate s (bohr·amu½)');
   // reference levels; labels sit at the end of the plot away from the curve
-  const awayFrom = (e) => (Math.abs(eArr[0] - e) > Math.abs(eArr[N - 1] - e)
+  const awayFrom = (e) => (Math.abs(eDone[0] - e) > Math.abs(eDone[eDone.length - 1] - e)
     ? { x: D.ml + 4, a: 'start' } : { x: W - D.mr - 4, a: 'end' });
   add('line', { x1: D.ml, x2: W - D.mr, y1: ys(0), y2: ys(0), class: 'ref' });
   let p = awayFrom(0);
@@ -339,11 +343,11 @@ function drawDiagram() {
   p = awayFrom(ep);
   add('text', { x: p.x, y: ys(ep) - 4, 'text-anchor': p.a },
       narrow ? 'products' : `separated products, ${ep.toFixed(0)}`.replace('-', '−'));
-  add('path', { d: sArr.map((s, k) => `${k ? 'L' : 'M'}${xs(s).toFixed(1)},${ys(eArr[k]).toFixed(1)}`).join(''), class: 'curve' });
-  sArr.forEach((s, k) => add('circle', { cx: xs(s), cy: ys(eArr[k]), r: 1.8, class: 'pt' }));
+  add('path', { d: done.map((k, j) => `${j ? 'L' : 'M'}${xs(sArr[k]).toFixed(1)},${ys(eArr[k]).toFixed(1)}`).join(''), class: 'curve' });
+  done.forEach((k) => add('circle', { cx: xs(sArr[k]), cy: ys(eArr[k]), r: 1.8, class: 'pt' }));
   // label the highest point of the curve shown (single points on the working-level path can
   // peak one or two frames away from the working-level TS)
-  const ts = eArr.indexOf(Math.max(...eArr));
+  const ts = eArr.indexOf(Math.max(...eDone));
   const lab = (k, text, dy, anchor) => add('text', { x: xs(sArr[k]), y: ys(eArr[k]) + dy, 'text-anchor': anchor, class: 'lab' },
     (narrow ? `${text} ${eArr[k].toFixed(0)}` : `${text} ${eArr[k].toFixed(1)} (${(eArr[k] / KCAL).toFixed(1)})`).replaceAll('-', '−'));
   lab(ts, ts === M.ts_frame ? 'TS' : narrow ? 'max' : 'highest point', -10, 'middle');
@@ -361,9 +365,26 @@ function interp(arr, t) {
   return arr[f0] + (arr[f1] - arr[f0]) * w;
 }
 
+function computedFrames() {
+  const d = [];
+  eArr.forEach((e, k) => { if (e !== null && e !== undefined) d.push(k); });
+  return d;
+}
+
+// energy at t: between two computed neighbouring frames as before; where a frame was not computed
+// (sparse level), the nearest computed frame, named in the readout
+function energyAt(t) {
+  const f0 = Math.floor(t), f1 = Math.min(N - 1, f0 + 1);
+  if (eArr[f0] !== null && eArr[f1] !== null) return { s: interp(sArr, t), E: interp(eArr, t), k: null };
+  const done = computedFrames();
+  const k = done.reduce((a, b) => (Math.abs(b - t) < Math.abs(a - t) ? b : a));
+  return { s: sArr[k], E: eArr[k], k };
+}
+
 function placeMarker() {
   if (!marker) return;
-  const x = xs(interp(sArr, state.t)), y = ys(interp(eArr, state.t));
+  const ea = energyAt(state.t);
+  const x = xs(ea.s), y = ys(ea.E);
   marker.setAttribute('cx', x); marker.setAttribute('cy', y);
   const H = svg.viewBox.baseVal.height;
   mline.setAttribute('x1', x); mline.setAttribute('x2', x);
@@ -386,11 +407,12 @@ function update() {
   const f = Math.round(state.t);
   updateOrbitals(f);
   placeMarker();
-  const E = interp(eArr, state.t);
+  const ea = energyAt(state.t), E = ea.E;
+  const eNote = ea.k === null ? '' : ` (not computed here; computed frame ${ea.k})`;
   const ds = keyBonds().map((b) => [b.label, pos[b.atoms[0]].distanceTo(pos[b.atoms[1]])]);
   $('readout').textContent =
     `frame ${f} of ${N - 1}   s = ${interp(sArr, state.t).toFixed(2)} bohr·amu½\n` +
-    `E = ${E.toFixed(1)} kJ/mol (${(E / KCAL).toFixed(1)} kcal/mol)\n` +
+    `E = ${E.toFixed(1)} kJ/mol (${(E / KCAL).toFixed(1)} kcal/mol)${eNote}\n` +
     ds.map(([l, d]) => `${l} ${d.toFixed(2)} Å`).join('   ');
   svg.setAttribute('aria-valuemax', N - 1);
   svg.setAttribute('aria-valuenow', f);

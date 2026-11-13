@@ -1,0 +1,137 @@
+# Full recomputation at the M06-2X working level (J. Picione, 2026-11-11), from e2_ethoxide_2_bromopropane.
+# Made by pipeline/new_level_folder.py; the source folder stays untouched.
+# 00_inputs written 2026-11-13 (--inputs-only) beside the existing M06-2X stationary points;
+# TS guess = 01_stationary/ts/ts.xyz. IRC: true IRC (pipeline/true_irc_prod.py).
+# E2: EtO⁻ + (CH₃)₂CHBr → CH₂=CHCH₃ + EtOH + Br⁻ (anti-periplanar), in ethanol
+id = "e2_ethoxide_2_bromopropane"
+title = "E2, ethoxide + 2-bromopropane"
+equation = "EtO⁻ + (CH₃)₂CHBr → CH₂=CHCH₃ + EtOH + Br⁻"
+charge = -1          # total charge of the reacting system
+mult = 1
+solvent = "ethanol"  # SMD solvent name (ORCA); textbook conditions are NaOEt in EtOH
+
+# Standard protocol from E2 on (docs/protocol.md, decided by J. Picione 2026-11-09): working level
+# with diffuse functions on heavy atoms (the system is an anion) for geometries, TS, IRC, orbitals;
+# coupled-cluster energies along the path, shown by default.
+method = "M062X D3ZERO ma-def2-SVP def2/J RIJCOSX VeryTightSCF DefGrid3"
+sp_method = "M062X D3ZERO ma-def2-TZVP def2/J RIJCOSX VeryTightSCF DefGrid3"
+
+nprocs = 4           # cores per ORCA job
+maxcore_mb = 3000    # MB of memory per core
+
+# TS guess built by make_ts_guess.py (anti-periplanar H–Cβ–Cα–Br 178.6°); relaxed first with the
+# forming and breaking bonds frozen, then OptTS.
+ts_guess = "ts_guess_m062x.xyz"   # its own 01_stationary/ts
+ts_preopt = false
+
+isovalue = 0.08              # same as SN2
+irc_scale_displ_sd = 0.02359   # calibrated before the IRC: region median about 0.10
+irc_adapt_scale_displ = false   # J. Picione, 2026-11-11
+irc_init_step_s = 0.10          # first step, bohr·amu½
+
+path_levels = ["M06-2X_ma-def2-TZVP", "B3LYP_ma-def2-TZVP", "DLPNO-CCSD(T)_ma-def2-TZVP"]
+default_curve = "DLPNO-CCSD(T)_ma-def2-TZVP"
+sparse_path_levels = ["DLPNO-CCSD(T)_ma-def2-TZVP"]   # every frame in the bond-changing region and within abs(s) <= 1, every 2nd frame elsewhere, both ends; other path levels every frame; no interpolation (J. Picione, 2026-11-13)
+
+# "Down the axis" camera becomes a Newman view along Cβ→Cα (shows H and Br anti)
+view_axis = [0, 1]
+view_axis_label = "Newman view (Cβ–Cα)"
+
+# Atoms (0-based indices in ts_guess.xyz). key_atoms set the camera: base on the left,
+# leaving group on the right.
+# (TOML: keep all plain settings above this line; everything after a [section] belongs to it)
+[key_atoms]
+nucleophile = 13     # O of ethoxide (the base)
+center = 0           # Cβ, the carbon that loses H
+leaving_group = 3    # Br
+
+# Bonds that change: forms / breaks / shortens (C–C becomes C=C)
+[[key_bonds]]
+atoms = [13, 5]
+role = "forms"
+label = "O–H"
+
+[[key_bonds]]
+atoms = [0, 5]
+role = "breaks"
+label = "Cβ–H"
+
+[[key_bonds]]
+atoms = [1, 3]
+role = "breaks"
+label = "Cα–Br"
+
+[[key_bonds]]
+atoms = [0, 1]
+role = "shortens"
+label = "Cα–Cβ"
+
+[ts_dihedrals]
+"H–Cβ–Cα–Br dihedral" = [5, 0, 1, 3]
+
+# Accept the TS only if the β-H dominates the imaginary mode; reject (and record as the SN2 TS)
+# a mode in which Cα moves along the O···Br axis. Forming/shortening bonds must shorten while
+# breaking bonds lengthen (always checked).
+[ts_mode]
+dominant_atom = 5
+reject_atom = 1
+reject_axis = [13, 3]
+
+# Expected TS ranges (warnings only): Å for bonds, |angle| in degrees for the dihedral
+[ts_expected]
+"Cα–Cβ" = [1.40, 1.45]
+"Cα–Br" = [2.3, 2.6]
+"H–Cβ–Cα–Br dihedral" = [165, 180]
+
+# Orbitals that must change (atoms carrying the IBO at the reactant end → product end). Each must
+# be ONE continuous tracked orbital; frames where any other orbital changes its atoms are flagged.
+# All of them are shown by default.
+[[expected_orbital_changes]]
+label = "O lone pair → σ(O–H)"
+start = [13]
+end = [13, 5]
+
+[[expected_orbital_changes]]
+label = "σ(Cβ–H) → π(C=C)"
+start = [0, 5]
+end = [0, 1]
+
+[[expected_orbital_changes]]
+label = "σ(Cα–Br) → Br lone pair"
+start = [1, 3]
+end = [3]
+
+[[diagnostic_levels]]
+label = "M06-2X_ma-def2-TZVP"
+why = "meta-GGA hybrid known to do better on barriers"
+method = "M062X D3ZERO ma-def2-TZVP def2/J RIJCOSX VeryTightSCF DefGrid3"
+
+[[diagnostic_levels]]
+label = "DLPNO-CCSD(T)_ma-def2-TZVP"
+why = "coupled-cluster reference"
+method = "DLPNO-CCSD(T) TightPNO ma-def2-TZVP AutoAux RIJCOSX VeryTightSCF"
+
+[[reactants]]
+name = "ethoxide"
+smiles = "CC[O-]"
+
+[[reactants]]
+name = "2-bromopropane"
+smiles = "CC(C)Br"
+
+[[products]]
+name = "propene"
+smiles = "C=CC"
+
+[[products]]
+name = "ethanol"
+smiles = "CCO"
+
+[[products]]
+name = "bromide"
+smiles = "[Br-]"
+
+[[diagnostic_levels]]
+label = "B3LYP_ma-def2-TZVP"
+why = "the former working functional, for comparison"
+method = "B3LYP D3BJ ma-def2-TZVP def2/J RIJCOSX VeryTightSCF"

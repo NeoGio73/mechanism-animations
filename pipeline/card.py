@@ -248,7 +248,9 @@ def _curve_max(man: dict, diag: dict | None, notes: dict) -> dict | None:
         return None
     E = curve["E_kJ"]
     ts = man["ts_frame"]
-    k = max(range(len(E)), key=lambda i: E[i])
+    if E[ts] is None:
+        raise RuntimeError("default curve not computed at the TS frame")
+    k = max((i for i in range(len(E)) if E[i] is not None), key=lambda i: E[i])   # computed frames only
     d = E[k] - E[ts]
     if k == ts or d <= CURVE_MAX_MIN_KJ:
         return None

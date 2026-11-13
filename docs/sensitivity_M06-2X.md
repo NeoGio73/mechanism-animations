@@ -20,9 +20,9 @@ Geometries: B3LYP-D3(BJ)/ma-def2-SVP (working level) and M06-2X-D3(0)/ma-def2-SV
 | Reaction | Measured | CC on B3LYP geometry | − measured | CC on M06-2X geometry | − measured |
 |---|---|---|---|---|---|
 | SN2, HO⁻ + CH₃Br (water) | ΔG‡ 95.0 kJ/mol (22.7 kcal/mol) | 100.6 kJ/mol (24.0 kcal/mol) | +5.6 kJ/mol | 100.3 kJ/mol (24.0 kcal/mol) | +5.3 kJ/mol |
-| E2, EtO⁻ + 2-bromopropane (ethanol) | ΔG‡ 105.2 kJ/mol (25.1 kcal/mol) | 107.2 kJ/mol (25.6 kcal/mol) | +2.0 kJ/mol | 99.8 kJ/mol (23.8 kcal/mol) | -5.4 kJ/mol |
+| E2, EtO⁻ + 2-bromopropane (ethanol) | ΔG‡ 105.1 kJ/mol (25.1 kcal/mol) | 107.2 kJ/mol (25.6 kcal/mol) | +2.1 kJ/mol | 99.8 kJ/mol (23.8 kcal/mol) | -5.3 kJ/mol |
 | Cyanide + acetone (water) | ΔG‡ 69.6 kJ/mol (16.6 kcal/mol) | 79.5 kJ/mol (19.0 kcal/mol) | +9.9 kJ/mol | 79.3 kJ/mol (18.9 kcal/mol) | +9.7 kJ/mol |
-| Diels–Alder, butadiene + ethylene (gas Ea, 840 K) | Ea (840 K, gas) 115.0 kJ/mol (27.5 kcal/mol) | 119.8 kJ/mol (28.6 kcal/mol) | +4.8 kJ/mol | 119.3 kJ/mol (28.5 kcal/mol) | +4.3 kJ/mol |
+| Diels–Alder, butadiene + ethylene (gas Ea, 840 K) | Ea (840 K, gas) 115.1 kJ/mol (27.5 kcal/mol) | 119.8 kJ/mol (28.6 kcal/mol) | +4.7 kJ/mol | 119.3 kJ/mol (28.5 kcal/mol) | +4.2 kJ/mol |
 
 Diels–Alder rate at 840 K, k(TST)/k(exp): 0.29 on B3LYP geometries, 0.25 on M06-2X geometries.
 

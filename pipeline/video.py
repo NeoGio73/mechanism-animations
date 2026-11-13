@@ -154,24 +154,25 @@ def _inset_background(M, curve, w_px=700, h_px=300):
     from PIL import Image
 
     s = np.array([f["s"] for f in M["frames"]])
-    E = np.array(curve["E_kJ"])
+    E = np.array(curve["E_kJ"], dtype=float)
+    ok = np.isfinite(E)            # computed frames only (no interpolation, J. Picione 2026-11-13)
     ep = curve["E_separated_products_kJ"]
     dpi = 100
     fig = plt.figure(figsize=(w_px / dpi, h_px / dpi), dpi=dpi)
     ax = fig.add_axes([0.13, 0.2, 0.84, 0.64])
-    ax.plot(s, E, color="#1f4e79", lw=2.2)
+    ax.plot(s[ok], E[ok], color="#1f4e79", lw=2.2)
     ax.axhline(0, color="#9aa4b1", lw=1, ls="--")
     ax.axhline(ep, color="#9aa4b1", lw=1, ls=":")
     ax.text(s[-1], 3, "separated reactants", ha="right", va="bottom", fontsize=7.5, color="#5b6878")
     ax.text(s[0], ep + 3, "separated products", ha="left", va="bottom", fontsize=7.5, color="#5b6878")
-    top = int(np.argmax(E))
+    top = int(np.nanargmax(E))
     ax.annotate((f"{'TS' if top == M['ts_frame'] else 'highest point'} {E[top]:.1f} kJ/mol "
                  f"({E[top] / 4.184:.1f} kcal/mol)").replace("-", "−"), (s[top], E[top]),
                 xytext=(0, 7), textcoords="offset points", ha="center", fontsize=9, color="#1d2733")
     ax.set_xlabel("reaction coordinate s (bohr·amu$^{1/2}$)", fontsize=9)
     ax.set_ylabel("E (kJ/mol)", fontsize=9)
     ax.tick_params(labelsize=8)
-    lo, hi = min(E.min(), ep), max(E.max(), 0)
+    lo, hi = min(np.nanmin(E), ep), max(np.nanmax(E), 0)
     ax.set_ylim(lo - 0.12 * (hi - lo), hi + 0.25 * (hi - lo))
     ax.set_xlim(s[0], s[-1])
     title = curve["label"].replace(" single points on the same path", ", on the same path")
@@ -200,7 +201,8 @@ def composite(rx: Reaction, png_dir: Path, out_mp4: Path, curve_key: str = "work
     T = json.loads((rx.root / "05_render" / "timeline.json").read_text())
     s = np.array([f["s"] for f in M["frames"]])
     curve = _curve(M, curve_key)
-    E = np.array(curve["E_kJ"])
+    E = np.array(curve["E_kJ"], dtype=float)
+    done = np.where(np.isfinite(E))[0]   # computed frames; a sparse level has no value elsewhere
     xyz = [np.array(f["xyz"]) for f in M["frames"]]
     ka, sy = M["key_atoms"], M["symbols"]
     kb = M.get("key_bonds") or [
@@ -229,6 +231,11 @@ def composite(rx: Reaction, png_dir: Path, out_mp4: Path, curve_key: str = "work
         f1 = min(f0 + 1, len(s) - 1)
         w = t - f0
         st, Et = s[f0] + (s[f1] - s[f0]) * w, E[f0] + (E[f1] - E[f0]) * w
+        e_note = ""
+        if not (np.isfinite(E[f0]) and np.isfinite(E[f1])):     # not computed here: nearest computed frame
+            kc = int(done[np.argmin(np.abs(done - t))])
+            st, Et = s[kc], E[kc]
+            e_note = f" (computed frame {M['frames'][kc].get('irc_frame', kc)})"
         p = xyz[f0] + (xyz[f1] - xyz[f0]) * w
         ds = [(b["label"], float(np.linalg.norm(p[b["atoms"][0]] - p[b["atoms"][1]]))) for b in kb]
 
@@ -260,7 +267,7 @@ def composite(rx: Reaction, png_dir: Path, out_mp4: Path, curve_key: str = "work
         r = 8 * sc
         pd.ellipse([px - r, py - r, px + r, py + r], fill="#c0392b", outline="white", width=max(1, int(2 * sc)))
         im.paste(panel, (ix, iy), panel)
-        etxt = f"E = {Et:.1f} kJ/mol ({Et / 4.184:.1f} kcal/mol)".replace("-", "−")
+        etxt = (f"E = {Et:.1f} kJ/mol ({Et / 4.184:.1f} kcal/mol)" + e_note).replace("-", "−")
         btxt = "    ".join(f"{lab} {d:.2f} Å" for lab, d in ds)
         if len(ds) <= 2:          # one line: energy and the two bonds
             rows = [etxt + "    " + btxt]

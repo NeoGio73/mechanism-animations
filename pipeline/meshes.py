@@ -74,9 +74,15 @@ def _curves(rx: Reaction, rows, meta, keep) -> list[dict]:
             continue
         lines = csv.read_text().splitlines()[1:]
         info = _read_json(rx.root / "02_irc" / f"energies_{label}.json")
-        curves.append({"key": label, "label": f"{_pretty(label)} single points on the same path",
-                       "E_kJ": [round(float(lines[k].split(",")[2]), 3) for k in keep],
-                       "E_separated_products_kJ": info["E_separated_products_kJ"]})
+        vals = [lines[k].split(",")[2] for k in keep]
+        c = {"key": label, "label": f"{_pretty(label)} single points on the same path",
+             # null where the frame was not computed: no interpolation (J. Picione, 2026-11-13)
+             "E_kJ": [round(float(v), 3) if v else None for v in vals],
+             "E_separated_products_kJ": info["E_separated_products_kJ"]}
+        if any(not v for v in vals):
+            c["label"] += f" ({sum(1 for v in vals if v)} computed frames)"
+            c["sparse"] = True
+        curves.append(c)
     return curves
 
 

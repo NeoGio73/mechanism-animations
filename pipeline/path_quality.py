@@ -20,7 +20,14 @@ FACTOR = 2.0       # J. Picione, 2026-11-11 (was 1.5); with Adapt_Scale_Displ fa
 LO, HI = 0.05, 0.95
 
 
-def quality(rx) -> dict:
+def region(rx) -> tuple[list[int], np.ndarray, np.ndarray]:
+    """IRC frames, their s, and whether each is in the bond-changing region (the definition above);
+    also used for the coupled-cluster frame choice (J. Picione, 2026-11-13)."""
+    rows, s, frames, inreg, _ = _region_rows(rx)
+    return frames, s, inreg
+
+
+def _region_rows(rx):
     rows = list(csv.DictReader(open(rx.root / "02_irc/energies.csv", encoding="utf-8")))
     s = np.array([float(r["s_bohr_amu05"]) for r in rows])
     frames = [int(r["frame"]) for r in rows]
@@ -39,6 +46,11 @@ def quality(rx) -> dict:
     D = np.array([[float(r[c]) for c in cols] for r in rows])
     prog = (D - D[0]) / np.where(np.abs(D[-1] - D[0]) > 1e-9, D[-1] - D[0], 1.0)
     inreg = ((prog > LO) & (prog < HI)).any(axis=1)
+    return rows, s, frames, inreg, cols
+
+
+def quality(rx) -> dict:
+    rows, s, frames, inreg, cols = _region_rows(rx)
     ds = np.diff(s)
     step_in = np.array([inreg[k] or inreg[k + 1] for k in range(len(ds))])
     med = float(np.median(ds[step_in])) if step_in.any() else float(np.median(ds))

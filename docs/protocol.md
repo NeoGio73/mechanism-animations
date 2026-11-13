@@ -19,7 +19,8 @@ Why:
   coupled cluster along both paths near the TS).
 
 SN2, Diels–Alder and cyanide + acetone are recomputed in full at this level in new folders once the
-IRC step-size test has passed, with every frame at every level; the earlier results stay. The
+IRC step-size test has passed (single points along the path: see "Single points along the path",
+2026-11-13); the earlier results stay. The
 B3LYP-D3(BJ)/ma-def2-SVP SN2 transition state and its single points
 (`reactions/sn2_hydroxide_bromomethane_masvp`) are kept for the sensitivity table.
 
@@ -214,6 +215,41 @@ References:
 - C. Gonzalez, H. B. Schlegel, "Reaction path following in mass-weighted internal coordinates",
   J. Phys. Chem. 1990, 94, 5523–5527. doi:10.1021/j100377a021
 (Metadata checked against Crossref, 2026-11-13.)
+
+Modifications to pysisyphus: every change is kept as a patch file against pysisyphus 1.0.0 in
+`patches/pysisyphus/`, with one line each on what it changes and the test that shows it works
+(J. Picione, 2026-11-13: the paper states exactly what was modified).
+
+Order of production (J. Picione, 2026-11-13): SN2, cyanide + acetone, Diels–Alder, tertiary hydride
+shift, secondary hydride shift, then E2 (decided 2026-11-13 after the arbitration, same method).
+
+### Angle check on every production path (J. Picione, 2026-11-13)
+
+Every production path gets the mass-weighted angle check: at each frame the angle between the step
+M^1/2 Δx and the mass-weighted downhill direction −M^−1/2 g (central chord), reported as median and
+90th percentile within |s| ≤ 1 bohr·amu^1/2 and beyond. A path fails the rule if, in either zone, the
+median is 5° or more or the 90th percentile is 15° or more (the tail rule of 2026-11-13); a failing
+path is flagged in the report and on its card. The SN2 validation path: 0.28° / 5.44° and 0.14° /
+5.22° within |s| ≤ 1, 1.04° / 8.01° and 0.66° / 1.53° beyond (reactant / product side).
+
+### Single points along the path (J. Picione, 2026-11-13; replaces the sampling of 2026-11-09)
+
+All six reactions, on the working-level production path:
+- M06-2X/ma-def2-TZVP and B3LYP/ma-def2-TZVP at every frame.
+- DLPNO-CCSD(T)/ma-def2-TZVP (TightPNO) at every frame within the bond-changing region (frames at
+  which a forming or breaking key bond has covered more than 5 % and less than 95 % of its change,
+  as in the path-quality rule) and at every frame within |s| ≤ 1 bohr·amu^1/2; at every second frame
+  elsewhere (counted from the TS); both end frames always.
+- No interpolation: curves show only computed points, and no value between computed frames is
+  reported or used.
+
+### Secondary hydride shift: key bonds (accepted by J. Picione, 2026-11-13)
+
+3-methyl-2-butyl cation at M06-2X: the TS is the 92i cm⁻¹ C2–C3 rotation TS of the eclipsed
+secondary cation (H9 1.113 Å from C3, 2.008 Å from C2). Key bonds: C2–H9 forms, C3–H9 breaks. They
+label the path and set the bond-changing region; they do not change the path. If the production
+path ends in another conformer instead of the tertiary cation, that is reported plainly and the path
+is not presented as the hydride shift.
 
 ### Mass-weighted IRC test with pysisyphus (2026-11-12; a test, not yet the method)
 

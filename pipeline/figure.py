@@ -52,12 +52,14 @@ def _half_height(M):
     more than once (no clear half-height point)."""
     E = np.array(next(c for c in M["curves"] if c["key"] == M["default_curve"])["E_kJ"], dtype=float)
     ts = M["ts_frame"]
-    half = E[0] + (E.max() - E[0]) / 2
-    d = E[:ts + 1] - half
-    crossings = [k for k in range(ts) if np.sign(d[k]) != np.sign(d[k + 1])]
+    # computed frames only (a sparse level has no value at the other frames; no interpolation)
+    idx = [k for k in range(ts + 1) if np.isfinite(E[k])]
+    half = E[0] + (np.nanmax(E) - E[0]) / 2
+    d = E[idx] - half
+    crossings = [idx[j] for j in range(len(idx) - 1) if np.sign(d[j]) != np.sign(d[j + 1])]
     if len(crossings) != 1:
         raise RuntimeError(f"no clear half-height point on the reactant side (crossings {crossings})")
-    return int(np.argmin(np.abs(d))), half, float(E.max()), int(np.argmax(E))
+    return idx[int(np.argmin(np.abs(d)))], half, float(np.nanmax(E)), int(np.nanargmax(E))
 
 
 def _frames(M):
@@ -123,6 +125,7 @@ def compose(rx, M, rows, proj) -> Path:
     curve = next(c for c in M["curves"] if c["key"] == M["default_curve"])
     s = np.array([f["s"] for f in M["frames"]])
     E = np.array(curve["E_kJ"], dtype=float)
+    ok = np.isfinite(E)            # computed frames (all, except on a sparse level)
 
     W_in = 180 / 25.4
     pw = W_in / 4
@@ -207,7 +210,7 @@ def compose(rx, M, rows, proj) -> Path:
     # energy curve
     y -= gap
     ax = fig.add_axes([0.085, (y - curve_h + 0.38) / H_in, 0.83, (curve_h - 0.55) / H_in])
-    ax.plot(s, E, color="#1f4e79", lw=1.2)
+    ax.plot(s[ok], E[ok], color="#1f4e79", lw=1.2)
     ax.axhline(0, color="#9aa4b1", lw=0.6, ls="--")
     ep = curve.get("E_separated_products_kJ")
     if ep is not None:
@@ -216,14 +219,14 @@ def compose(rx, M, rows, proj) -> Path:
     for row in rows:
         for p in row:
             marks.setdefault(p["frame"], []).append(p["letter"])
-    span = max(E.max(), 0) - min(E.min(), ep if ep is not None else E.min())
+    span = max(np.nanmax(E), 0) - min(np.nanmin(E), ep if ep is not None else np.nanmin(E))
     for k, ls in marks.items():
         ax.plot([s[k]], [E[k]], "o", ms=3.4, color="#c0392b", mec="white", mew=0.5, zorder=5)
-        below = E[k] > E.max() - 0.12 * span and k != M["ts_frame"]
+        below = E[k] > np.nanmax(E) - 0.12 * span and k != M["ts_frame"]
         dx, ha = (4, "left") if k == 0 else ((-4, "right") if k == len(s) - 1 else (0, "center"))
         ax.annotate(",".join(ls), (s[k], E[k]), xytext=(dx, -9 if below else 4.5), textcoords="offset points",
                     ha=ha, va="top" if below else "bottom", fontsize=MIN_PT, fontweight="bold", color="#c0392b")
-    kmax = int(np.argmax(E))
+    kmax = int(np.nanargmax(E))
     if kmax not in marks:        # default-level maximum off the working-level TS frame (IRCMax point)
         ax.plot([s[kmax]], [E[kmax]], "o", ms=3.6, mfc="white", mec="#1f4e79", mew=0.9, zorder=6)
         ax.annotate(f"maximum, IRC frame {_irc_no(M, kmax)}", (s[kmax], E[kmax]), xytext=(6, 2),
@@ -233,15 +236,15 @@ def compose(rx, M, rows, proj) -> Path:
     sec = ax.secondary_yaxis("right", functions=(lambda v: v / 4.184, lambda v: v * 4.184))
     sec.set_ylabel("E (kcal/mol)")
     ax.set_xlim(s[0], s[-1])
-    lo, hi = min(E.min(), ep if ep is not None else E.min()), max(E.max(), 0)
+    lo, hi = min(np.nanmin(E), ep if ep is not None else np.nanmin(E)), max(np.nanmax(E), 0)
     ax.set_ylim(lo - 0.08 * (hi - lo), hi + 0.16 * (hi - lo))
     ax.spines["top"].set_visible(False)
     lvl = curve["label"].replace(" single points on the same path", "")
     ax.set_title(f"Electronic energy relative to separated reactants: {lvl} single points on the "
                  f"{M['level'].split(',')[0]} path", fontsize=MIN_PT, loc="left", color="#3b4654")
-    _line_label(fig, ax, s, E, 0.0, "separated reactants", prefer="right")
+    _line_label(fig, ax, s[ok], E[ok], 0.0, "separated reactants", prefer="right")
     if ep is not None:
-        _line_label(fig, ax, s, E, ep, "separated products", prefer="left")
+        _line_label(fig, ax, s[ok], E[ok], ep, "separated products", prefer="left")
 
     fig.canvas.draw()
     small = [(x.get_text(), x.get_fontsize()) for x in fig.findobj(matplotlib.text.Text)

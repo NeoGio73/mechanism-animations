@@ -11,15 +11,15 @@ Barriers relative to butadiene_s-trans + ethylene unless marked; solution geomet
 | DLPNO-CCSD(T)_ma-def2-TZVP | SMD toluene | 84.2 kJ/mol (20.1 kcal/mol) | 97.0 kJ/mol (23.2 kcal/mol) | 101.5 kJ/mol (24.3 kcal/mol) | 144.3 kJ/mol (34.5 kcal/mol) (1 M) | 104.2 kJ/mol (24.9 kcal/mol) | 118.1 kJ/mol (28.2 kcal/mol) |
 | DLPNO-CCSD(T)_ma-def2-TZVP | gas phase | 85.9 kJ/mol (20.5 kcal/mol) | 98.7 kJ/mol (23.6 kcal/mol) | 103.2 kJ/mol (24.7 kcal/mol) | 153.9 kJ/mol (36.8 kcal/mol) (1 atm) | 105.8 kJ/mol (25.3 kcal/mol) | 119.8 kJ/mol (28.6 kcal/mol) |
 
-Experiment (Rowley and Steiner 1951, via the NIST Chemical Kinetics Database, gas phase): Ea ≈ 115.0 kJ/mol (27.5 kcal/mol).
+Experiment (Rowley and Steiner 1951 (eq. 5; Ea from a refit of Table VI); NIST Chemical Kinetics Database as cross-check, gas phase): Ea ≈ 115.1 kJ/mol (27.5 kcal/mol).
 
 Transition-state-theory rate constant at 840 K, gas phase (k = (kB T/h)(RT/p°) exp(−ΔG‡/RT), gas phase, p° = 1 atm (101325 Pa) standard state for ΔG‡, no tunnelling correction (κ = 1), reaction-path degeneracy through the rotational symmetry numbers; ΔG‡ = gas-phase ΔE‡ at each level + G(T) − E from the working-level frequencies (quasi-RRHO entropy)):
 
 | Level | ΔG‡ (840 K, 1 atm) | k(TST) (L mol⁻¹ s⁻¹) | k(TST) (cm³ molecule⁻¹ s⁻¹) | k(TST) / k(experiment) |
 |---|---|---|---|---|
-| B3LYP-D3(BJ)_ma-def2-SVP (working) | 221.1 kJ/mol (52.8 kcal/mol) | 21.7 | 3.60 × 10⁻²⁰ | 10.2 |
-| B3LYP-D3(BJ)_ma-def2-TZVP (protocol) | 228.3 kJ/mol (54.6 kcal/mol) | 7.69 | 1.28 × 10⁻²⁰ | 3.63 |
-| M06-2X_ma-def2-TZVP | 232.5 kJ/mol (55.6 kcal/mol) | 4.19 | 6.96 × 10⁻²¹ | 1.98 |
+| B3LYP-D3(BJ)_ma-def2-SVP (working) | 221.1 kJ/mol (52.8 kcal/mol) | 21.7 | 3.60 × 10⁻²⁰ | 10.4 |
+| B3LYP-D3(BJ)_ma-def2-TZVP (protocol) | 228.3 kJ/mol (54.6 kcal/mol) | 7.69 | 1.28 × 10⁻²⁰ | 3.68 |
+| M06-2X_ma-def2-TZVP | 232.5 kJ/mol (55.6 kcal/mol) | 4.19 | 6.96 × 10⁻²¹ | 2.01 |
 | DLPNO-CCSD(T)_ma-def2-TZVP | 246.1 kJ/mol (58.8 kcal/mol) | 0.604 | 1.00 × 10⁻²¹ | 0.29 |
 
-Experiment at 840 K from A = 4.98 × 10⁻¹⁴ cm³ molecule⁻¹ s⁻¹ (3.00 × 10⁷ L mol⁻¹ s⁻¹) and Ea = 115 kJ/mol: k = 2.12 L mol⁻¹ s⁻¹ (3.52 × 10⁻²¹ cm³ molecule⁻¹ s⁻¹).
+Experiment at 840 K from A = 4.98 × 10⁻¹⁴ cm³ molecule⁻¹ s⁻¹ (3.00 × 10⁷ L mol⁻¹ s⁻¹) and Ea = 115.1 kJ/mol: k = 2.09 L mol⁻¹ s⁻¹ (3.47 × 10⁻²¹ cm³ molecule⁻¹ s⁻¹).

@@ -283,9 +283,9 @@ def methylbutyl() -> None:
 
 # ------------------------------------------------------------------ sensitivity test
 MEASURED = {"sn2_hydroxide_bromomethane": ("ΔG‡", 95.0, "water, 25 °C; Mabey and Mill 1978"),
-            "e2_ethoxide_2_bromopropane": ("ΔG‡", 105.2, "ethanol, 25 °C, E2 share; Dhar, Hughes and Ingold 1948"),
+            "e2_ethoxide_2_bromopropane": ("ΔG‡", 105.1, "ethanol, 25 °C, k(E2) 2.37e-6 L/mol/s; Dhar, Hughes and Ingold 1948, Table II"),
             "nucadd_cyanide_acetone": ("ΔG‡", 69.6, "water, 25 °C; Schlesinger and Miller 1973"),
-            "da_butadiene_ethylene": ("Ea (840 K, gas)", 115.0, "gas phase, 760–921 K")}
+            "da_butadiene_ethylene": ("Ea (840 K, gas)", 115.1, "gas phase, 760–921 K; Rowley and Steiner 1951, refit of Table VI")}
 
 
 def sensitivity(folder: str) -> None:

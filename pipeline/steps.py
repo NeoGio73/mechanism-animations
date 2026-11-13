@@ -745,11 +745,26 @@ def diagnostics(rx: Reaction) -> None:
     print("\n".join(md))
 
 
-def path_sp_frames(rx: Reaction, n: int, its: int) -> list[int]:
-    """IRC frames for the path single points. Every frame, unless reaction.toml sets
-    `path_sp_sampling = [a, b]`: every frame within a steps of the TS, every second frame out to
-    b steps, every fourth beyond, and always both ends (decided by J. Picione, 2026-11-09, for
-    paths where coupled cluster at every frame would take more than about 8 h)."""
+S_DENSE = 1.0     # bohr·amu½: every frame within |s| ≤ 1 (J. Picione, 2026-11-13)
+
+
+def path_sp_frames(rx: Reaction, n: int, its: int, label: str | None = None) -> list[int]:
+    """IRC frames for the path single points.
+
+    Levels listed in `sparse_path_levels` (J. Picione, 2026-11-13; DLPNO-CCSD(T)): every frame in the
+    bond-changing region (path_quality.region) and every frame within |s| ≤ 1 bohr·amu½, every second
+    frame elsewhere (counted from the TS), both ends always. All other levels: every frame.
+    Older folders only: `path_sp_sampling = [a, b]` (2026-11-09): every frame within a steps of the TS,
+    every second out to b, every fourth beyond, both ends."""
+    if label is not None and label in rx.cfg.get("sparse_path_levels", []):
+        from .path_quality import region
+        frames, s, inreg = region(rx)
+        if len(frames) != n:
+            raise RuntimeError(f"energies.csv has {len(frames)} frames, the path {n}")
+        return [k for k in range(n)
+                if inreg[k] or abs(s[k]) <= S_DENSE or abs(k - its) % 2 == 0 or k in (0, n - 1)]
+    if "sparse_path_levels" in rx.cfg:          # 2026-11-13 rule: every other level at every frame
+        return list(range(n))
     samp = rx.cfg.get("path_sp_sampling")
     if not samp:
         return list(range(n))
@@ -803,11 +818,37 @@ def path_singlepoints(rx: Reaction) -> None:
             return r
 
         meta = _read_json(rx.root / "02_irc/irc_meta.json")
-        todo = path_sp_frames(rx, len(frames), meta["ts_frame"])
+        sparse = label in rx.cfg.get("sparse_path_levels", [])
+        todo = path_sp_frames(rx, len(frames), meta["ts_frame"], label)
         with ThreadPoolExecutor(max_workers=2) as ex:
             res = list(ex.map(job, todo))
         Ec = [r.energy_eh for r in res]
         total = sum(r.wall_s for r in res if r.wall_s == r.wall_s)
+        if sparse:
+            # no interpolation (J. Picione, 2026-11-13): frames not computed get no value
+            E = [Ec[todo.index(k)] if k in todo else None for k in range(len(frames))]
+            rows = ["frame,E_eh,E_kJ_per_mol,E_kcal_per_mol,computed"]
+            for k, e in enumerate(E):
+                if e is None:
+                    rows.append(f"{k},,,,0")
+                else:
+                    rel = kj(e - e_reac)
+                    rows.append(f"{k},{e:.10f},{rel:.3f},{rel / 4.184:.3f},1")
+            (rx.root / "02_irc" / f"energies_{label}.csv").write_text("\n".join(rows) + "\n")
+            kmax = max(todo, key=lambda k: E[k])
+            _write_json(rx.root / "02_irc" / f"energies_{label}.json",
+                        {"label": label, "method": lv["method"], "E_separated_products_kJ": kj(e_prod - e_reac),
+                         "max_frame": kmax, "E_max_kJ": kj(E[kmax] - e_reac), "computed_frames": todo,
+                         "n_computed": len(todo), "n_frames": len(frames), "interpolation": None,
+                         "sampling": "every frame in the bond-changing region and within |s| <= 1 bohr*amu^0.5, "
+                                     "every 2nd frame elsewhere, both ends (J. Picione, 2026-11-13)"})
+            rx.log.note(f"Single points at {len(todo)} of {len(frames)} IRC frames at {label} (every frame in "
+                        f"the bond-changing region and within |s| ≤ 1, every 2nd elsewhere; no interpolation; "
+                        f"`02_irc/path_sp/{label}/`): {total:.0f} s of job time; highest computed frame {kmax}, "
+                        f"{kj(E[kmax] - e_reac):.1f} kJ/mol above separated reactants.")
+            print(f"{label}: {len(todo)} of {len(frames)} frames; max at frame {kmax}, "
+                  f"{fmt_kj(kj(E[kmax] - e_reac))} above separated reactants")
+            continue
         if len(todo) < len(frames):
             from scipy.interpolate import CubicSpline
             s = [float(ln.split(",")[1]) for ln in
@@ -1029,21 +1070,24 @@ def profile_levels(rx: Reaction) -> None:
         csv = rx.root / "02_irc" / f"energies_{label}.csv"
         if csv.exists():
             lines = [r.split(",") for r in csv.read_text().splitlines()[1:]]
-            E = [float(r[2]) for r in lines]
+            E = [float(r[2]) if r[2] else float("nan") for r in lines]
             done = [k for k, r in enumerate(lines) if len(r) < 5 or r[4] == "1"]
             lab = label.replace("_", "/") + " single points"
             if len(done) < len(lines):
-                lab += f" ({len(done)} computed, ● ; spline between)"
+                lab += (f" ({len(done)} computed frames, ●; no interpolation)" if any(not r[2] for r in lines)
+                        else f" ({len(done)} computed, ● ; spline between)")
             curves.append((lab, E, colors[i % 3], done if len(done) < len(lines) else None))
     curves[0] = curves[0] + (None,)
     fig, ax = plt.subplots(figsize=(8, 4.8), dpi=150)
     for lab, E, c, done in curves:
-        E = np.array(E)
-        ax.plot(s, E, "-", color=c, lw=2.2, label=lab)
+        E = np.array(E, dtype=float)
+        ok = np.isfinite(E)                 # only computed points (no interpolation, 2026-11-13)
+        ax.plot(s[ok], E[ok], "-", color=c, lw=2.2, label=lab)
         if done:
             ax.plot(s[done], E[done], "o", color=c, ms=3)
     # Peak labels, highest first, nudged down so labels for close peaks do not overprint.
-    peaks = sorted(((float(np.max(E)), float(s[int(np.argmax(E))]), c) for _, E, c, _ in curves), reverse=True)
+    peaks = sorted(((float(np.nanmax(np.array(E, dtype=float))), float(s[int(np.nanargmax(np.array(E, dtype=float)))]), c)
+                    for _, E, c, _ in curves), reverse=True)
     y0, y1 = ax.get_ylim()
     pts_per_kj = fig.get_size_inches()[1] * 72 * 0.8 / (y1 - y0)
     last = None

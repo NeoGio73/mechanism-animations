@@ -12,6 +12,7 @@
 | Imaginary frequency at TS | 888i cm⁻¹ (exactly one) |
 | TS geometry | O–H 1.39 Å (forming), Cβ–H 1.28 Å (breaking), Cα–Br 2.46 Å (breaking), Cα–Cβ 1.43 Å (becoming double), H–Cβ–Cα–Br dihedral 176.3° |
 | IRC frames | 146; reaction coordinate s from -6.38 to 20.58 bohr·amu^1/2 (TS at s = 0) |
+| Path quality | bond-changing region IRC frames 4–109, median step there 0.238 bohr·amu½; steps longer than 2 × that median: none |
 | Orbitals shown | IBOs (IAO/IBO localization, occupied valence), isovalue ±0.08 e^1/2 bohr^-3/2 (orbital amplitude); tracked frame to frame by maximum overlap with fixed phase (lowest frame-to-frame overlap of each shown orbital: O lone pair → σ(O–H) 0.990 (IRC frames 29→30); σ(Cβ–H) → π(C=C) 0.991 (IRC frames 29→30); σ(Cα–Br) → Br lone pair 0.997 (IRC frames 29→30); for comparison, lowest overlap of the shown orbitals in Diels–Alder 0.827, Nucleophilic addition 0.992, SN2 0.993); canonical HOMO/LUMO optional in the viewer |
 | Orbitals that change | O lone pair → σ(O–H); σ(Cβ–H) → π(C=C); σ(Cα–Br) → Br lone pair |
 | What this is | The minimum-energy path, not a trajectory: no temperature, no dynamics, no explicit solvent molecules |
@@ -28,9 +29,7 @@
 
 ΔG adds the working-level thermal corrections (298.15 K) and the 1 atm → 1 M standard-state correction to each level's electronic energies.
 
-Experiment: 2-bromopropane + NaOEt in ethanol, 25 °C: overall second-order k ≈ 2.88 × 10⁻⁶ M⁻¹ s⁻¹ (mean of 19 points, 2.76–2.96 × 10⁻⁶ M⁻¹ s⁻¹), 80.3 % propene, the rest SN2 ether. Source: M. L. Dhar, E. D. Hughes and C. K. Ingold, J. Chem. Soc. 1948, 2058–2065, doi:10.1039/JR9480002058 (Mechanism of elimination reactions, Part X; Tables III and VII). See also E. D. Hughes, C. K. Ingold, S. Masterman and B. J. McNulty, J. Chem. Soc. 1940, 899–912, doi:10.1039/JR9400000899 (Part V), and M. L. Dhar, E. D. Hughes, C. K. Ingold, A. M. M. Mandour, G. A. Maw and L. I. Woolf, J. Chem. Soc. 1948, 2093, doi:10.1039/JR9480002093 (Part XVI). Eyring at 298.15 K (1 M standard state): E2 share k(E2) ≈ 2.31 × 10⁻⁶ M⁻¹ s⁻¹ gives ΔG‡(E2) ≈ 105.2 kJ/mol (25.1 kcal/mol); the SN2 share gives ΔG‡(SN2) ≈ 108.7 kJ/mol (26.0 kcal/mol). The two pathways differ by only about 3.5 kJ/mol (0.8 kcal/mol), which is why a secondary bromide with ethoxide gives mostly, not only, alkene.
-
-*Value to be confirmed against the primary paper by J. Picione.*
+Experiment: 2-bromopropane + NaOEt in ethanol, 25.0 °C: k(E2) = 2.37 × 10⁻⁶ M⁻¹ s⁻¹ (Table II); overall second-order k = 2.95 × 10⁻⁶ M⁻¹ s⁻¹ with 80.3 % propene, the rest SN2 ether (Table I). Source: M. L. Dhar, E. D. Hughes and C. K. Ingold, J. Chem. Soc. 1948, 2058–2065, doi:10.1039/JR9480002058 (Mechanism of elimination reactions, Part X); values confirmed from the original paper by J. Picione (2026-11-13). See also E. D. Hughes, C. K. Ingold, S. Masterman and B. J. McNulty, J. Chem. Soc. 1940, 899–912, doi:10.1039/JR9400000899 (Part V), and M. L. Dhar, E. D. Hughes, C. K. Ingold, A. M. M. Mandour, G. A. Maw and L. I. Woolf, J. Chem. Soc. 1948, 2093, doi:10.1039/JR9480002093 (Part XVI). Eyring at 298.15 K (1 M standard state): k(E2) = 2.37 × 10⁻⁶ M⁻¹ s⁻¹ gives ΔG‡(E2) = 105.1 kJ/mol (25.1 kcal/mol); the SN2 share (0.58 × 10⁻⁶ M⁻¹ s⁻¹) gives ΔG‡(SN2) = 108.6 kJ/mol (26.0 kcal/mol). The two pathways differ by only about 3.5 kJ/mol (0.8 kcal/mol), which is why a secondary bromide with ethoxide gives mostly, not only, alkene.
 
 ## Known artifacts and limitations
 
