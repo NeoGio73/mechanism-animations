@@ -1,0 +1,20 @@
+pysisyphus 1.0.0: 0006-eulerpc-mass-weighted-step-length
+
+What: EulerPC measures the integration (step) length in mass-weighted coordinates, bohr·amu½; pysisyphus 1.0.0 converts it back to plain Cartesian bohr.
+Test: Measured mass-weighted steps on every EulerPC run: median 0.1000 (0.10 runs) and 0.0500 (0.05 runs) bohr·amu½; with the 1.0.0 length a 'step' of 0.10 gave 0.35 bohr·amu½ (attempt1_step_in_plain_bohr).
+
+--- a/pysisyphus/irc/EulerPC.py
++++ b/pysisyphus/irc/EulerPC.py
+@@ -92,9 +92,9 @@
+ 
+     def get_integration_length_func(self, init_mw_coords):
+         def get_integration_length(cur_mw_coords):
+-            """Returns length of integration path done in mass-weighted coordinates
+-            in un-mass-weighted coordinates."""
+-            return np.linalg.norm((cur_mw_coords - init_mw_coords) / self.m_sqrt)
++            """Returns length of integration path in mass-weighted coordinates
++            (bohr·amu½)."""
++            return np.linalg.norm(cur_mw_coords - init_mw_coords)
+ 
+         return get_integration_length
+ 

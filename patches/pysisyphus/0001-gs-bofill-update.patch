@@ -1,0 +1,29 @@
+pysisyphus 1.0.0: 0001-gs-bofill-update
+
+What: Gonzalez–Schlegel micro-steps update the Hessian with Bofill instead of BFGS (BFGS is unstable where a curvature is negative, as in the flat tails); the update is skipped for a zero step.
+Test: Replay of the recorded first step of tail_gs_reactant (before the fixes; tests/test_pysisyphus_patches.py): BFGS turns the lowest curvature from −0.0152 to −0.621 au, as in the run; Bofill (with 0002) gives −0.0027 au.
+
+--- a/pysisyphus/irc/GonzalezSchlegel.py
++++ b/pysisyphus/irc/GonzalezSchlegel.py
+@@ -4,7 +4,7 @@
+ from scipy.optimize import newton
+ 
+ from pysisyphus.irc.IRC import IRC
+-from pysisyphus.optimizers.hessian_updates import bfgs_update
++from pysisyphus.optimizers.hessian_updates import bofill_update
+ 
+ 
+ # [1] An improved algorithm for reaction path following
+@@ -94,9 +94,9 @@
+             and (self.micro_counter % self.hessian_recalc == 0)
+         ):
+             self.mw_hessian = self.geometry.mw_hessian
+-        # Or update Hessian
+-        else:
+-            dH, _ = bfgs_update(self.mw_hessian, coords_diff, gradient_diff)
++        # Or update Hessian (Bofill: stable where a curvature is negative; no update for a zero step)
++        elif np.linalg.norm(coords_diff) > 1e-10:
++            dH, _ = bofill_update(self.mw_hessian, coords_diff, gradient_diff)
+             self.mw_hessian += dH
+         eigvals, eigvecs = np.linalg.eigh(self.mw_hessian)
+ 

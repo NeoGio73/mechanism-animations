@@ -1,0 +1,18 @@
+pysisyphus 1.0.0: 0007-eulerpc-fixed-euler-substep
+
+What: EulerPC uses a fixed conversion factor of 2 for the predictor Euler substep (substep = step × 2 / max_pred_steps; with max_pred_steps = 5000, step/2500), since the step is now mass-weighted (0006).
+Test: With max_pred_steps = 5000 the predictor reaches the full step on every EulerPC run (medians above); patched package = run code on a model potential to 1e-10 bohr.
+
+--- a/pysisyphus/irc/EulerPC.py
++++ b/pysisyphus/irc/EulerPC.py
+@@ -66,6 +66,10 @@
+             )
+             corr_func = "scipy"
+         self.corr_func = corr_funcs[corr_func]
++
++    def get_conv_fact(self, mw_grad, min_fact=2.0):
++        # the step length is mass-weighted (see get_integration_length_func): no unit conversion
++        return 2.0
+ 
+     def prepare(self, *args, **kwargs):
+         super().prepare(*args, **kwargs)

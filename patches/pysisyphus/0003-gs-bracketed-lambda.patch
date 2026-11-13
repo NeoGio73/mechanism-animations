@@ -1,0 +1,55 @@
+pysisyphus 1.0.0: 0003-gs-bracketed-lambda
+
+What: Gonzalez–Schlegel finds λ by a bracketed search (scipy brentq) below the lowest eigenvalue, where the constraint function rises monotonically from −r² to +∞ so the root is unique, instead of Newton's method from a guess; no root raises IRCIntegratorFailure.
+Test: Same replay: Newton's search fails on the BFGS Hessian (pysisyphus 1.0.0 then calls the IRC converged); the bracketed search returns a point on the hypersphere (radius error 3e-16); the SN2 validation path (939 gradients) had no failed search.
+
+--- a/pysisyphus/irc/GonzalezSchlegel.py
++++ b/pysisyphus/irc/GonzalezSchlegel.py
+@@ -1,7 +1,7 @@
+ from math import cos, sin
+ 
+ import numpy as np
+-from scipy.optimize import newton
++from scipy.optimize import brentq
+ 
+ from pysisyphus.irc.IRC import IRC
+ from pysisyphus.optimizers.hessian_updates import bofill_update
+@@ -29,6 +29,10 @@
+     U, s, _ = np.linalg.svd(np.array(vecs).T, full_matrices=False)
+     Q = U[:, s > 1e-6 * s.max()]
+     return np.eye(x.size) - Q @ Q.T
++
++
++class IRCIntegratorFailure(Exception):
++    """A failed integration step; never reported as convergence."""
+ 
+ 
+ class GonzalezSchlegel(IRC):
+@@ -136,14 +140,19 @@
+             p = displ_star + get_dx(lambda_)
+             return p.dot(p) - constraint
+ 
+-        # Initial guess for λ.
+-        # λ must be smaller then the smallest eigenvector
+-        lambda_0 = big_eigvals[0]
+-        lambda_0 *= 1.5 if (lambda_0 < 0) else 0.5
+-        self.log(f"\tSmallest eigenvalue is {big_eigvals[0]:.4f}, λ_0={lambda_0:.4f}.")
+-        # Find the root with scipy
+-        lambda_ = newton(on_sphere, lambda_0, maxiter=500)
+-        self.log(f"\tDetermined λ={lambda_0:.4f} from Newtons method.")
++        # λ below the smallest eigenvalue: there on_sphere rises monotonically from −r² to +∞, so a
++        # bracketed search finds the one root.
++        b0 = big_eigvals[0]
++        hi = b0 - 1e-10 * max(1.0, abs(b0))
++        if not on_sphere(hi) > 0:
++            raise IRCIntegratorFailure(f"GS micro-step {counter}: no root below the lowest eigenvalue ({b0:.3e})")
++        lo, k = b0 - 1.0, 0
++        while on_sphere(lo) >= 0:
++            lo, k = b0 - 2 * (b0 - lo), k + 1
++            if k > 200:
++                raise IRCIntegratorFailure(f"GS micro-step {counter}: λ bracket not found")
++        lambda_ = brentq(on_sphere, lo, hi, xtol=1e-14, maxiter=500)
++        self.log(f"\tSmallest eigenvalue is {b0:.4f}, λ={lambda_:.6f} from a bracketed search.")
+ 
+         # Calculate dx from optimized lambda in basis of Hessian eigenvectors and
+         # transform back to mass-weighted Cartesians.

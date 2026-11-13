@@ -1,0 +1,33 @@
+pysisyphus 1.0.0: 0008-eulerpc-corrector-fallback
+
+What: If the mBS corrector returns a point less than half the step length from the start (it does so on an oscillation of the interpolated surface, down to a zero step), EulerPC keeps the predictor point and counts the event in self.fallbacks; a zero step never reaches the Hessian update (which then filled the Hessian with NaN).
+Test: Before the fix both EulerPC tail runs sent all-NaN coordinates to ORCA (g0066, g0072); after it the four Hessian-every-5 tail runs had 24, 40, 35 and 19 fallbacks and no NaN (true_irc2/tails.md).
+
+--- a/pysisyphus/irc/EulerPC.py
++++ b/pysisyphus/irc/EulerPC.py
+@@ -66,6 +66,7 @@
+             )
+             corr_func = "scipy"
+         self.corr_func = corr_funcs[corr_func]
++        self.fallbacks = list()
+ 
+     def get_conv_fact(self, mw_grad, min_fact=2.0):
+         # the step length is mass-weighted (see get_integration_length_func): no unit conversion
+@@ -229,6 +230,17 @@
+         self.log(f"Corrected unweighted step length: {corr_step_length:.6f}")
+ 
+     def corrector_step(self, init_mw_coords, step_length, dwi):
++        # self.mw_coords holds the predictor point when the corrector is called (see step)
++        predictor = self.mw_coords.copy()
++        x = self._mbs_corrector_step(init_mw_coords, step_length, dwi)
++        got = float(np.linalg.norm(x - init_mw_coords))
++        if got < 0.5 * step_length:
++            self.fallbacks.append({"cycle": int(self.cur_cycle), "corrected_length": got})
++            self.log(f"Corrected step {got:.4f} < half the step: predictor point kept")
++            return predictor
++        return x
++
++    def _mbs_corrector_step(self, init_mw_coords, step_length, dwi):
+         self.log("Corrector step using mBS integration")
+ 
+         get_integration_length = self.get_integration_length_func(init_mw_coords)

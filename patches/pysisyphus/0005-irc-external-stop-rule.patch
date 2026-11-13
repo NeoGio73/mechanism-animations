@@ -1,0 +1,38 @@
+pysisyphus 1.0.0: 0005-irc-external-stop-rule
+
+What: IRC accepts stop_func: called after every step; when it returns a true value the direction ends as converged. The runs pass the project stopping rule (|ΔE| < 0.05 kJ/mol per step for 20 steps after the last bond event, pipeline/steps.irc_stop_index) and switch pysisyphus's own stops off (rms_grad_thresh=1e-12, energy_thresh=−1).
+Test: SN2 validation path: both sides ended by this rule, ends −0.005 and +0.322 kJ/mol from the optimized minima (true_irc2/final_final_gs_s005.md); patched package = run code on a model potential (stand-in rule).
+
+--- a/pysisyphus/irc/IRC.py
++++ b/pysisyphus/irc/IRC.py
+@@ -58,8 +58,12 @@
+         prefix="",
+         dump_fn="irc_data.h5",
+         dump_every=5,
++        stop_func=None,
+     ):
+         """Base class for IRC calculations.
++
++        stop_func: optional callable(irc) -> bool, checked after every step; True ends the direction
++        as converged ("Integrator indicated convergence!").
+ 
+         Parameters
+         ----------
+@@ -132,6 +136,7 @@
+ 
+         self.step_length = step_length
+         self.max_cycles = max_cycles
++        self.stop_func = stop_func
+         self.downhill = downhill
+         # Disable forward/backward when downhill is set
+         self.forward = not self.downhill and forward
+@@ -555,6 +560,9 @@
+                 self.ref_bond_sets -= broken
+                 self.ref_bond_sets |= formed  # union
+ 
++            if self.stop_func is not None and self.stop_func(self):
++                self.converged = True
++
+             last_energy = self.irc_energies[-2]
+             this_energy = self.irc_energies[-1]
+ 

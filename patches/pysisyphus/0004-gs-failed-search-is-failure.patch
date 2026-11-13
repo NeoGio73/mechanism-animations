@@ -1,0 +1,22 @@
+pysisyphus 1.0.0: 0004-gs-failed-search-is-failure
+
+What: A Gonzalez–Schlegel constrained search that does not converge raises IRCIntegratorFailure; pysisyphus 1.0.0 printed a message and marked the IRC converged.
+Test: tail_gs_reactant before the fixes 'converged' after one step, far from the minimum (failed_before_fixes_1113); with the change such a side ends as a failure and the driver records it as incomplete, never as a result.
+
+--- a/pysisyphus/irc/GonzalezSchlegel.py
++++ b/pysisyphus/irc/GonzalezSchlegel.py
+@@ -196,10 +196,10 @@
+             self.log(f"Micro cycle {i:02d}")
+             try:
+                 dx, _ = self.micro_step(i)
+-            except RuntimeError:
+-                print("Constrained search did not converge!")
+-                self.converged = True
+-                return
++            except RuntimeError as err:
++                raise IRCIntegratorFailure(
++                    f"GS constrained search did not converge in micro-step {i}: {err}"
++                ) from err
+             micro_coords_.append(self.mw_coords)
+             if np.linalg.norm(dx) <= self.micro_step_thresh:
+                 break

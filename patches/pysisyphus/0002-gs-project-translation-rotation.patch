@@ -1,0 +1,66 @@
+pysisyphus 1.0.0: 0002-gs-project-translation-rotation
+
+What: Gonzalez–Schlegel removes the three translations and three rotations of the current frame (about its centre of mass, mass-weighted) from the gradient, the step and gradient differences used in the update, and the Hessian used for the step.
+Test: Same replay: with the projection the six translation and rotation modes stay out of the step; patched package = run code on a model potential to 1e-10 bohr (test_patched_equals_override).
+
+--- a/pysisyphus/irc/GonzalezSchlegel.py
++++ b/pysisyphus/irc/GonzalezSchlegel.py
+@@ -11,6 +11,24 @@
+ # http://aip.scitation.org/doi/pdf/10.1063/1.456010
+ # [2] Extension to internal coordinates (not implemented)
+ # https://pubs.acs.org/doi/pdf/10.1021/j100377a021
++
++
++def trans_rot_projector(cart_bohr, masses):
++    """I − QQᵀ in mass-weighted Cartesians of the current frame; Q = orthonormal basis of the three
++    translations and three rotations about the centre of mass."""
++    x = np.asarray(cart_bohr).reshape(-1, 3)
++    m = np.asarray(masses)
++    r = x - (m[:, None] * x).sum(0) / m.sum()
++    sq = np.sqrt(m)[:, None]
++    vecs = []
++    for k in range(3):
++        e = np.zeros(3)
++        e[k] = 1.0
++        vecs.append((sq * e).ravel())
++        vecs.append((sq * np.cross(e, r)).ravel())
++    U, s, _ = np.linalg.svd(np.array(vecs).T, full_matrices=False)
++    Q = U[:, s > 1e-6 * s.max()]
++    return np.eye(x.size) - Q @ Q.T
+ 
+ 
+ class GonzalezSchlegel(IRC):
+@@ -44,8 +62,9 @@
+     def micro_step(self, counter):
+         """Constrained optimization on a hypersphere."""
+ 
+-        # Calculate gradient at current coordinates
+-        gradient = self.mw_gradient
++        # Calculate gradient at current coordinates; translations and rotations projected out
++        P = trans_rot_projector(self.geometry.cart_coords, self.geometry.masses)
++        gradient = P @ self.mw_gradient
+         self.log(f"\tnorm(mw_grad)={np.linalg.norm(gradient):.6f}")
+ 
+         # Interpolation proposed in the paper (Eq. (12) - (15)).
+@@ -81,8 +100,8 @@
+             self.mw_coords = x_interp
+             self.displacement = p_interp
+ 
+-        gradient_diff = gradient - self.prev_grad
+-        coords_diff = self.mw_coords - self.prev_coords
++        gradient_diff = gradient - P @ self.prev_grad
++        coords_diff = P @ (self.mw_coords - self.prev_coords)
+         # Update previous quantities.
+         self.prev_coords = self.mw_coords.copy()
+         self.prev_grad = gradient.copy()
+@@ -98,7 +117,9 @@
+         elif np.linalg.norm(coords_diff) > 1e-10:
+             dH, _ = bofill_update(self.mw_hessian, coords_diff, gradient_diff)
+             self.mw_hessian += dH
+-        eigvals, eigvecs = np.linalg.eigh(self.mw_hessian)
++        H = P @ self.mw_hessian @ P
++        H = 0.5 * (H + H.T)
++        eigvals, eigvecs = np.linalg.eigh(H)
+ 
+         constraint = (0.5 * self.step_length) ** 2
+         big = np.abs(eigvals) > 1e-8
