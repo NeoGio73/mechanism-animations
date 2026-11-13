@@ -245,8 +245,44 @@ def final(run):
                      "E_end_rel_TS_kJ": (E[-1] - E_TS()) * st.H, "end_above_min_kJ": (E[-1] - ends[side]["E_eh"]) * st.H,
                      "end_rmsd_to_min_A": rmsd(X[-1], xm), "end_CO": st.dist(X[-1], st.CO), "end_CBr": st.dist(X[-1], st.CBR),
                      "n_engrad": js["n_engrad"], "n_hessian": js["n_hessian"], "s_per_step": float(sum(walls)) / len(X)}
+    # J. Picione's rule (2026-11-13): both sides complete (the IRC completeness check: ended by the
+    # stopping rule, at least MIN_STEPS steps, at least MIN_DROP_KJ below the TS) and each end within
+    # 0.5 kJ/mol of its optimized minimum
+    from .path_quality import MIN_DROP_KJ, MIN_STEPS
+    for side, v in out.items():
+        why = []
+        if v["ended"] != "own stopping rule":
+            why.append(f"ended '{v['ended']}', not by the stopping rule")
+        if v["steps"] < MIN_STEPS:
+            why.append(f"only {v['steps']} steps")
+        if -v["E_end_rel_TS_kJ"] < MIN_DROP_KJ:
+            why.append(f"end only {-v['E_end_rel_TS_kJ']:.3f} kJ/mol below the TS")
+        v["complete"] = not why
+        v["within_0.5_kJ_of_min"] = abs(v["end_above_min_kJ"]) <= 0.5
+        v["why_not"] = why + ([] if v["within_0.5_kJ_of_min"] else [f"end {v['end_above_min_kJ']:+.3f} kJ/mol from the minimum (limit 0.5)"])
+    verdict = "PASS" if len(out) == 2 and all(v["complete"] and v["within_0.5_kJ_of_min"] for v in out.values()) else "FAIL"
+    out = {"run": run, "verdict": verdict, **out}
     (T2 / f"final_{run}.json").write_text(json.dumps(out, indent=1), encoding="utf-8")
-    print(json.dumps(out, indent=1))
+    L = [f"# Full SN2 validation path: {run}", "", f"Verdict by J. Picione's rule: **{verdict}**", "",
+         "| Side | ended | steps | s at end (bohr·amu½) | end vs TS (kJ/mol) | end above minimum (kJ/mol) | RMSD to minimum (Å) | "
+         "mw angle median / 90 % (abs(s) ≤ 1) | (abs(s) > 1) | gradients | s per step | complete | within 0.5 kJ/mol |",
+         "|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+    for side in ("reactant", "product"):
+        v = out.get(side)
+        if v is None:
+            L.append(f"| {side} | missing |")
+            continue
+        n, f = v["angles_|s|<=1"], v["angles_|s|>1"]
+        far = f"{f['mw_median']:.2f} / {f['mw_p90']:.2f}" if f else "—"
+        L.append(f"| {side} | {v['ended']} | {v['steps']} | {v['s_end']:.2f} | {v['E_end_rel_TS_kJ']:.2f} | "
+                 f"{v['end_above_min_kJ']:+.3f} | {v['end_rmsd_to_min_A']:.4f} | {n['mw_median']:.2f} / {n['mw_p90']:.2f} | "
+                 f"{far} | {v['n_engrad']} | {v['s_per_step']:.1f} | {'yes' if v['complete'] else 'NO'} | "
+                 f"{'yes' if v['within_0.5_kJ_of_min'] else 'NO'} |")
+    for side in ("reactant", "product"):
+        if out.get(side) and out[side]["why_not"]:
+            L += ["", f"{side}: " + "; ".join(out[side]["why_not"])]
+    (T2 / f"final_{run}.md").write_text("\n".join(L) + "\n", encoding="utf-8")
+    print("\n".join(L))
     return out
 
 

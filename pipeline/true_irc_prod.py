@@ -48,7 +48,8 @@ def e_final(out: Path) -> float:
     return float(re.findall(r"FINAL SINGLE POINT ENERGY\s+(-?\d+\.\d+)", out.read_text(errors="replace"))[-1])
 
 
-def run_side(rx_root: Path, direction: str) -> dict:
+def run_side(rx_root: Path, direction: str, test: bool = False) -> dict:
+    """test: 3 steps into 02_irc/smoketest/<direction> (checks the driver; never a result)."""
     from pysisyphus.calculators.Calculator import Calculator
     from pysisyphus.Geometry import Geometry
     from .true_irc2 import GSmw, IntegratorFailure
@@ -59,7 +60,7 @@ def run_side(rx_root: Path, direction: str) -> dict:
     sym = list(ts.symbols)
     E_TS = e_final(tso)
     x_ts = np.asarray(ts.coords).ravel() / BOHR
-    wd = rx.root / "02_irc/true_irc" / direction
+    wd = rx.root / ("02_irc/smoketest" if test else "02_irc/true_irc") / direction
     wd.mkdir(parents=True, exist_ok=False)          # a clean folder; a rerun goes to a new one by hand
     (wd / "pysis").mkdir()
     os.chdir(wd / "pysis")
@@ -78,7 +79,7 @@ def run_side(rx_root: Path, direction: str) -> dict:
             jd.mkdir(parents=True, exist_ok=False)
             g = PGeom(sym, c * BOHR, f"{kind} {self.n - 1}")
             r = orca.run(jd, "j", rx.inp(f"{kind} NoPop", g), rx.log,
-                         note=f"true IRC production {direction} {kind} {self.n - 1} (step {STEP})")
+                         note=("smoke test (not a result) " if test else "") + f"true IRC production {direction} {kind} {self.n - 1} (step {STEP})")
             if not r.ok:
                 raise orca.OrcaError(f"{jd} did not end normally")
             self.calls.append({"folder": jd.name, "kind": kind, "wall_s": r.wall_s})
@@ -108,7 +109,7 @@ def run_side(rx_root: Path, direction: str) -> dict:
     geom = Geometry(sym, x_ts)
     calc = RxCalc(out_dir=str(wd / "pysis"))
     geom.set_calculator(calc)
-    irc = GSmw(geom, hessian_recalc=None, step_length=STEP, max_cycles=MAX_CYCLES, rms_grad_thresh=1e-12,
+    irc = GSmw(geom, hessian_recalc=None, step_length=STEP, max_cycles=3 if test else MAX_CYCLES, rms_grad_thresh=1e-12,
                energy_thresh=-1.0, hessian_init="calc", out_dir=str(wd / "pysis"),
                forward=direction == "forward", backward=direction == "backward", displ="length", displ_length=STEP)
     irc.rx = rx
@@ -142,7 +143,7 @@ def run_side(rx_root: Path, direction: str) -> dict:
            "calls": calc.calls, "wall_total_s": time.time() - t0, "energies": E, "gradients": [g.tolist() for g in G],
            "gs_micro_steps": len(irc.micro_log), "gs_micro_cycle_limit_hit_at": irc.micro_max_hit}
     (wd / "path.json").write_text(json.dumps(res), encoding="utf-8")
-    rx.log.note(f"`02_irc/true_irc/{direction}`: production true IRC ({METHOD}; ORCA {rx.cfg['method']}, SMD "
+    rx.log.note(("SMOKE TEST, not a result: " if test else "") + f"`{wd.relative_to(rx.root).as_posix()}`: production true IRC ({METHOD}; ORCA {rx.cfg['method']}, SMD "
                 f"{rx.cfg['solvent']}, {rx.cfg['nprocs']} cores): "
                 + (f"ended by the stopping rule, {len(C)} points" if ended == "own stopping rule"
                    else f"INCOMPLETE ({ended}), not a result")
@@ -191,4 +192,4 @@ if __name__ == "__main__":
     if sys.argv[2] == "join":
         print(join(root))
     else:
-        run_side(root, sys.argv[2])
+        run_side(root, sys.argv[2], test="test" in sys.argv[3:])
