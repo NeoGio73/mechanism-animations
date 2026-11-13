@@ -75,6 +75,9 @@ RUNS = {
     "final_eulerpc": dict(integ="eulerpc", recalc=None, max_cycles=1500),
     "final_eulerpc_r5": dict(integ="eulerpc", recalc=5, max_cycles=1500),
     "final_gs": dict(integ="gs", recalc=None, max_cycles=1500),
+    # J. Picione's rule, 2026-11-13: GS passed the tail test at 0.05 (Hessian every 5 did not), so the
+    # full SN2 validation path is GS at 0.05 (run with step 0.05)
+    "final_gs_s005": dict(integ="gs", recalc=None, max_cycles=1500),
 }
 
 
