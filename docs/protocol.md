@@ -201,6 +201,33 @@ A direction ends when the RMS of the (non-mass-weighted) gradient falls below 5e
 inflection point, when the energy rises, or after 1500 steps. Test level: B3LYP-D3(BJ)/ma-def2-SVP,
 RIJCOSX, SMD water, VeryTightSCF.
 
+Result on SN2 (2026-11-12, 21:11; `true_irc/report.md`, `detail.json`; a test result, the method is
+not decided):
+- Angle check validated. On the pysisyphus paths the mass-weighted angle, angle(M^1/2 Δx, −M^−1/2 g),
+  has median 0.07° (0.10 path) and 0.01° (0.05 path) within |s| ≤ 1, against 22.8° to the plain
+  gradient; the Cartesian form angle(Δx, −M^−1 g) gives 0.25° and 0.02°. The same check on the ORCA
+  paths gives 38–56° (mass-weighted) and 1–23° (plain), so ORCA's path is a Cartesian
+  steepest-descent path, not a mass-weighted IRC.
+- Off-gradient stretches on the pysisyphus path itself, in the flat tails: reactant side from C–O
+  about 2.9 Å, product side from C–Br about 3.26 Å, RMS gradient 0.6–2e-3 Eh/bohr. There the steps run
+  straight (turn between steps at most 10°) but up to 30–67° off the mass-weighted gradient; the
+  off-path gradient sits on the hydroxide H (reactant side), and on the methanol O–H H and the methyl
+  H atoms (product side). Energies and key bonds are unaffected at the 0.03 kJ/mol, 0.0003 Å level
+  (0.10 vs 0.05 below).
+- Measured mass-weighted steps: 0.10 path 0.082–0.084 bohr·amu^1/2 near the TS, median 0.064–0.069
+  beyond; 0.05 path 0.041–0.042 near the TS, 0.032–0.034 beyond (first step 0.10 on both).
+- Step convergence (pysisyphus 0.10 vs 0.05, report4 matching and limits): whole region 0.031 kJ/mol
+  and 0.0003 Å, |s| ≤ 1 0.029 kJ/mol and 0.0000 Å; converged at 0.10, below the 0.094 kJ/mol noise floor.
+- O–H: 0.962–0.970 Å along every pysisyphus side, within 0.005 Å of its relaxed value (ORCA paths
+  0.959–0.992 Å, up to 0.016 Å from it).
+- ORCA 0.10 vs pysisyphus 0.10, matched on the key bond: whole region up to 18.3 kJ/mol and 0.091 Å
+  (product side, C–Br 2.80 Å, ORCA higher), |s| ≤ 1 up to 2.3 kJ/mol and 0.025 Å.
+- Completeness: all four sides end on the RMS-gradient criterion (5e-4 Eh/bohr), none on an energy
+  rise; ends agree between 0.10 and 0.05 (RMSD 0.028 Å reactant, 0.002 Å product) and with the ORCA
+  ends (0.032 Å, 0.018 Å). The 0.10 reactant side was still falling 0.10–0.27 kJ/mol per step at its
+  end; the distance of each end from its minimum is measured by `pipeline/true_irc_ends.py`.
+- Cost: 2 ORCA gradients per step, 21.5 s each at 2 cores, 43 s per step (ORCA IRC at 0.10: 26 s per step).
+
 References to cite if adopted:
 - J. Steinmetzer, S. Kupfer, S. Gräfe, "pysisyphus: Exploring potential energy surfaces in ground and
   excited states", Int. J. Quantum Chem. 2021, 121, e26390. doi:10.1002/qua.26390
