@@ -62,6 +62,12 @@ RUNS = {
     "tail_eulerpc_r5_product": dict(integ="eulerpc", recalc=5, start=("product", "backward"), max_cycles=120),
     "tail_gs_reactant": dict(integ="gs", recalc=None, start=("reactant", "forward"), max_cycles=120),
     "tail_gs_product": dict(integ="gs", recalc=None, start=("product", "backward"), max_cycles=120),
+    # J. Picione's rule (2026-11-13): neither option passed at 0.10, so both are retested at 0.05 from the
+    # same start frames (run with step 0.05; twice the cycles for the same path length)
+    "tail_eulerpc_r5_s005_reactant": dict(integ="eulerpc", recalc=5, start=("reactant", "forward"), max_cycles=240),
+    "tail_eulerpc_r5_s005_product": dict(integ="eulerpc", recalc=5, start=("product", "backward"), max_cycles=240),
+    "tail_gs_s005_reactant": dict(integ="gs", recalc=None, start=("reactant", "forward"), max_cycles=240),
+    "tail_gs_s005_product": dict(integ="gs", recalc=None, start=("product", "backward"), max_cycles=240),
     # item 2: isotope control on the true IRC (deuterium on all four H), 30 steps per side
     "d4_eulerpc": dict(integ="eulerpc", recalc=None, isotopes=D4, max_cycles=30),
     "h_eulerpc": dict(integ="eulerpc", recalc=None, max_cycles=30),

@@ -99,7 +99,7 @@ def tails():
             k0 = next(i for i, x in enumerate(X) if st.dist(x, key) >= b_start)
             rows = angle_rows(X[k0:], G[k0:], m3())
             out[f"{side}: earlier pysisyphus {tag} (same stretch)"] = {**stats(rows)}
-        for integ in ("eulerpc", "eulerpc_r5", "gs"):
+        for integ in ("eulerpc", "eulerpc_r5", "gs", "eulerpc_r5_s005", "gs_s005"):
             run = f"tail_{integ}_{side}"
             if not (T2 / run / "downhill" / "path.json").exists():
                 out[f"{side}: {run}"] = None
