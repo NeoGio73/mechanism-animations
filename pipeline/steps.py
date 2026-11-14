@@ -170,6 +170,13 @@ def fragments(rx: Reaction) -> None:
         res[s["name"]] = {"role": role, "smiles": s["smiles"], "charge": q,
                           "E_eh": r.energy_eh, "G_eh": r.gibbs_eh,
                           "imaginary_cm": r.imaginary, "job": name}
+        if len(g.symbols) == 1 and r.gibbs_eh is None:
+            # a single atom has no frequency job: G from the standard formulas, translation and electronic
+            # (J. Picione, 2026-11-14), same 1 atm reference as ORCA's G for the other species
+            from . import thermo
+            a = thermo.atom(g.symbols[0], m)
+            res[s["name"]].update(G_eh=r.energy_eh + a["G_minus_E_kJ"] / thermo.EH_KJ,
+                                  G_source=a["method"], G_minus_E_kJ=a["G_minus_E_kJ"])
         if r.imaginary:
             print(f"WARNING {s['name']} has imaginary frequencies {r.imaginary}")
     _write_json(rx.d("01_ts") / "fragments.json", res)

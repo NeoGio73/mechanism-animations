@@ -381,6 +381,22 @@ A gas-phase measurement is compared with the gas-phase computed value; the solut
 given for reference only (Diels–Alder: Ea 119.8 kJ/mol (28.6 kcal/mol) in the gas phase, +4.8 kJ/mol
 from experiment; 118.1 kJ/mol (28.2 kcal/mol) in SMD toluene, for reference).
 
+### Free energy of a single atom (J. Picione, 2026-11-14)
+
+A single atom or atomic ion (bromide) has no frequency job, because ORCA's frequency module needs at
+least two atoms. Its free energy comes from the standard formulas (`pipeline/thermo.atom`), with the
+same conventions as ORCA's thermochemistry for the other species:
+- H − E = 3/2 RT (translation) + RT (pV) = 5/2 RT; no rotation, vibration or zero-point energy.
+- S = S_trans (Sackur–Tetrode, ideal gas at 1 atm, the mass ORCA uses: Br 79.900 u) + S_el = R ln g,
+  with g = 1 for the closed-shell ¹S state.
+- G − E = H − TS. For bromide at 298.15 K: −42.51 kJ/mol (−10.16 kcal/mol).
+
+The same 1 atm → 1 M standard-state change is applied to it as to every species: +7.92 kJ/mol per
+species, so it cancels in a 2 → 2 reaction such as SN2.
+
+Check: the same Sackur–Tetrode term for hydroxide gives T·S_trans = 42.9592 kJ/mol, against ORCA's
+42.9591 kJ/mol.
+
 ### Implicit solvent and anionic products (noted by J. Picione, 2026-11-10)
 
 SMD represents water as a continuum, with no explicit water molecules. It therefore misses the specific hydrogen bonds that water donates to a localized anion, and it under-stabilizes an alkoxide product. A computed step that forms an alkoxide (cyanide + acetone) is therefore likely too endergonic. The error comes from the solvent model, not the electronic-structure level: for cyanide + acetone the alkoxide lies +34.4 kJ/mol (+8.2 kcal/mol) above separated reactants in free energy at the working level and +36.3 kJ/mol (+8.7 kcal/mol) at DLPNO-CCSD(T)/ma-def2-TZVP (298 K, 1 M). No explicit water molecules are added; the card states the limitation.

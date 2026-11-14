@@ -110,3 +110,24 @@ def check_against_orca(hess_path: Path, out_path: Path) -> dict:
     mine = thermo(hess_path, 298.15, symmetry_number(out_path))
     ref = orca_block(out_path)
     return {k: round(mine[k] - ref[k], 3) for k in ref}
+
+
+ORCA_MASS = {"F": 18.998, "Cl": 35.453, "Br": 79.900, "I": 126.904}   # u, as ORCA 6.1.1 writes them in .hess files
+
+
+def atom(symbol: str, mult: int, T: float = 298.15, p_pa: float = P_ATM) -> dict:
+    """Thermochemistry of a single closed-shell atom or atomic ion (J. Picione, 2026-11-14: bromide), from
+    the standard formulas, same conventions as ORCA's thermochemistry for the other species:
+    H − E = 3/2 RT (translation) + RT (pV) = 5/2 RT; no rotation, no vibration, no zero-point energy;
+    S = S_trans (Sackur–Tetrode, ideal gas at p, default 1 atm) + S_el (R ln g, g = 1 for a ¹S state);
+    G − E = H − E − T S. The 1 atm → 1 M standard-state change is applied by the caller, as for every species."""
+    if mult != 1:
+        raise ValueError("only closed-shell (¹S) atoms: the electronic degeneracy would need the term symbol")
+    RT = R_KJ * T
+    M = ORCA_MASS[symbol] * AMU
+    s_trans = R_KJ * (np.log((2 * np.pi * M * KB * T / H_PL ** 2) ** 1.5 * KB * T / p_pa) + 2.5)
+    s_el = 0.0
+    H_minus_E = 2.5 * RT
+    return {"T_K": T, "mass_u": ORCA_MASS[symbol], "H_minus_E_kJ": H_minus_E, "TS_trans_kJ": T * s_trans,
+            "TS_el_kJ": T * s_el, "G_minus_E_kJ": H_minus_E - T * (s_trans + s_el),
+            "method": "standard formulas: translation (Sackur–Tetrode, 1 atm) + electronic (¹S, g = 1); ORCA mass"}
