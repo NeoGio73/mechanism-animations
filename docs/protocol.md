@@ -232,6 +232,23 @@ median is 5° or more or the 90th percentile is 15° or more (the tail rule of 2
 path is flagged in the report and on its card. The SN2 validation path: 0.28° / 5.44° and 0.14° /
 5.22° within |s| ≤ 1, 1.04° / 8.01° and 0.66° / 1.53° beyond (reactant / product side).
 
+Frames at the end minimum are left out of the check (J. Picione, 2026-11-14): the trailing frames of a
+side whose energy changes by less than 0.005 kJ/mol from the previous frame and whose RMS Cartesian
+gradient is below 5 × 10⁻⁵ Eh/bohr. On a minimum the downhill direction is not defined, and the side
+keeps stepping there until the stopping rule's 20 flat steps are counted. The number left out is
+reported for each side of every path. First case: cyanide + acetone, product side, 17 frames (RMS
+gradient 1.4–2.6 × 10⁻⁵ Eh/bohr, energy flat to 0.001 kJ/mol, end 0.003 Å from the optimized product).
+
+### End check on every production path (J. Picione, 2026-11-14)
+
+A side that ends by the stopping rule more than 0.5 kJ/mol above its nearest optimized minimum is
+accepted, with the energy and RMSD stated on the card, only if an optimization from its last frame
+(Opt Freq at the working level, as the minima were made) reaches that minimum: energy within 0.1 kJ/mol
+of it, RMSD after alignment within 0.1 Å, no imaginary frequency (`pipeline/end_check.py`, run at
+every join). If it reaches a different structure, that is reported as a decision. First case:
+cyanide + acetone, reactant side, end 0.94 kJ/mol (0.22 kcal/mol) above the reactant complex at RMSD
+0.245 Å (accepted by J. Picione, 2026-11-14, subject to this check).
+
 ### Single points along the path (J. Picione, 2026-11-13; replaces the sampling of 2026-11-09)
 
 All six reactions, on the working-level production path:

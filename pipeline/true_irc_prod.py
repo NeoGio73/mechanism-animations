@@ -196,7 +196,11 @@ def join(rx_root: Path) -> dict:
                    for d, v in a["sides"].items())
     rx.log.note(f"`02_irc/true_irc/angles.md`: angle check {'passes' if a['passes'] else 'FAILS (flagged)'} "
                 f"(median / 90th percentile; rule median < 5°, 90 % < 15°): {zs}")
-    return {"frames": len(frames), "ts_index": len(fb), "angles_pass": a["passes"]}
+    # end check (J. Picione, 2026-11-14): a side ending > 0.5 kJ/mol above its minimum is optimized from its
+    # last frame; accepted with a note only if that reaches the same minimum, otherwise a decision
+    from .end_check import check as end_check
+    ec = end_check(rx.root)
+    return {"frames": len(frames), "ts_index": len(fb), "angles_pass": a["passes"], "end_check": ec["verdict"]}
 
 
 if __name__ == "__main__":

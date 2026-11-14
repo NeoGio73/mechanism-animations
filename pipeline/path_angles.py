@@ -28,6 +28,10 @@ HARTREE_KJ = 2625.499639
 MASS = {"H": 1.00794, "C": 12.0107, "N": 14.0067, "O": 15.9994, "Br": 79.904}   # as pysisyphus 1.0.0
 MEDIAN_MAX, P90_MAX = 5.0, 15.0
 S_NEAR = 1.0
+# frames at the end minimum are left out of the check (J. Picione, 2026-11-14): the trailing frames of a
+# side whose energy changes by less than END_DE_KJ from the previous frame and whose RMS Cartesian
+# gradient is below END_RMS_G; there the downhill direction is not defined
+END_DE_KJ, END_RMS_G = 0.005, 5e-5
 
 
 def _xyz_frames(path: Path) -> list[tuple[list[str], np.ndarray]]:
@@ -95,6 +99,8 @@ def check(rx_root: Path, minima: list[dict] | None = None) -> dict:
     ts_sym, x_ts = _xyz_frames(rx_root / "01_stationary/ts/ts.xyz")[0]
     mins = _minima(rx_root) if minima is None else minima
     out = {"reaction": rx_root.name, "rule": f"each zone: median < {MEDIAN_MAX:g}°, 90th percentile < {P90_MAX:g}°",
+           "excluded": f"trailing frames at the end minimum: |dE| < {END_DE_KJ:g} kJ/mol from the previous frame and "
+                       f"RMS gradient < {END_RMS_G:g} Eh/bohr (J. Picione, 2026-11-14)",
            "zones": f"abs(s) <= {S_NEAR:g} bohr*amu^0.5 and beyond", "sides": {}}
     for d in ("backward", "forward"):
         js = json.loads((wd / d / "path.json").read_text(encoding="utf-8"))
@@ -104,15 +110,28 @@ def check(rx_root: Path, minima: list[dict] | None = None) -> dict:
         G = [np.asarray(js["gradients"][k]) for k in keep]
         E = [js["energies"][k] for k in keep]
         rows = side_angles(X, G, x_ts, ts_sym)
-        near = _stats([r["mw_deg"] for r in rows if r["s_abs"] <= S_NEAR])
-        far = _stats([r["mw_deg"] for r in rows if r["s_abs"] > S_NEAR])
+        # trailing frames at the end minimum (index k in X; E before X[0] is the TS energy)
+        Eprev = [js["E_TS_eh"]] + E[:-1] if "E_TS_eh" in js else [None] + E[:-1]
+        at_min = [Eprev[k] is not None and abs(E[k] - Eprev[k]) * HARTREE_KJ < END_DE_KJ
+                  and float(np.sqrt(np.mean(np.asarray(G[k]) ** 2))) < END_RMS_G for k in range(len(X))]
+        k = len(X) - 1
+        while k >= 0 and at_min[k]:
+            k -= 1
+        end_block = set(range(k + 1, len(X)))
+        for r in rows:
+            r["at_end_minimum"] = (r["frame_from_ts"] - 1) in end_block
+        used = [r for r in rows if not r["at_end_minimum"]]
+        near = _stats([r["mw_deg"] for r in used if r["s_abs"] <= S_NEAR])
+        far = _stats([r["mw_deg"] for r in used if r["s_abs"] > S_NEAR])
+        n_excl = sum(r["at_end_minimum"] for r in rows)
         end = None
         if mins and X:
             cand = sorted(({"minimum": m["name"], "rmsd_A": rmsd(X[-1], m["xyz"]),
                             "end_above_min_kJ": (E[-1] - m["E_eh"]) * HARTREE_KJ} for m in mins),
                           key=lambda c: c["rmsd_A"])
             end = {"nearest": cand[0], "all": cand}
-        out["sides"][d] = {"ended": js["ended"], "n_frames": len(X), "angles_near": near, "angles_beyond": far,
+        out["sides"][d] = {"ended": js["ended"], "n_frames": len(X), "n_excluded_at_end_minimum": n_excl,
+                           "angles_near": near, "angles_beyond": far,
                            "passes": all(z is None or z["passes"] for z in (near, far)), "end": end,
                            "frames": rows}
     out["passes"] = all(v["passes"] for v in out["sides"].values())
@@ -120,13 +139,13 @@ def check(rx_root: Path, minima: list[dict] | None = None) -> dict:
     z = lambda st: "—" if st is None else f"{st['median_deg']:.2f}° / {st['p90_deg']:.2f}° ({st['n']})"
     L = [f"# Angle check, production path: {rx_root.name}", "",
          f"Mass-weighted angle, M^1/2 Δx (central chord) vs −M^−1/2 g; median / 90th percentile (frames). "
-         f"Rule: {out['rule']}. Path: **{'PASSES' if out['passes'] else 'FAILS (flagged)'}**", "",
-         "| Side | ended | frames | abs(s) ≤ 1 | beyond | passes | nearest optimized minimum at the end | RMSD (Å) | end above it (kJ/mol) |",
-         "|---|---|---|---|---|---|---|---|---|"]
+         f"Rule: {out['rule']}. Left out: {out['excluded']}. Path: **{'PASSES' if out['passes'] else 'FAILS (flagged)'}**", "",
+         "| Side | ended | frames | left out at the end minimum | abs(s) ≤ 1 | beyond | passes | nearest optimized minimum at the end | RMSD (Å) | end above it (kJ/mol) |",
+         "|---|---|---|---|---|---|---|---|---|---|"]
     for d, v in out["sides"].items():
         n = v["end"]["nearest"] if v["end"] else None
         tail = f"{n['minimum']} | {n['rmsd_A']:.3f} | {n['end_above_min_kJ']:+.3f} |" if n else "— | — | — |"
-        L.append(f"| {d} | {v['ended']} | {v['n_frames']} | {z(v['angles_near'])} | {z(v['angles_beyond'])} | "
+        L.append(f"| {d} | {v['ended']} | {v['n_frames']} | {v['n_excluded_at_end_minimum']} | {z(v['angles_near'])} | {z(v['angles_beyond'])} | "
                  f"{'yes' if v['passes'] else '**NO**'} | " + tail)
     (wd / "angles.md").write_text("\n".join(L) + "\n", encoding="utf-8")
     print("\n".join(L))
