@@ -18,6 +18,7 @@ patched, by SHA-256:
 overrides in `pipeline/true_irc2.py`:
 - `GSmw` carries patches 0001–0004.
 - `OwnStop` carries 0005.
+- `GSprod` in `pipeline/true_irc_prod.py` carries 0009 (from 2026-11-14, 17:00).
 - `EulerPCmw` carries 0006–0008.
 
 The patch files state the same changes at the source level. The test shows that the patched package
@@ -35,11 +36,12 @@ and the overrides give identical paths.
 | 0006-eulerpc-mass-weighted-step-length | EulerPC measures the step in mass-weighted coordinates (bohr·amu½), not plain bohr. | Measured steps on every EulerPC run: median 0.1000 and 0.0500 bohr·amu½ for steps of 0.10 and 0.05. With 1.0.0, a "step" of 0.10 gave 0.35. |
 | 0007-eulerpc-fixed-euler-substep | Fixed conversion factor 2 for the Euler predictor substep (step × 2 / max_pred_steps). | With max_pred_steps = 5000 the predictor reaches the full step on every EulerPC run. |
 | 0008-eulerpc-corrector-fallback | If the mBS corrector returns less than half a step (oscillation, down to zero), the predictor point is kept and counted. | Before the fix both EulerPC tail runs sent all-NaN coordinates to ORCA. After it the four Hessian-every-5 tail runs had 24, 40, 35 and 19 fallbacks and no NaN. |
+| 0009-irc-energy-increase-stop-optional | `IRC(stop_on_energy_increase=False)`: a step that raises the energy no longer ends the direction; each rise is recorded. 1.0.0 always stops there, with no setting to turn it off. | Tertiary hydride shift forward side before the fix: stopped after 7 points, 0.015 kJ/mol below the TS, on a noise-level rise (per-step changes 0.001–0.003 kJ/mol, below the SCF scatter of 0.034 kJ/mol). Diels–Alder forward stopped at its minimum on a 1.6 × 10⁻⁶ kJ/mol rise. |
 
 The first lines of each `.patch` file repeat its "What" and "Test" in full.
 
 **Which runs used which patches:**
-- Production paths (all reactions, `pipeline/true_irc_prod.py`) and the SN2 validation path: Gonzalez–Schlegel with 0001–0005.
+- Production paths (all reactions, `pipeline/true_irc_prod.py`) and the SN2 validation path: Gonzalez–Schlegel with 0001–0005. From 2026-11-14, 17:00 (tertiary hydride shift forward rerun onward), also 0009; the paths finished before that (SN2, cyanide, Diels–Alder) ended without it, SN2 and cyanide by the stopping rule.
 - EulerPC (0005–0008) was used for these tests: the tail tests, the isotope control (h_eulerpc, d4_eulerpc), and the coupled-cluster maximum on h_eulerpc.
 
 ## Settings (parameters, not code changes)
@@ -66,14 +68,14 @@ The overrides also do the following. None of it changes a path:
 ## Reproduce
 
 ```
-.venv-pysis/Scripts/python.exe -X utf8 patches/pysisyphus/make_patches.py         # writes the 8 patch files
-.venv-pysis/Scripts/python.exe -X utf8 tests/test_pysisyphus_patches.py           # 6 checks
+.venv-pysis/Scripts/python.exe -X utf8 patches/pysisyphus/make_patches.py         # writes the 9 patch files
+.venv-pysis/Scripts/python.exe -X utf8 tests/test_pysisyphus_patches.py           # 6 checks; 9 patch files
 ```
 
 The tests do four things:
 1. They check the installed package against its record hashes.
-2. They apply the 8 patches to a copy of it.
+2. They apply the 9 patches to a copy of it.
 3. They compare the patched Gonzalez–Schlegel and EulerPC with the run code on a model potential (Morse pairs, four atoms).
 4. They replay the recorded failed step with the original and the patched code.
 
-Result on 2026-11-13: 6 of 6 passed.
+Result on 2026-11-13: 6 of 6 passed; again on 2026-11-14 with patch 0009: 6 of 6 passed.

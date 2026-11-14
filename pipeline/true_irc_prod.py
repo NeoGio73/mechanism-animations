@@ -109,13 +109,30 @@ def run_side(rx_root: Path, direction: str, test: bool = False) -> dict:
     geom = Geometry(sym, x_ts)
     calc = RxCalc(out_dir=str(wd / "pysis"))
     geom.set_calculator(calc)
-    irc = GSmw(geom, hessian_recalc=None, step_length=STEP, max_cycles=3 if test else MAX_CYCLES, rms_grad_thresh=1e-12,
+    class GSprod(GSmw):
+        """pysisyphus's IRC loop always stops a side when one step raises the energy ("Energy increased!"); no
+        setting turns it off. On a flat surface the per-step change is below the SCF scatter (0.034 kJ/mol), so a
+        noise-level rise ended sides early (2026-11-14: tertiary hydride shift forward 0.015 kJ/mol below the TS;
+        Diels–Alder forward at its minimum before the 20 flat steps). The protocol has pysisyphus's own stops
+        off, so this one is off too: the loop reads energy_increased as False; every rise is recorded in
+        energy_rises and reported (patch 0009)."""
+        @property
+        def energy_increased(self):
+            return False
+
+        @energy_increased.setter
+        def energy_increased(self, value):
+            if value and len(getattr(self, "irc_energies", [])) >= 2:
+                self.energy_rises.append({"point": len(self.irc_energies) - 1,
+                                          "rise_kJ": (self.irc_energies[-1] - self.irc_energies[-2]) * 2625.499639})
+
+    irc = GSprod(geom, hessian_recalc=None, step_length=STEP, max_cycles=3 if test else MAX_CYCLES, rms_grad_thresh=1e-12,
                energy_thresh=-1.0, hessian_init="calc", out_dir=str(wd / "pysis"),
                forward=direction == "forward", backward=direction == "backward", displ="length", displ_length=STEP)
     irc.rx = rx
     irc.ts_frame = PGeom(sym, np.asarray(ts.coords), f"TS E {E_TS:.12f}")
     irc.own_stop = None
-    irc.fallbacks, irc.micro_log, irc.micro_max_hit = [], [], []
+    irc.fallbacks, irc.micro_log, irc.micro_max_hit, irc.energy_rises = [], [], [], []
     t0, failure = time.time(), None
     try:
         irc.run()
@@ -132,7 +149,7 @@ def run_side(rx_root: Path, direction: str, test: bool = False) -> dict:
     if C and np.linalg.norm(C[-1] - x_ts) < np.linalg.norm(C[0] - x_ts):      # TS-outward order
         C, E, G = C[::-1], E[::-1], G[::-1]
     ended = (f"FAILED: {failure}" if failure else "own stopping rule" if irc.own_stop else
-             "energy increased" if getattr(irc, f"{direction}_energy_increased", False) else "max cycles")
+             "max cycles")
     with open(wd / "path.xyz", "w") as fh:
         for c, e in zip(C, E):
             fh.write(PGeom(sym, c.reshape(-1, 3) * BOHR, "").to_xyz(f"true IRC {direction} E {e:.12f}"))
@@ -141,7 +158,8 @@ def run_side(rx_root: Path, direction: str, test: bool = False) -> dict:
            "own_stop": irc.own_stop, "n_points": len(C), "E_TS_eh": E_TS,
            "n_engrad": sum(c["kind"] == "EnGrad" for c in calc.calls), "n_hessian": sum(c["kind"] == "Freq" for c in calc.calls),
            "calls": calc.calls, "wall_total_s": time.time() - t0, "energies": E, "gradients": [g.tolist() for g in G],
-           "gs_micro_steps": len(irc.micro_log), "gs_micro_cycle_limit_hit_at": irc.micro_max_hit}
+           "gs_micro_steps": len(irc.micro_log), "gs_micro_cycle_limit_hit_at": irc.micro_max_hit,
+           "energy_rises": irc.energy_rises, "energy_increase_stop": "off (patch 0009, 2026-11-14)"}
     (wd / "path.json").write_text(json.dumps(res), encoding="utf-8")
     rx.log.note(("SMOKE TEST, not a result: " if test else "") + f"`{wd.relative_to(rx.root).as_posix()}`: production true IRC ({METHOD}; ORCA {rx.cfg['method']}, SMD "
                 f"{rx.cfg['solvent']}, {rx.cfg['nprocs']} cores): "

@@ -58,7 +58,7 @@ def make_patched(base: Path) -> Path:
     dst = base / "pysis_patched"
     dst.mkdir()
     shutil.copytree(root / "pysisyphus", dst / "pysisyphus", ignore=shutil.ignore_patterns("__pycache__"))
-    assert len(PATCHES) == 8
+    assert len(PATCHES) == 9
     for p in PATCHES:
         r = subprocess.run(["git", "apply", "--check", "-p1", str(p)], cwd=dst, capture_output=True, text=True)
         assert r.returncode == 0, f"{p.name}: {r.stderr}"
@@ -120,8 +120,8 @@ if __name__ == "__main__":
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         try:
             patched = make_patched(Path(tmp))
-            results.append(("8 patches apply in order", "ok"))
-            print("8 patches apply in order: ok", flush=True)
+            results.append(("9 patches apply in order", "ok"))
+            print("9 patches apply in order: ok", flush=True)
         except AssertionError as e:
             print(f"patches apply: FAILED: {e}")
             sys.exit(1)

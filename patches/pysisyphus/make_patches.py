@@ -268,6 +268,36 @@ step("0008-eulerpc-corrector-fallback", EPC,
 """)])
 
 
+# 0009 ------------------------------------------------------------------------------------------
+step("0009-irc-energy-increase-stop-optional", IRCF,
+     "IRC(stop_on_energy_increase=False) no longer ends a direction when one step raises the energy; each rise is "
+     "recorded in self.energy_rises. pysisyphus 1.0.0 always stops there and has no setting to turn it off.",
+     "provisional",
+     [("""        dump_every=5,
+        stop_func=None,
+    ):""",
+       """        dump_every=5,
+        stop_func=None,
+        stop_on_energy_increase=True,
+    ):"""),
+      ("""        self.stop_func = stop_func
+""",
+       """        self.stop_func = stop_func
+        self.stop_on_energy_increase = stop_on_energy_increase
+        self.energy_rises = list()
+"""),
+      ("""            elif self.energy_increased:
+                break_msg = "Energy increased!"
+""",
+       """            elif self.energy_increased and self.stop_on_energy_increase:
+                break_msg = "Energy increased!"
+            elif self.energy_increased:
+                self.energy_rises.append(
+                    {"point": len(self.irc_energies) - 1, "rise_au": this_energy - last_energy}
+                )
+""")])
+
+
 # The "Test:" line of each patch, with the numbers measured by tests/test_pysisyphus_patches.py and
 # on the recorded runs (2026-11-13). These replace the provisional lines given with each step above.
 TESTS = {
@@ -293,6 +323,10 @@ TESTS = {
     "0007-eulerpc-fixed-euler-substep":
         "With max_pred_steps = 5000 the predictor reaches the full step on every EulerPC run (medians above); "
         "patched package = run code on a model potential to 1e-10 bohr.",
+    "0009-irc-energy-increase-stop-optional":
+        "Tertiary hydride shift (M06-2X), forward side, before the fix: stopped after 7 points, 0.015 kJ/mol below the TS, "
+        "on a noise-level rise (per-step changes 0.001-0.003 kJ/mol, below the SCF scatter of 0.034 kJ/mol); "
+        "rerun with the stop off (2026-11-14). Diels-Alder forward stopped at its minimum on a 1.6e-6 kJ/mol rise.",
     "0008-eulerpc-corrector-fallback":
         "Before the fix both EulerPC tail runs sent all-NaN coordinates to ORCA (g0066, g0072); after it the four "
         "Hessian-every-5 tail runs had 24, 40, 35 and 19 fallbacks and no NaN (true_irc2/tails.md).",
