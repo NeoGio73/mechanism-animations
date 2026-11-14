@@ -53,4 +53,4 @@ corrections from the M06-2X/ma-def2-SVP frequencies; bromide from the standard f
 All three single-point levels make the reaction less exergonic than the tables. Reading (not tested): the
 reaction exchanges a small, strongly hydrated anion (OH⁻) for a large, weakly hydrated one (Br⁻), so the
 error of the implicit solvent model for the two anions enters the reaction free energy directly, at every
-level. The barrier, by contrast, compares species that all carry the same charge.
+level.
