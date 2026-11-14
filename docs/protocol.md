@@ -295,6 +295,13 @@ At the join (`pipeline/mirror_path.py`):
   `irc_path.json`, "source" in the viewer data, the viewer readout, and the card.
 - The energy span of the bridged side, from the TS to its end, is reported against the noise floor.
 - The end check always runs on that side, from its end point against `bridged_c2`.
+- Acceptance of the bridged side (J. Picione, 2026-11-14; this side only): the bridged well (0.012 kJ/mol)
+  is shallower than the optimizer's tolerance and below the SCF noise floor, so an optimization from the
+  path end is not a meaningful test there. The side is accepted if its last kept frame matches
+  `bridged_c2` by heavy-atom RMSD within 0.2 Å and key C–H distances within 0.05 Å. The optimization
+  still runs and where it lands is reported; a slide into an open cation is not a failure.
+- On the card: at this level the bridged structure and the TS are not distinguishable within numerical
+  precision, so the top of the barrier is a flat plateau.
 
 Correction (2026-11-14): the M06-2X stationary point stored as "bridged"
 (`01_stationary/bridged`) is not the bridged structure. Optimized from the bridged side, it fell back to the

@@ -130,6 +130,32 @@ def check(rx_root: Path) -> dict:
                    "opt_rmsd_heavy_A": dH, "opt_rmsd_all_atoms_A": dR, "key_distances": keys,
                    "opt_imaginary_cm": r.imaginary, "nearest_minima_after_opt": others, "criteria": ok,
                    "outcome": outcome, "verdict": verdict}
+        if d == forced and mp.get("bridged_side_rule") == "frame match":
+            # J. Picione, 2026-11-14 (tertiary hydride shift only): the bridged well (0.012 kJ/mol) is shallower than the
+            # optimizer's tolerance and below the SCF noise floor, so the optimization is not a test there. The side is
+            # accepted if its last kept frame matches the bridged reference (heavy-atom RMSD <= 0.2 Å, key C–H distances
+            # within 0.05 Å); the optimization runs anyway and where it lands is reported, a slide into an open cation
+            # is not a failure.
+            ref = mins[mpi["reference"]]
+            gf, gr = PGeom(sym, np.asarray(x), "kept end"), PGeom(sym, ref["xyz"], "reference")
+            kd = {b["label"]: gf.distance(*b["atoms"]) - gr.distance(*b["atoms"])
+                  for b in rx.key_bonds(sym) if b["role"] in ("forms", "breaks")}
+            fm = {"heavy_rmsd_A": _heavy_rmsd(sym, np.asarray(x), ref["xyz"]), "key_CH_diff_A": kd}
+            fm["passes"] = fm["heavy_rmsd_A"] <= SAME_RMSD_HEAVY_A and all(abs(v_) <= SAME_KEY_A for v_ in kd.values())
+            lands = "did not finish normally"
+            if "nearest_minima_after_opt" in res:
+                perm = mp["perm"]
+                cand = [(k, v_) for k, v_ in res["nearest_minima_after_opt"]]
+                cand += [(f"{k} (mirror image, C2 ⇄ C3)", rmsd(np.asarray(read_xyz(jd / f"{last}.xyz").coords), mm["xyz"][perm]))
+                         for k, mm in mins.items() if k != mpi["reference"]]
+                best = min(cand, key=lambda t: t[1])
+                lands = f"lands nearest {best[0]} (RMSD {best[1]:.3f} Å, E − bridged reference {res['opt_E_minus_min_kJ']:+.3f} kJ/mol)"
+                res["landing_candidates"] = sorted(cand, key=lambda t: t[1])
+            res.update(frame_match=fm, optimization_role="information only (J. Picione, 2026-11-14)",
+                       optimization_landing=lands,
+                       outcome=("last kept frame matches the bridged reference" if fm["passes"]
+                                else "last kept frame does NOT match the bridged reference") + f"; optimization {lands}",
+                       verdict="accepted (bridged-side rule)" if fm["passes"] else "decision")
         out["sides"][d] = res
     out["verdict"] = ("decision" if any(s.get("verdict") == "decision" for s in out["sides"].values())
                       else "ok")
