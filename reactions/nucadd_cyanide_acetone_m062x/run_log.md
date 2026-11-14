@@ -672,3 +672,4 @@ Every ORCA job, its wall time, and what changed when a job failed. Times are wal
 | 2026-11-14 06:16 | — | — | — | — | `02_irc/true_irc/end_check.md`: end check decision: backward: reaches a DIFFERENT structure; forward: not needed |
 | 2026-11-14 06:50 | `02_irc/true_irc/end_check/backward/opt_tight` | `M062X D3ZERO ma-def2-SVP def2/J RIJCOSX VeryTightSCF DefGrid3 CPCM(water) TightOpt Freq` | 1924 s | E = -285.78837661 Eh; opt converged; 0 imaginary freq | end check: opt had imaginary mode(s) [-68.0, -31.8] cm-1; displaced 0.1 Å along the lowest, TightOpt Freq (as for every M06-2X minimum) |
 | 2026-11-14 06:50 | — | — | — | — | `02_irc/true_irc/end_check.md`: end check decision: backward: same energy, no imaginary mode, RMSD above the limit (loosely bound complex?); forward: not needed |
+| 2026-11-14 07:05 | — | — | — | — | `02_irc/true_irc/end_check.md`: end check ok: backward: reaches the same minimum; forward: not needed |

@@ -10,9 +10,10 @@ or TightOpt Freq as in the reference minimum's first job (01_stationary/<name>),
 with an imaginary mode, the procedure used for every M06-2X minimum (pipeline/stationary_m062x.py) follows:
 displace 0.1 Å along the lowest mode and re-optimize once with TightOpt Freq. One job per folder in
 02_irc/true_irc/end_check/<side>/.
-"Reaches that minimum": energy within SAME_E_KJ of it and RMSD after alignment within SAME_RMSD_A, with no
-imaginary frequency. If only the RMSD fails (energy and frequencies pass), as in a loosely bound complex, it is
-reported as a decision with the numbers, not rejected (J. Picione, 2026-11-14).
+"Reaches that minimum" (J. Picione, 2026-11-14, refined the same day): energy within SAME_E_KJ of it; no imaginary
+frequency; RMSD over heavy atoms only (after aligning the heavy atoms) within SAME_RMSD_HEAVY_A; every key
+distance of the reaction ([[key_bonds]]) within SAME_KEY_A of the reference minimum. The all-atom RMSD is reported
+for information. A side that fails any criterion is reported as a decision with the numbers.
 
 Writes 02_irc/true_irc/end_check.json and .md and a run-log note. Called by true_irc_prod.join after the
 angle check; also
@@ -33,7 +34,14 @@ from .path_angles import HARTREE_KJ, ROOT, _minima, _xyz_frames, rmsd
 from .steps import Reaction
 
 LIMIT_KJ = 0.5                       # J. Picione, 2026-11-14
-SAME_E_KJ, SAME_RMSD_A = 0.1, 0.1    # "reaches that minimum"
+SAME_E_KJ = 0.1             # kJ/mol
+SAME_RMSD_HEAVY_A = 0.2      # Å, heavy atoms only
+SAME_KEY_A = 0.05            # Å, each key distance
+
+
+def _heavy_rmsd(sym, a, b) -> float:
+    h = [i for i, s in enumerate(sym) if s != "H"]
+    return rmsd(np.asarray(a)[h], np.asarray(b)[h])
 
 
 def _ref_opt_keyword(rx_root: Path, name: str) -> str:
@@ -52,7 +60,8 @@ def check(rx_root: Path) -> dict:
     ang = json.loads((wd / "angles.json").read_text(encoding="utf-8"))
     mins = {m["name"]: m for m in _minima(rx.root)}
     out = {"reaction": rx.root.name, "limit_kJ": LIMIT_KJ,
-           "same_minimum": f"|dE| <= {SAME_E_KJ} kJ/mol and RMSD <= {SAME_RMSD_A} Å, no imaginary frequency",
+           "same_minimum": (f"|dE| <= {SAME_E_KJ} kJ/mol, no imaginary frequency, heavy-atom RMSD <= {SAME_RMSD_HEAVY_A} Å, "
+                            f"each key distance within {SAME_KEY_A} Å (all-atom RMSD reported for information)"),
            "sides": {}}
     for d, v in ang["sides"].items():
         n = (v.get("end") or {}).get("nearest")
@@ -87,22 +96,29 @@ def check(rx_root: Path) -> dict:
                    "end_rmsd_A": n["rmsd_A"], "outcome": "INCOMPLETE: optimization did not finish normally",
                    "verdict": "decision"}
         else:
-            xo = np.asarray(read_xyz(jd / f"{last}.xyz").coords)
+            go = read_xyz(jd / f"{last}.xyz")
+            xo = np.asarray(go.coords)
             m = mins[n["minimum"]]
             dE = (r.energy_eh - m["E_eh"]) * HARTREE_KJ
             dR = rmsd(xo, m["xyz"])
+            dH = _heavy_rmsd(go.symbols, xo, m["xyz"])
+            gm = PGeom(go.symbols, m["xyz"], "reference minimum")
+            keys = {b["label"]: {"optimized_A": go.distance(*b["atoms"]), "minimum_A": gm.distance(*b["atoms"])}
+                    for b in rx.key_bonds(go.symbols)}
+            for k_ in keys.values():
+                k_["diff_A"] = k_["optimized_A"] - k_["minimum_A"]
             others = sorted(((k, rmsd(xo, mm["xyz"])) for k, mm in mins.items()), key=lambda t: t[1])
-            e_ok, f_ok, r_ok = abs(dE) <= SAME_E_KJ, not r.imaginary, dR <= SAME_RMSD_A
-            if e_ok and f_ok and r_ok:
-                outcome, verdict = "reaches the same minimum", "accepted with a note"
-            elif e_ok and f_ok:
-                outcome, verdict = "same energy, no imaginary mode, RMSD above the limit (loosely bound complex?)", "decision"
-            else:
-                outcome, verdict = "reaches a DIFFERENT structure", "decision"
+            ok = {"energy": abs(dE) <= SAME_E_KJ, "no imaginary frequency": not r.imaginary,
+                  "heavy-atom RMSD": dH <= SAME_RMSD_HEAVY_A,
+                  "key distances": all(abs(k_["diff_A"]) <= SAME_KEY_A for k_ in keys.values())}
+            failed = [k for k, v in ok.items() if not v]
+            outcome = "reaches the same minimum" if not failed else "fails: " + ", ".join(failed)
+            verdict = "accepted with a note" if not failed else "decision"
             res = {"needed": True, "minimum": n["minimum"], "end_above_min_kJ": n["end_above_min_kJ"],
                    "end_rmsd_A": n["rmsd_A"], "jobs": jobs, "final_job": last, "opt_E_minus_min_kJ": dE,
-                   "opt_rmsd_to_min_A": dR, "opt_imaginary_cm": r.imaginary, "nearest_minima_after_opt": others,
-                   "energy_ok": e_ok, "frequencies_ok": f_ok, "rmsd_ok": r_ok, "outcome": outcome, "verdict": verdict}
+                   "opt_rmsd_heavy_A": dH, "opt_rmsd_all_atoms_A": dR, "key_distances": keys,
+                   "opt_imaginary_cm": r.imaginary, "nearest_minima_after_opt": others, "criteria": ok,
+                   "outcome": outcome, "verdict": verdict}
         out["sides"][d] = res
     out["verdict"] = ("decision" if any(s.get("verdict") == "decision" for s in out["sides"].values())
                       else "ok")
@@ -110,18 +126,23 @@ def check(rx_root: Path) -> dict:
     L = [f"# End check, production path: {rx.root.name}", "",
          f"A side ending more than {LIMIT_KJ} kJ/mol above its nearest optimized minimum is accepted with a note only if "
          f"Opt Freq from its last frame reaches that minimum ({out['same_minimum']}). Verdict: **{out['verdict']}**", "",
-         "| Side | minimum | end above it (kJ/mol) | end RMSD (Å) | check needed | optimized: E − minimum (kJ/mol) | RMSD (Å) | imaginary | outcome |",
-         "|---|---|---|---|---|---|---|---|---|"]
+         "| Side | minimum | end above it (kJ/mol) | end RMSD (Å) | check needed | optimized: E − minimum (kJ/mol) | "
+         "heavy-atom RMSD (Å) | all-atom RMSD (Å, information) | largest key-distance difference (Å) | imaginary | outcome |",
+         "|---|---|---|---|---|---|---|---|---|---|---|"]
     for d, s in out["sides"].items():
         if not s.get("needed"):
             e = s.get("end_above_min_kJ")
-            L.append(f"| {d} | {s.get('minimum', '—')} | {e:+.3f} | — | no | — | — | — | within the limit |" if e is not None
-                     else f"| {d} | — | — | — | no | — | — | — | {s.get('why')} |")
+            L.append(f"| {d} | {s.get('minimum', '—')} | {e:+.3f} | — | no | — | — | — | — | — | within the limit |" if e is not None
+                     else f"| {d} | — | — | — | no | — | — | — | — | — | {s.get('why')} |")
         else:
             oe = f"{s['opt_E_minus_min_kJ']:+.3f}" if "opt_E_minus_min_kJ" in s else "—"
-            orr = f"{s['opt_rmsd_to_min_A']:.3f}" if "opt_rmsd_to_min_A" in s else "—"
-            L.append(f"| {d} | {s['minimum']} | {s['end_above_min_kJ']:+.3f} | {s['end_rmsd_A']:.3f} | yes | {oe} | {orr} | "
-                     f"{len(s.get('opt_imaginary_cm') or [])} | {s['outcome']} |")
+            oh = f"{s['opt_rmsd_heavy_A']:.3f}" if "opt_rmsd_heavy_A" in s else "—"
+            oa = f"{s['opt_rmsd_all_atoms_A']:.3f}" if "opt_rmsd_all_atoms_A" in s else "—"
+            kd = (max(((k, v["diff_A"]) for k, v in s["key_distances"].items()), key=lambda t: abs(t[1]))
+                  if s.get("key_distances") else None)
+            ks = f"{kd[1]:+.3f} ({kd[0]})" if kd else "—"
+            L.append(f"| {d} | {s['minimum']} | {s['end_above_min_kJ']:+.3f} | {s['end_rmsd_A']:.3f} | yes | {oe} | {oh} | {oa} | "
+                     f"{ks} | {len(s.get('opt_imaginary_cm') or [])} | {s['outcome']} |")
     (wd / "end_check.md").write_text("\n".join(L) + "\n", encoding="utf-8")
     rx.log.note(f"`02_irc/true_irc/end_check.md`: end check {out['verdict']}: " + "; ".join(
         f"{d}: {s.get('outcome', 'not needed')}" for d, s in out["sides"].items()))

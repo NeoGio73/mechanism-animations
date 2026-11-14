@@ -243,11 +243,30 @@ gradient 1.4–2.6 × 10⁻⁵ Eh/bohr, energy flat to 0.001 kJ/mol, end 0.003 �
 
 A side that ends by the stopping rule more than 0.5 kJ/mol above its nearest optimized minimum is
 accepted, with the energy and RMSD stated on the card, only if an optimization from its last frame
-(Opt Freq at the working level, as the minima were made) reaches that minimum: energy within 0.1 kJ/mol
-of it, RMSD after alignment within 0.1 Å, no imaginary frequency (`pipeline/end_check.py`, run at
-every join). If it reaches a different structure, that is reported as a decision. First case:
-cyanide + acetone, reactant side, end 0.94 kJ/mol (0.22 kcal/mol) above the reactant complex at RMSD
-0.245 Å (accepted by J. Picione, 2026-11-14, subject to this check).
+reaches that minimum (`pipeline/end_check.py`, run at every join).
+
+The optimization uses the same convergence settings as the reference minimum (J. Picione, 2026-11-14):
+- its first job's keyword (Opt Freq, or TightOpt Freq) at the working level;
+- if that ends with an imaginary mode, the procedure used for every M06-2X minimum: displace 0.1 Å along
+  the lowest mode and re-optimize once with TightOpt Freq.
+
+"Reaches that minimum" (refined by J. Picione, 2026-11-14; replaces the first criteria of the same day,
+which were energy within 0.1 kJ/mol, all-atom RMSD within 0.1 Å, no imaginary frequency):
+- energy within 0.1 kJ/mol of the reference minimum;
+- no imaginary frequency;
+- RMSD over heavy atoms only (heavy atoms aligned) within 0.2 Å;
+- every key distance of the reaction (`[[key_bonds]]`) within 0.05 Å of the reference minimum.
+
+The all-atom RMSD is reported for information. A side that fails any criterion is reported as a
+decision with the numbers.
+
+First case, cyanide + acetone, reactant side:
+- the path end lies 0.94 kJ/mol (0.22 kcal/mol) above the reactant complex, at RMSD 0.245 Å;
+- the first optimization stopped with two small imaginary modes (68i, 32i cm⁻¹), so TightOpt followed;
+- the result: −0.072 kJ/mol from the complex, no imaginary frequency, heavy-atom RMSD 0.110 Å, C(N)···C
+  within 0.007 Å, all-atom RMSD 0.393 Å (methyl rotation).
+- It passes the refined criteria. J. Picione accepted it as the same reactant complex (2026-11-14), and
+  the card states the numbers.
 
 ### Single points along the path (J. Picione, 2026-11-13; replaces the sampling of 2026-11-09)
 
