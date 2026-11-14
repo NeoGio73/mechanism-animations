@@ -4,10 +4,15 @@ A side that ends by the stopping rule more than 0.5 kJ/mol above its nearest opt
 (02_irc/true_irc/angles.json) is accepted, with a note on the card, only if an optimization from its
 last frame reaches that minimum. If it reaches a different structure, that is reported as a decision.
 
-Optimization: ORCA Opt Freq at the working level (reaction.toml method, SMD, VeryTightSCF), as the
-M06-2X minima were made (pipeline/stationary_m062x.py), MaxIter 200, one job in
-02_irc/true_irc/end_check/<side>/. "Reaches that minimum": energy within SAME_E_KJ of it and RMSD after
-alignment within SAME_RMSD_A, with no imaginary frequency.
+Optimization (J. Picione, 2026-11-14: the same convergence settings as the reference minimum): Opt Freq
+or TightOpt Freq as in the reference minimum's first job (01_stationary/<name>), at the working level
+(reaction.toml method, SMD, VeryTightSCF), MaxIter 200 (a cycle cap, not a convergence setting). If it ends
+with an imaginary mode, the procedure used for every M06-2X minimum (pipeline/stationary_m062x.py) follows:
+displace 0.1 Å along the lowest mode and re-optimize once with TightOpt Freq. One job per folder in
+02_irc/true_irc/end_check/<side>/.
+"Reaches that minimum": energy within SAME_E_KJ of it and RMSD after alignment within SAME_RMSD_A, with no
+imaginary frequency. If only the RMSD fails (energy and frequencies pass), as in a loosely bound complex, it is
+reported as a decision with the numbers, not rejected (J. Picione, 2026-11-14).
 
 Writes 02_irc/true_irc/end_check.json and .md and a run-log note. Called by true_irc_prod.join after the
 angle check; also
@@ -31,6 +36,16 @@ LIMIT_KJ = 0.5                       # J. Picione, 2026-11-14
 SAME_E_KJ, SAME_RMSD_A = 0.1, 0.1    # "reaches that minimum"
 
 
+def _ref_opt_keyword(rx_root: Path, name: str) -> str:
+    """Opt keyword of the reference minimum's first job (its .inp in 01_stationary/<name>)."""
+    inp = rx_root / "01_stationary" / name / f"{name}.inp"
+    first = inp.read_text(encoding="utf-8", errors="replace").splitlines()[0].split()
+    for k in ("VeryTightOpt", "TightOpt", "LooseOpt", "Opt"):
+        if k in first:
+            return k
+    raise RuntimeError(f"no Opt keyword in {inp}")
+
+
 def check(rx_root: Path) -> dict:
     rx = Reaction.load(rx_root)
     wd = rx.root / "02_irc/true_irc"
@@ -50,25 +65,44 @@ def check(rx_root: Path) -> dict:
         sym, x = _xyz_frames(wd / d / "path.xyz")[-1]
         jd = wd / "end_check" / d
         jd.mkdir(parents=True, exist_ok=True)
-        r = orca.run(jd, "opt", rx.inp("Opt Freq", PGeom(sym, x, f"last frame of the {d} side"),
+        kw = _ref_opt_keyword(rx.root, n["minimum"])
+        r = orca.run(jd, "opt", rx.inp(f"{kw} Freq", PGeom(sym, x, f"last frame of the {d} side"),
                                        blocks="%geom MaxIter 200 end"), rx.log,
-                     note=f"end check: Opt Freq from the last frame of the {d} side")
+                     note=f"end check: {kw} Freq from the last frame of the {d} side (as the reference minimum)")
+        jobs = [{"job": "opt", "keyword": kw, "imaginary_cm": r.imaginary if r.ok else None}]
+        last = "opt"
+        if r.ok and r.opt_converged and r.imaginary:
+            h = orca.read_hess(jd / "opt.hess")
+            v = h["modes"][:, int(np.argmin(h["freqs"]))].reshape(-1, 3)
+            gp = read_xyz(jd / "opt.xyz")
+            gp = PGeom(gp.symbols, np.asarray(gp.coords) + 0.1 * v / np.linalg.norm(v, axis=1).max(),
+                       "displaced 0.1 Å along the lowest imaginary mode")
+            r = orca.run(jd, "opt_tight", rx.inp("TightOpt Freq", gp, blocks="%geom MaxIter 200 end"), rx.log,
+                         note=f"end check: opt had imaginary mode(s) {[round(f, 1) for f in jobs[0]['imaginary_cm']]} cm-1; "
+                              "displaced 0.1 Å along the lowest, TightOpt Freq (as for every M06-2X minimum)")
+            jobs.append({"job": "opt_tight", "keyword": "TightOpt", "imaginary_cm": r.imaginary if r.ok else None})
+            last = "opt_tight"
         if not (r.ok and r.opt_converged):
             res = {"needed": True, "minimum": n["minimum"], "end_above_min_kJ": n["end_above_min_kJ"],
                    "end_rmsd_A": n["rmsd_A"], "outcome": "INCOMPLETE: optimization did not finish normally",
                    "verdict": "decision"}
         else:
-            xo = np.asarray(read_xyz(jd / "opt.xyz").coords)
+            xo = np.asarray(read_xyz(jd / f"{last}.xyz").coords)
             m = mins[n["minimum"]]
             dE = (r.energy_eh - m["E_eh"]) * HARTREE_KJ
             dR = rmsd(xo, m["xyz"])
             others = sorted(((k, rmsd(xo, mm["xyz"])) for k, mm in mins.items()), key=lambda t: t[1])
-            same = abs(dE) <= SAME_E_KJ and dR <= SAME_RMSD_A and not r.imaginary
+            e_ok, f_ok, r_ok = abs(dE) <= SAME_E_KJ, not r.imaginary, dR <= SAME_RMSD_A
+            if e_ok and f_ok and r_ok:
+                outcome, verdict = "reaches the same minimum", "accepted with a note"
+            elif e_ok and f_ok:
+                outcome, verdict = "same energy, no imaginary mode, RMSD above the limit (loosely bound complex?)", "decision"
+            else:
+                outcome, verdict = "reaches a DIFFERENT structure", "decision"
             res = {"needed": True, "minimum": n["minimum"], "end_above_min_kJ": n["end_above_min_kJ"],
-                   "end_rmsd_A": n["rmsd_A"], "opt_E_minus_min_kJ": dE, "opt_rmsd_to_min_A": dR,
-                   "opt_imaginary_cm": r.imaginary, "nearest_minima_after_opt": others,
-                   "outcome": "reaches the same minimum" if same else "reaches a DIFFERENT structure",
-                   "verdict": "accepted with a note" if same else "decision"}
+                   "end_rmsd_A": n["rmsd_A"], "jobs": jobs, "final_job": last, "opt_E_minus_min_kJ": dE,
+                   "opt_rmsd_to_min_A": dR, "opt_imaginary_cm": r.imaginary, "nearest_minima_after_opt": others,
+                   "energy_ok": e_ok, "frequencies_ok": f_ok, "rmsd_ok": r_ok, "outcome": outcome, "verdict": verdict}
         out["sides"][d] = res
     out["verdict"] = ("decision" if any(s.get("verdict") == "decision" for s in out["sides"].values())
                       else "ok")

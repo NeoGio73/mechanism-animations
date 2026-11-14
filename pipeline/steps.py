@@ -104,6 +104,12 @@ class Reaction:
         return sum((1 if b["role"] == "breaks" else -1) * g.distance(*b["atoms"])
                    for b in self.key_bonds(g.symbols) if b["role"] in ("forms", "breaks"))
 
+    def ts_stem(self) -> Path:
+        """The TS job stem: 01_stationary/ts/ts in the M06-2X folders (pipeline/stationary_m062x.py),
+        01_ts/ts/ts in the older ones."""
+        p = self.root / "01_stationary/ts/ts"
+        return p if Path(f"{p}.xyz").exists() else self.root / "01_ts/ts/ts"
+
 
 def level_name(method: str) -> str:
     """'B3LYP D3BJ ma-def2-SVP def2/J RIJCOSX TightSCF' → 'B3LYP-D3(BJ)/ma-def2-SVP'"""
@@ -242,7 +248,7 @@ def _accept_ts(rx: Reaction, g: Geometry, out: dict, hess_path: Path | None = No
         if ref and np.sign(x["stretch_rate"]) != want:
             reasons.append(f"{x['bond']} moves the wrong way in the mode ({x['role']})")
     if "dominant_atom" in cfg:
-        h = orca.read_hess(hess_path or rx.root / "01_ts/ts/ts.hess")
+        h = orca.read_hess(hess_path or Path(f"{rx.ts_stem()}.hess"))
         v = h["modes"][:, int(np.argmin(h["freqs"]))].reshape(-1, 3)
         share = np.linalg.norm(v, axis=1) ** 2 / (v ** 2).sum()
         m["atom_shares"] = {f"{g.symbols[i]}{i}": round(float(share[i]), 3)
@@ -657,7 +663,7 @@ STD_STATE_KJ = RT_KJ * np.log(24.4654)      # 1 atm → 1 mol/L, per species (7.
 
 def _stationary_points(rx: Reaction) -> dict:
     """name -> (xyz, charge, mult) for every stationary point used in the energetics."""
-    pts = {"ts": (rx.root / "01_ts/ts/ts.xyz", rx.cfg["charge"], rx.cfg["mult"])}
+    pts = {"ts": (Path(f"{rx.ts_stem()}.xyz"), rx.cfg["charge"], rx.cfg["mult"])}
     ep = _read_json(rx.root / "02_irc/endpoints.json")
     for label in ("reactant_complex", "product_complex"):
         pts[label] = (rx.root / ep[label]["xyz"], rx.cfg["charge"], rx.cfg["mult"])
@@ -1113,6 +1119,60 @@ def profile_levels(rx: Reaction) -> None:
     plt.close(fig)
 
 
-STEPS = {"profile_levels": profile_levels, "fragments": fragments, "ts": ts, "irc": irc, "endpoints": endpoints,
+def from_stationary(rx: Reaction) -> None:
+    """M06-2X folders (2026-11-14): the TS and minima were optimized by pipeline/stationary_m062x.py into
+    01_stationary/, and the path is the production true IRC (pipeline/true_irc_prod.py). This step writes
+    the summary files the later steps read, without running any job:
+      01_ts/ts.json         the TS job's energies and the TS acceptance test (accept_ts_stem)
+      02_irc/endpoints.json the optimized minimum nearest (RMSD after alignment) to each end of the joined
+                            path; the reactant side is the end with the smaller progress, as in `endpoints`
+    The path ends themselves are checked against these minima by pipeline/end_check.py."""
+    from .path_angles import _minima, rmsd
+    stem = rx.ts_stem()
+    if stem.parent.parent.name != "01_stationary":
+        raise RuntimeError("no 01_stationary/ts in this folder; use the ts and endpoints steps")
+    r = orca.parse(stem.parent, "ts", float("nan"))
+    if not r.ok:
+        raise orca.OrcaError(f"{stem}.out did not end normally")
+    gts = read_xyz(Path(f"{stem}.xyz"))
+    out = accept_ts_stem(rx, stem)
+    d_nu, d_lg = rx.bonds(gts)
+    out.update({"E_eh": r.energy_eh, "G_eh": r.gibbs_eh, "d_nu_center_A": d_nu, "d_center_lg_A": d_lg,
+                "angle_nu_center_lg_deg": gts.angle(rx.key("nucleophile"), rx.key("center"), rx.key("leaving_group")),
+                "source": "01_stationary/ts (pipeline/stationary_m062x.py)"})
+    if not out.get("accepted"):
+        raise orca.OrcaError(f"01_stationary TS fails the acceptance test: {out.get('reasons')}")
+    _write_json(rx.d("01_ts") / "ts.json", out)
+
+    wd = rx.root / "02_irc"
+    ends = {e: read_xyz(wd / f"irc_IRC_{e}.xyz") for e in ("F", "B")}
+    reactant_end = min(ends, key=lambda e: rx.progress(ends[e]))
+    mins = _minima(rx.root)
+    js = _read_json(Path(__file__).resolve().parents[1] / "docs/stationary_m062x.json")
+    ep = {}
+    for end, g in ends.items():
+        label = "reactant_complex" if end == reactant_end else "product_complex"
+        near = min(mins, key=lambda m: rmsd(np.asarray(g.coords), m["xyz"]))
+        v = next(x for x in js.values() if x["kind"] == "min" and x["name"] == near["name"]
+                 and x["folder"].split("/")[0] == rx.root.name)
+        rel = f"01_stationary/{near['name']}/{v['job']}.xyz"
+        go = read_xyz(rx.root / rel)
+        d_nu2, d_lg2 = rx.bonds(go)
+        ep[label] = {"irc_end": end, "minimum": near["name"], "E_eh": v["E_eh"], "G_eh": v["G_eh"],
+                     "imaginary_cm": v["imaginary_cm"], "xyz": rel,
+                     "end_rmsd_to_minimum_A": rmsd(np.asarray(g.coords), near["xyz"]),
+                     "bonds_A": {b["label"]: go.distance(*b["atoms"]) for b in rx.key_bonds(go.symbols)},
+                     "d_nu_center_A": d_nu2, "d_center_lg_A": d_lg2,
+                     "source": "01_stationary minimum nearest to this path end (pipeline/stationary_m062x.py)"}
+    if set(ep) != {"reactant_complex", "product_complex"}:
+        raise orca.OrcaError(f"path ends do not give one reactant and one product side: {ep}")
+    _write_json(wd / "endpoints.json", ep)
+    rx.log.note("`01_ts/ts.json`, `02_irc/endpoints.json` written from 01_stationary (no job run): TS accepted; "
+                + "; ".join(f"{k} = {v['minimum']} (path end {v['irc_end']}, RMSD {v['end_rmsd_to_minimum_A']:.3f} Å)"
+                            for k, v in ep.items()))
+    print(json.dumps({"ts": {k: out[k] for k in ("E_eh", "G_eh", "imaginary_cm", "accepted")}, **ep}, indent=1))
+
+
+STEPS = {"profile_levels": profile_levels, "from_stationary": from_stationary, "fragments": fragments, "ts": ts, "irc": irc, "endpoints": endpoints,
          "singlepoints": singlepoints, "barriers": barriers, "profile": profile,
          "diagnostics": diagnostics, "path_singlepoints": path_singlepoints}

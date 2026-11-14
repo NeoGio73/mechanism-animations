@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import tomllib
+from pathlib import Path
 
 from .steps import Reaction, _read_json, level_name
 from .units import KJ_TO_KCAL, fmt_kj
@@ -341,7 +342,7 @@ def _ts_geometry(rx: Reaction, ts: dict) -> str:
 def _dihedral(rx: Reaction, atoms) -> float:
     import numpy as np
     from .geometry import read_xyz
-    p = read_xyz(rx.root / "01_ts/ts/ts.xyz").coords[list(atoms)]
+    p = read_xyz(Path(f"{rx.ts_stem()}.xyz")).coords[list(atoms)]
     b0, b1, b2 = p[0] - p[1], p[2] - p[1], p[3] - p[2]
     b1 /= np.linalg.norm(b1)
     v, w = b0 - np.dot(b0, b1) * b1, b2 - np.dot(b2, b1) * b1
