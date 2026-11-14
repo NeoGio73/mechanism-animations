@@ -63,18 +63,29 @@ def check(rx_root: Path) -> dict:
            "same_minimum": (f"|dE| <= {SAME_E_KJ} kJ/mol, no imaginary frequency, heavy-atom RMSD <= {SAME_RMSD_HEAVY_A} Å, "
                             f"each key distance within {SAME_KEY_A} Å (all-atom RMSD reported for information)"),
            "sides": {}}
+    mp = rx.cfg.get("mirror_path")
+    mpi = json.loads((rx.root / "02_irc/mirror_path.json").read_text(encoding="utf-8")) if mp else None
+    forced = ({"B": "backward", "F": "forward"}[mpi["bridged_side"]] if mp and mp.get("end_check_always") else None)
     for d, v in ang["sides"].items():
         n = (v.get("end") or {}).get("nearest")
-        if n is None or v["ended"] != "own stopping rule":
+        start = None
+        if d == forced:
+            # J. Picione, 2026-11-14: always check the bridged side's end point against the optimized bridged structure
+            sym, x = _xyz_frames(rx.root / "02_irc/irc_IRC_Full_trj.xyz")[mpi["bridged_index"]]
+            m = mins[mpi["reference"]]
+            n = {"minimum": mpi["reference"], "rmsd_A": mpi["end_rmsd_to_reference_A"],
+                 "end_above_min_kJ": mpi["end_energy_minus_reference_kJ"]}
+            start = (sym, x)
+        elif n is None or v["ended"] != "own stopping rule":
             out["sides"][d] = {"needed": False, "why": "no nearest minimum or not ended by the stopping rule"}
             continue
-        if n["end_above_min_kJ"] <= LIMIT_KJ:
+        elif n["end_above_min_kJ"] <= LIMIT_KJ:
             out["sides"][d] = {"needed": False, "end_above_min_kJ": n["end_above_min_kJ"], "minimum": n["minimum"]}
             continue
-        sym, x = _xyz_frames(wd / d / "path.xyz")[-1]
+        sym, x = start if start else _xyz_frames(wd / d / "path.xyz")[-1]
         jd = wd / "end_check" / d
         jd.mkdir(parents=True, exist_ok=True)
-        kw = _ref_opt_keyword(rx.root, n["minimum"])
+        kw = _ref_opt_keyword(rx.root, n["minimum"]) if (rx.root / "01_stationary" / n["minimum"]).exists() else "Opt"
         r = orca.run(jd, "opt", rx.inp(f"{kw} Freq", PGeom(sym, x, f"last frame of the {d} side"),
                                        blocks="%geom MaxIter 200 end"), rx.log,
                      note=f"end check: {kw} Freq from the last frame of the {d} side (as the reference minimum)")

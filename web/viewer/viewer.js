@@ -411,7 +411,9 @@ function update() {
   const eNote = ea.k === null ? '' : ` (not computed here; computed frame ${ea.k})`;
   const ds = keyBonds().map((b) => [b.label, pos[b.atoms[0]].distanceTo(pos[b.atoms[1]])]);
   $('readout').textContent =
-    `frame ${f} of ${N - 1}   s = ${interp(sArr, state.t).toFixed(2)} bohr·amu½\n` +
+    `frame ${f} of ${N - 1}   s = ${interp(sArr, state.t).toFixed(2)} bohr·amu½` +
+    (M.frames[f].source && M.frames[f].source.startsWith('mirror')
+      ? '   mirror image of the computed half, not an IRC point' : '') + '\n' +
     `E = ${E.toFixed(1)} kJ/mol (${(E / KCAL).toFixed(1)} kcal/mol)${eNote}\n` +
     ds.map(([l, d]) => `${l} ${d.toFixed(2)} Å`).join('   ');
   svg.setAttribute('aria-valuemax', N - 1);

@@ -279,6 +279,28 @@ All six reactions, on the working-level production path:
 - No interpolation: curves show only computed points, and no value between computed frames is
   reported or used.
 
+### Tertiary hydride shift: computed half and mirror image (J. Picione, plan 2026-11-12, confirmed 2026-11-14)
+
+2,3-dimethyl-2-butyl cation, M06-2X, DCM. In DCM the C₂-symmetric bridged structure lies only 0.012 kJ/mol
+below the TS. That is below the SCF noise floor (0.034 kJ/mol), so the bridged side of the IRC is
+noise-limited.
+
+At the join (`pipeline/mirror_path.py`):
+- The bridged side ends at its frame closest (RMSD) to the optimized bridged structure. That reference is
+  `bridged_c2`, the DCM level-test structure: C2–H 1.3207 Å, C3–H 1.3202 Å, all frequencies real.
+- If the side carries on past it toward the other open cation, by more than 0.05 Å in C3–H − C2–H, those
+  frames are not used as IRC points.
+- The second half is the mirror image of the computed half under the C2 ⇄ C3 swap. The reference is
+  symmetric under the swap to 0.0002 Å. Every mirror frame is labelled as such: "frame_source" in
+  `irc_path.json`, "source" in the viewer data, the viewer readout, and the card.
+- The energy span of the bridged side, from the TS to its end, is reported against the noise floor.
+- The end check always runs on that side, from its end point against `bridged_c2`.
+
+Correction (2026-11-14): the M06-2X stationary point stored as "bridged"
+(`01_stationary/bridged`) is not the bridged structure. Optimized from the bridged side, it fell back to the
+open cation (C2–H 2.086 Å, C3–H 1.102 Å, 0.03 kJ/mol from it). It is marked not accepted in
+`docs/stationary_m062x.json`, and `bridged_c2` is the reference.
+
 ### Secondary hydride shift: key bonds (accepted by J. Picione, 2026-11-13)
 
 3-methyl-2-butyl cation at M06-2X: the TS is the 92i cm⁻¹ C2–C3 rotation TS of the eclipsed

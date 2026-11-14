@@ -179,7 +179,9 @@ def join(rx_root: Path) -> dict:
     sides = {}
     for d, tag in (("forward", "F"), ("backward", "B")):
         js = json.loads((wd / "true_irc" / d / "path.json").read_text(encoding="utf-8"))
-        if js["ended"] != "own stopping rule":
+        acc = wd / "true_irc" / d / "accepted.json"       # a side accepted by J. Picione's decision, with its note
+        js["accepted"] = json.loads(acc.read_text(encoding="utf-8")) if acc.exists() else None
+        if js["ended"] != "own stopping rule" and not js["accepted"]:
             raise RuntimeError(f"{d} side ended '{js['ended']}': incomplete, nothing joined")
         fr = read_xyz_frames(wd / "true_irc" / d / "path.xyz")
         x0 = np.asarray(ts.coords)
@@ -195,14 +197,37 @@ def join(rx_root: Path) -> dict:
         "".join(g.to_xyz(f"IRC frame {k} E {e:.12f}") for k, (g, e) in enumerate(zip(frames, E))))
     fb[-1].write(wd / "irc_IRC_B.xyz", f"IRC B end E {eb[-1]:.12f}")
     ff[-1].write(wd / "irc_IRC_F.xyz", f"IRC F end E {ef[-1]:.12f}")
-    stops = {t: {"by": "rule", "last_step": s[2]["own_stop"]["stop_frame"],
-                 "last_event_step": s[2]["own_stop"]["last_event_frame"]} for t, s in sides.items()}
+    stops = {t: ({"by": "rule", "last_step": s[2]["own_stop"]["stop_frame"],
+                  "last_event_step": s[2]["own_stop"]["last_event_frame"]} if s[2]["own_stop"] else
+                 {"by": f"accepted: {s[2]['accepted']['decision']}", "last_step": len(s[0]), "ended": s[2]["ended"],
+                  "note": s[2]["accepted"]["card_note"]}) for t, s in sides.items()}
     _write_json(wd / "irc_path.json", {
         "energies_eh": E, "ts_index": len(fb), "n_backward": len(fb), "n_forward": len(ff), "stops": stops,
         "method": METHOD, "ts_source": "01_stationary/ts/ts",
         "note": "frames = backward (reversed) + TS + forward; energies from the true IRC (ORCA EnGrad at the working level)"})
     rx.log.note(f"`02_irc/irc_IRC_Full_trj.xyz`: true IRC joined, {len(frames)} frames (backward {len(fb)} + TS + "
-                f"forward {len(ff)}), both sides ended by the stopping rule")
+                f"forward {len(ff)}), " + "; ".join(f"{t}: {v['by']}" for t, v in stops.items()))
+    if rx.cfg.get("mirror_path"):
+        # degenerate rearrangement (J. Picione, 2026-11-14): computed half to the bridged structure + its mirror image
+        from .mirror_path import build
+        m = build(rx, fb, eb, ff, ef, ts, e_ts)
+        frames, E, info = m["frames"], m["energies"], m["info"]
+        (wd / "irc_IRC_Full_trj.xyz").write_text(
+            "".join(g.to_xyz(f"frame {k} E {e:.12f} {s}") for k, (g, e, s) in enumerate(zip(frames, E, m["frame_source"]))))
+        frames[0].write(wd / "irc_IRC_B.xyz", f"path start (computed) E {E[0]:.12f}")
+        frames[-1].write(wd / "irc_IRC_F.xyz", f"path end (mirror image) E {E[-1]:.12f}")
+        _write_json(wd / "irc_path.json", {
+            "energies_eh": E, "ts_index": info["ts_index"], "stops": stops, "method": METHOD,
+            "ts_source": "01_stationary/ts/ts", "frame_source": m["frame_source"], "mirror_path": info,
+            "note": ("computed IRC from the open cation through the TS to the bridged structure, then the mirror image "
+                     "(C2⇄C3 swap) of those frames back out to the other open cation; mirror frames are not IRC points")})
+        _write_json(wd / "mirror_path.json", info)
+        rx.log.note(f"`02_irc/mirror_path.json`: path = computed half ({info['n_computed']} frames, TS to the bridged structure "
+                    f"at frame {info['bridged_index']}) + mirror image ({info['n_mirror']} frames, C2⇄C3 swap). Bridged side: "
+                    f"end {info['end_rmsd_to_reference_A']:.3f} Å from {info['reference']}, "
+                    f"{'DRIFTED past it' if info['drifted_past_reference'] else 'no drift past it'} "
+                    f"({info['frames_beyond_end_not_used']} frames beyond the end not used); energy span TS to end "
+                    f"{info['energy_span_TS_to_end_kJ']:.4f} kJ/mol against the SCF noise floor {info['noise_floor_kJ']} kJ/mol.")
     # angle check on every production path (J. Picione, 2026-11-13)
     from .path_angles import check
     a = check(rx.root)

@@ -1161,8 +1161,9 @@ def from_stationary(rx: Reaction) -> None:
         label = "reactant_complex" if end == reactant_end else "product_complex"
         near = min(mins, key=lambda m: rmsd(np.asarray(g.coords), m["xyz"]))
         v = next(x for x in js.values() if x["kind"] == "min" and x["name"] == near["name"]
-                 and x["folder"].split("/")[0] == rx.root.name)
-        rel = f"01_stationary/{near['name']}/{v['job']}.xyz"
+                 and x.get("reaction_folder", x["folder"].split("/")[0]) == rx.root.name)
+        import os
+        rel = Path(os.path.relpath(rx.root.parent / v["folder"] / f"{v['job']}.xyz", rx.root)).as_posix()
         go = read_xyz(rx.root / rel)
         d_nu2, d_lg2 = rx.bonds(go)
         ep[label] = {"irc_end": end, "minimum": near["name"], "E_eh": v["E_eh"], "G_eh": v["G_eh"],

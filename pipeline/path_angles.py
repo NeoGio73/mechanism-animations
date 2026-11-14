@@ -87,7 +87,8 @@ def _minima(rx_root: Path) -> list[dict]:
     js = json.loads((ROOT / "docs/stationary_m062x.json").read_text(encoding="utf-8"))
     out = []
     for v in js.values():
-        if v.get("kind") == "min" and v["folder"].split("/")[0] == rx_root.name and v.get("accepted"):
+        owner = v.get("reaction_folder", v["folder"].split("/")[0])   # a reference kept in another folder names its reaction
+        if v.get("kind") == "min" and owner == rx_root.name and v.get("accepted"):
             f = ROOT / "reactions" / v["folder"] / f"{v['job']}.xyz"
             out.append({"name": v["name"], "E_eh": v["E_eh"], "xyz": _xyz_frames(f)[-1][1]})
     return out

@@ -168,6 +168,14 @@ def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) ->
     hdr = csv[0].split(",")
     rows = [dict(zip(hdr, ln.split(","))) for ln in csv[1:]]
     meta = _read_json(rx.root / "02_irc" / "irc_meta.json")
+    # computed / mirror-image labels of a degenerate rearrangement (irc_path.json "frame_source"), in the
+    # order of irc_full_trj.xyz (the profile step may have reversed the joined path)
+    ipj = rx.root / "02_irc" / "irc_path.json"
+    src = _read_json(ipj).get("frame_source") if ipj.exists() else None
+    if src:
+        first = read_xyz_frames(rx.root / "02_irc" / "irc_IRC_Full_trj.xyz")[0]
+        if np.max(np.abs(np.asarray(first.coords) - np.asarray(frames[0].coords))) > 1e-6:
+            src = src[::-1]
     # IRC points flagged by `profile` (above the TS right next to it) are not displayed
     excluded = {e["frame"] for e in meta.get("display_excluded_frames", [])}
     keep = [k for k in range(len(frames)) if k not in excluded]
@@ -273,7 +281,11 @@ def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) ->
         "E_separated_products_kJ": meta["E_separated_products_kJ"],
         "frames": [{"irc_frame": k, "s": float(rows[k]["s_bohr_amu05"]),
                     "E_kJ": float(rows[k]["E_kJ_per_mol"]),
+                    **({"source": src[k]} if src else {}),
                     "xyz": np.round(frames[k].coords, 4).tolist()} for k in keep],
+        # degenerate rearrangement: which frames are computed and which are the mirror image (J. Picione, 2026-11-14)
+        "frame_source_note": ("frames labelled 'mirror image' are the computed half reflected by the C2⇄C3 swap, "
+                              "not IRC points") if src else None,
         "curves": (curves := _curves(rx, rows, meta, keep)),
         "default_curve": default_curve(rx, curves),
         "symbols": frames[0].symbols,
