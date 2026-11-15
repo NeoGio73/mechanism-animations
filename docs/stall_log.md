@@ -1,0 +1,1 @@
+﻿- 2026-11-15 14:14  watchdog restarted with the planned pause for reserved windows (J. Picione, 2026-11-15)

@@ -82,9 +82,44 @@ def run(workdir: Path, name: str, inp: str, log: "RunLog", note: str = "",
         what = str(workdir.relative_to(Path(__file__).resolve().parents[1] / "reactions")).replace("\\", "/")
     except ValueError:
         what = workdir.name
-    rid = cores.acquire(*cores.request(inp), what=f"{what}/{name}", folder=str(workdir.resolve()), front=front)
-    print(f"[run] {workdir.name}/{name} ...", flush=True)
-    t0 = time.time()
+    while True:
+        rid = cores.acquire(*cores.request(inp), what=f"{what}/{name}", folder=str(workdir.resolve()), front=front)
+        print(f"[run] {workdir.name}/{name} ...", flush=True)
+        t0 = time.time()
+        reason = _run_orca(workdir, inp_path, out_path, env, rid, watch, poll_s)
+        pm = cores.preempt_marker(rid)
+        if not pm.exists():
+            break
+        # stopped before a reserved window (J. Picione, 2026-11-15): not a result; the stopped run moves aside,
+        # and the job queues again (behind the window) and reruns after it in a clean folder
+        pm.unlink(missing_ok=True)
+        if "ORCA TERMINATED NORMALLY" in out_path.read_text(errors="replace"):
+            break                                   # it finished just before it was stopped: keep it
+        for k in range(60):                         # ORCA's MPI children may hold its files for a moment
+            try:
+                dest = _move_crashed_run(workdir, name, out_path, stop_path, prefix="preempted")
+                break
+            except PermissionError:
+                if k == 59:
+                    raise
+                time.sleep(2)
+        log.note(f"`{what}/{name}`: stopped before the reserved window (not a result; files in {dest}); "
+                 f"queued again, rerun after the window in a clean folder")
+        inp_path.write_text(inp)
+    res = parse(workdir, name, wall_s=time.time() - t0)
+    if reason:
+        res.stopped = reason
+        stop_path.write_text(reason + "\n", encoding="utf-8")
+        note = f"{note}; stopped early: {reason}" if note else f"stopped early: {reason}"
+    log.add(res, inp.splitlines()[0], note)
+    print(f"[done] {workdir.name}/{name}: ok={res.ok} wall={res.wall_s:.0f} s "
+          f"E={res.energy_eh}", flush=True)
+    return res
+
+
+def _run_orca(workdir: Path, inp_path: Path, out_path: Path, env: dict, rid: str, watch, poll_s: float) -> str | None:
+    """One ORCA run on cores already held (rid); releases them at the end. Returns the watch reason when a
+    watch rule ended the job, else None."""
     reason = None
     try:
         with open(out_path, "w") as fh:
@@ -105,28 +140,21 @@ def run(workdir: Path, name: str, inp: str, log: "RunLog", note: str = "",
     finally:
         done = "ORCA TERMINATED NORMALLY" in out_path.read_text(errors="replace") if out_path.exists() else False
         cores.release(rid, "" if done else "  (did not terminate normally)")
-    res = parse(workdir, name, wall_s=time.time() - t0)
-    if reason:
-        res.stopped = reason
-        stop_path.write_text(reason + "\n", encoding="utf-8")
-        note = f"{note}; stopped early: {reason}" if note else f"stopped early: {reason}"
-    log.add(res, inp.splitlines()[0], note)
-    print(f"[done] {workdir.name}/{name}: ok={res.ok} wall={res.wall_s:.0f} s "
-          f"E={res.energy_eh}", flush=True)
-    return res
+    return reason
 
 
-def _move_crashed_run(workdir: Path, name: str, out_path: Path, stop_path: Path) -> None:
+def _move_crashed_run(workdir: Path, name: str, out_path: Path, stop_path: Path,
+                      prefix: str = "crashed") -> str | None:
     """Clean-folder rule (J. Picione, 2026-11-11/12): a rerun after a crash must not start among the
     crashed run's files (ORCA would even take its .gbw as the starting guess). Jobs of one production
     chain may share the folder, so the layout stays; the crashed run's files (<name>.*, <name>_*, and
     the fixed-name *.tmp files, which only a crashed job leaves behind) move whole to
     crashed_<time>_<name>/."""
     if not out_path.exists() or stop_path.exists():
-        return
+        return None
     if "ORCA TERMINATED NORMALLY" in out_path.read_text(errors="replace"):
-        return
-    dest = workdir / f"crashed_{time.strftime('%H%M%S')}_{name}"
+        return None
+    dest = workdir / f"{prefix}_{time.strftime('%H%M%S')}_{name}"
     dest.mkdir()
     # other chain jobs with longer names (plus_min beside plus) keep their files
     longer = [q.stem for q in workdir.glob("*.inp") if q.stem != name and q.stem.startswith(name)]
@@ -135,7 +163,8 @@ def _move_crashed_run(workdir: Path, name: str, out_path: Path, stop_path: Path)
             continue
         if p.name.startswith(f"{name}.") or p.name.startswith(f"{name}_") or p.suffix == ".tmp":
             p.rename(dest / p.name)
-    print(f"[crashed earlier] {workdir.name}/{name}: earlier run moved to {dest.name}/", flush=True)
+    print(f"[{prefix} earlier] {workdir.name}/{name}: earlier run moved to {dest.name}/", flush=True)
+    return dest.name
 
 
 def parse(workdir: Path, name: str, wall_s: float) -> OrcaResult:

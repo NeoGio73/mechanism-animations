@@ -8,6 +8,10 @@ not imported). Every minute it reads the queue state file and the running proces
 On a stall it appends one line to docs/stall_log.md and creates docs/STALL_ACTIVE (read at the top of
 every report and before every time estimate). When jobs start again it appends a "cleared" line and
 removes the marker. Usage: python -m pipeline.stall_watchdog [--once]
+
+Planned pause (J. Picione, 2026-11-15): from the start of a reserved window's reservation
+(docs/level_test_queue/window.json) until it is released, waiting jobs are expected, so no stall is raised;
+the pause and its end go to the stall log. After the release the 10-minute limit counts from the release.
 """
 from __future__ import annotations
 
@@ -22,7 +26,7 @@ import psutil
 
 ROOT = Path(__file__).resolve().parents[1]
 Q = ROOT / "docs/level_test_queue"
-STATE, QLOG = Q / "allocation.json", Q / "allocation.log"
+STATE, QLOG, WINDOW = Q / "allocation.json", Q / "allocation.log", Q / "window.json"
 LOG, MARK = ROOT / "docs/stall_log.md", ROOT / "docs/STALL_ACTIVE"
 LIMIT_S = 600
 CORES = 8
@@ -51,6 +55,20 @@ def last_orca_start() -> float:
     return t
 
 
+def planned_pause() -> tuple[bool, float]:
+    """(in a planned pause now, release time of the last window or 0)."""
+    try:
+        st = json.loads(WINDOW.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False, 0.0
+    rel = st.get("released_at")
+    rel_t = datetime.strptime(rel, "%Y-%m-%d %H:%M:%S").timestamp() if rel else 0.0
+    if st.get("status") == "released":
+        return False, rel_t
+    t0 = datetime.strptime(st["reservation_from"], "%Y-%m-%d %H:%M").timestamp()
+    return (st.get("status") != "planned" or time.time() >= t0), rel_t
+
+
 def check() -> dict:
     try:
         s = json.loads(STATE.read_text(encoding="utf-8"))
@@ -61,10 +79,11 @@ def check() -> dict:
     waiting = [w for w in s.get("waiting", []) if alive(w["pid"])]
     free = CORES - sum(h["cores"] for h in held)
     fits = [w for w in waiting if w["cores"] <= free]
-    last = max(last_queue_start(), last_orca_start())
+    pause, rel_t = planned_pause()
+    last = max(last_queue_start(), last_orca_start(), rel_t)
     idle = time.time() - last if last else float("inf")
-    stalled = bool(waiting) and bool(fits) and idle > LIMIT_S
-    return {"ok": not stalled, "waiting": len(waiting), "free": free, "idle_s": idle, "last": last,
+    stalled = bool(waiting) and bool(fits) and idle > LIMIT_S and not pause
+    return {"ok": not stalled, "pause": pause, "waiting": len(waiting), "free": free, "idle_s": idle, "last": last,
             "head": waiting[0]["what"] if waiting else None, "lane": waiting[0]["lane"] if waiting else None}
 
 
@@ -78,10 +97,18 @@ def note(line: str) -> None:
 
 def main(once: bool = False) -> None:
     active = MARK.exists()
+    in_pause = None
     while True:
         try:
             r = check()
             now = time.strftime("%Y-%m-%d %H:%M")
+            if r.get("pause") is not None and r["pause"] != in_pause:
+                if r["pause"]:
+                    note(f"- {now}  planned pause (reserved window): no stall alarm until the window is released")
+                elif in_pause:
+                    note(f"- {now}  planned pause over (window released): stall check active again, "
+                         f"10-minute limit counted from the release")
+                in_pause = r["pause"]
             if r["ok"] is False and not active:
                 last = time.strftime("%H:%M", time.localtime(r["last"])) if r["last"] else "never"
                 line = (f"- {now}  STALL: {r['waiting']} job(s) queued, {r['free']} of {CORES} cores free, "

@@ -288,18 +288,78 @@ def resume_after(marker: str, paused_json: str, n_cores: int, mem_mb: int) -> No
 WINDOW = Q / "window.json"
 
 
-def window(start: str, cores_n: int, mem_mb: int, who: str) -> None:
+ORCA_PROC_PREFIXES = ("orca", "mpiexec", "smpd")
+PREEMPT_AWARE_SINCE = time.mktime(time.strptime("2026-11-15 14:30", "%Y-%m-%d %H:%M"))
+
+
+def preempt_marker(rid: str) -> Path:
+    """Written for a held job stopped before a window; pipeline.orca.run sees it, moves the stopped run aside
+    and queues the job again (it then waits behind the window and reruns after it in a clean folder)."""
+    return Q / "preempted" / f"{rid}.txt"
+
+
+def _preempt_running(who: str) -> list[dict]:
+    """J. Picione, 2026-11-15: the machine must be clear when the window starts. Stop the ORCA processes of every
+    job still running; each job goes back in the queue and reruns after the window in a clean folder."""
+    import subprocess
+    with _locked():
+        s = _read()
+        held = [h for h in s["held"] if h.get("lane") != "window"]
+    out = []
+    for h in held:
+        m = preempt_marker(h["id"])
+        m.parent.mkdir(exist_ok=True)
+        m.write_text(f"stopped {time.strftime('%Y-%m-%d %H:%M:%S')} before the window ({who})\n", encoding="utf-8")
+        killed, old = [], False
+        try:
+            p = psutil.Process(h["pid"])
+            old = p.create_time() < PREEMPT_AWARE_SINCE
+            kids = [c for c in p.children(recursive=True)
+                    if (c.name() or "").lower().startswith(ORCA_PROC_PREFIXES)]
+            top = [c for c in kids if c.ppid() == h["pid"]] or kids
+            for c in top:
+                subprocess.run(["taskkill", "/F", "/T", "/PID", str(c.pid)], capture_output=True)
+                killed.append(c.pid)
+        except psutil.Error:
+            pass
+        note = ("back in the queue; reruns after the window in a clean folder" if not old else
+                "its lane started before this code and cannot requeue the job: the lane may stop, and the restart "
+                "guard restarts it after the window")
+        _log(f"preempted {h['lane']}: {h['what']}  (still running at {time.strftime('%H:%M')} before the window; "
+             f"ORCA processes ended: {killed or 'none found'}); {note}")
+        out.append({"lane": h["lane"], "what": h["what"], "orca_pids": killed, "lane_predates_requeue": old})
+    return out
+
+
+def window(start: str, cores_n: int, mem_mb: int, who: str, clear_by: str | None = None) -> None:
     """A reserved window for other work on the machine (J. Picione, 2026-11-11: Unity from about 04:00,
     up to 1 h). From `start` (YYYY-mm-dd HH:MM, two hours before the window) a reservation of
     cores_n / mem_mb goes to the head of the queue. No job starts while it waits; once it is held,
     everything else together stays within (CORES − cores_n) / (MEM_MB − mem_mb). Running jobs are
     never stopped or paused. The reservation is held by this process until the release file
     window_release appears (J. Picione says he is done); then the full budget returns.
-    The reservation is data in the ledger, so lanes started before this code respect it too."""
+    The reservation is data in the ledger, so lanes started before this code respect it too.
+    clear_by (YYYY-mm-dd HH:MM; J. Picione, 2026-11-15): the machine must be clear then. If the window is not
+    yet granted 5 minutes before it, every job still running is stopped and queued again (_preempt_running)."""
+    import threading
     t0 = time.mktime(time.strptime(start, "%Y-%m-%d %H:%M"))
     st = {"who": who, "reservation_from": start, "cores": cores_n, "mem_mb": mem_mb,
           "left_for_jobs": {"cores": CORES - cores_n, "mem_mb": MEM_MB - mem_mb},
           "status": "planned", "pid": os.getpid()}
+    if clear_by:
+        tc = time.mktime(time.strptime(clear_by, "%Y-%m-%d %H:%M")) - 300
+        st["clear_by"] = clear_by
+        st["preempt_at"] = time.strftime("%Y-%m-%d %H:%M", time.localtime(tc))
+
+        def _pre():
+            while time.time() < tc:
+                if st["status"] == "granted":
+                    return
+                time.sleep(5)
+            if st["status"] != "granted":
+                st["preempted"] = _preempt_running(who)
+                WINDOW.write_text(json.dumps(st, indent=1), encoding="utf-8")
+        threading.Thread(target=_pre, daemon=True).start()
     WINDOW.write_text(json.dumps(st, indent=1), encoding="utf-8")
     _log(f"window planned: {who}; from {start} no job starts unless all jobs together stay within "
          f"{CORES - cores_n} cores, {MEM_MB - mem_mb} MB")
@@ -435,6 +495,6 @@ if __name__ == "__main__":
     elif sys.argv[1] == "guard":
         guard(sys.argv[2], sys.argv[3], [int(x) for x in sys.argv[4].split(",") if x])
     elif sys.argv[1] == "window":
-        window(sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), sys.argv[5])
+        window(sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), sys.argv[5], sys.argv[6] if len(sys.argv) > 6 else None)
     elif sys.argv[1] == "resume_after":
         resume_after(sys.argv[2], sys.argv[3], int(sys.argv[4]), int(sys.argv[5]))

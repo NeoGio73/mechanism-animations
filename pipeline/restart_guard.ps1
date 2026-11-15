@@ -6,13 +6,17 @@
 #     folder (no held entry in the core ledger with a live process, no orphaned ORCA/MPI process);
 #  3. restarts go through the core queue: the restarted lanes start every ORCA job through pipeline/cores.py as before;
 #  4. every stop is logged in docs/guard_log.md: time, processes running before and after, Git Bash runtime version;
+# Planned pause (J. Picione, 2026-11-15): from the start of a reserved window's reservation (window.json) until it
+# is released, a stop is logged but not restarted and not counted toward the two-stops-per-hour limit; when the
+# window is released, every lane without a process is restarted (busy check as always), again not counted.
 #  5. it never changes a setting, never deletes anything, never reports by itself. Killed sides (incomplete, not
 #     results) are moved to 02_irc/attempts/killed_<time>/ with WHY.txt, because a side starts only in a clean folder.
 # Usage (PowerShell): & ([scriptblock]::Create((Get-Content -Raw pipeline\restart_guard.ps1))) [-DryRun] [-Root <dir>]
 param([switch]$DryRun, [string]$Root = 'C:\Users\giova\Mechanism Animations', [switch]$SelfTest)
 $ErrorActionPreference = 'Continue'
 $Log = "$Root\docs\guard_log.md"; $Prod = "$Root\docs\production_true_irc.log"; $Hold = "$Root\docs\GUARD_HOLD"
-$Until = Get-Date '2026-11-20 12:00'; $Poll = 10
+$Until = Get-Date '2026-11-25 12:00'; $Poll = 10
+$Win = "$Root\docs\level_test_queue\window.json"
 $Bash = 'C:\Program Files\Git\usr\bin\bash.exe'
 $Pre = "export PATH=/usr/bin:/bin:`$PATH; cd '/c/Users/giova/Mechanism Animations' && "
 $Chain = @('hshift_2_3_dimethyl_2_butyl_m062x', 'hshift_3_methyl_2_butyl_m062x', 'e2_ethoxide_2_bromopropane_m062x')
@@ -22,6 +26,11 @@ $Lanes = @(
 # Self-test (-SelfTest -Root <scratch folder>): one dummy lane (a Git Bash 'sleep'), 2 s polls, 3 minutes
 if ($SelfTest) { $Lanes = @(@{ key = 'test'; name = 'self-test lane'; match = 'guard_selftest_marker' }); $Poll = 2; $Until = (Get-Date).AddMinutes(3) }
 
+function InPause {
+  if (-not (Test-Path $Win)) { return $false }
+  try { $w = Get-Content $Win -Raw | ConvertFrom-Json } catch { return $false }
+  if ($w.status -eq 'released') { return $false }
+  return ($w.status -ne 'planned') -or ((Get-Date) -ge (Get-Date $w.reservation_from)) }
 function Now { (Get-Date).ToString('yyyy-MM-dd HH:mm:ss') }
 function W([string]$t) { if ($DryRun) { $t } else { Add-Content -Path $Log -Value $t -Encoding UTF8 } }
 function Snap { $h = @{}; Get-CimInstance Win32_Process | ForEach-Object { $h["$($_.ProcessId)|$($_.CreationDate.Ticks)"] = $_ }; $h }
@@ -53,35 +62,43 @@ function Start-Lane($lane) {
   $r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $c; CurrentDirectory = $Root }
   "return code $($r.ReturnValue), pid $($r.ProcessId)" }
 
-$prev = Snap; $prevT = Now; $alive = @{}; $stops = @{}; $pend = @{}; $held = @{}; $done = @{}; $waitNote = @{}
+$prev = Snap; $prevT = Now; $wasPause = InPause; $alive = @{}; $stops = @{}; $pend = @{}; $held = @{}; $done = @{}; $waitNote = @{}
 W "`n## Guard started $(Now) (PowerShell pid $PID; until $($Until.ToString('yyyy-MM-dd HH:mm')); poll every $Poll s)"
 W "- Git Bash runtime: $(Runtime)"
 foreach ($l in $Lanes) { $n = @(LaneProcs $prev $l).Count; $alive[$l.key] = $n -gt 0; $stops[$l.key] = @(); W "- $($l.name): $n process(es) running" }
 W "- production chain, reactions not yet joined: $((Remaining) -join ', ')"
+W "- planned pause (reserved window) now: $(if ($wasPause) { 'yes' } else { 'no' })"
 if ($DryRun) { foreach ($rx in Remaining) { "busy check ${rx}: $((Busy $prev $rx) -join '; ')"; "archive check ${rx}: $((Archive $rx 'dryrun') -join ', ')" }; foreach ($l in $Lanes) { Start-Lane $l }; return }
 
 while ((Get-Date) -lt $Until) {
   Start-Sleep -Seconds $Poll
-  $cur = Snap; $t = Now
+  $cur = Snap; $t = Now; $pause = InPause
+  if ($pause -and -not $wasPause) { W "`n### $t planned pause (reserved window) begins: stops are logged, not restarted, not counted" }
+  if ($wasPause -and -not $pause) {
+    W "`n### $t planned pause over (window released): lanes without a process are restarted now, not counted"
+    foreach ($l in $Lanes) { if (-not $held[$l.key] -and -not $done[$l.key] -and @(LaneProcs $cur $l).Count -eq 0) { $pend[$l.key] = Get-Date; $waitNote[$l.key] = $null } } }
+  $wasPause = $pause
   foreach ($l in $Lanes) {
     $k = $l.key
     if ($held[$k] -or $done[$k]) { continue }
     if ($k -eq 'chain' -and @(Remaining).Count -eq 0) { $done[$k] = 1; W "`n### $t production chain finished: every reaction has a join line. Guard no longer watches it."; continue }
     if (@(LaneProcs $cur $l).Count -gt 0) { $alive[$k] = $true; continue }
     if ($alive[$k]) {
-      $alive[$k] = $false; $stops[$k] = @($stops[$k] | Where-Object { ((Get-Date) - $_).TotalMinutes -lt 60 }) + (Get-Date)
+      $alive[$k] = $false
+      if (-not $pause) { $stops[$k] = @($stops[$k] | Where-Object { ((Get-Date) - $_).TotalMinutes -lt 60 }) + (Get-Date) }
       $gone = @($prev.Keys | Where-Object { -not $cur.ContainsKey($_) } | ForEach-Object { $prev[$_] })
       $new = @($cur.Keys | Where-Object { -not $prev.ContainsKey($_) } | ForEach-Object { $cur[$_] })
-      W "`n### STOP $($l.name): found at $t; last seen running at $prevT"
+      W "`n### STOP $($l.name): found at $t; last seen running at $prevT$(if ($pause) { ' (during the planned pause: not counted, restarted after the window)' })"
       W "- Git Bash runtime: $(Runtime)"
       W "- lane processes at $prevT (now gone):"; $prev.Values | Where-Object { $_.Name -match '^(bash|python)\.exe$' -and "$($_.CommandLine)" -match $l.match } | ForEach-Object { W (Line $_) }
       W "- every process that ended between $prevT and ${t}:"; $gone | Sort-Object Name | ForEach-Object { W (Line $_) }
       W "- every process that started between $prevT and ${t}:"; $new | Sort-Object Name | ForEach-Object { W (Line $_) }
       W "- bash, python, ORCA, MPI, PowerShell, Claude and WMI host processes running at ${t}:"; $cur.Values | Where-Object { $_.Name -match '^(bash|python|orca|mpiexec|smpd|powershell|claude|WmiPrvSE)' } | Sort-Object Name | ForEach-Object { W (Line $_) }
-      if ($stops[$k].Count -ge 2) {
+      if (-not $pause -and $stops[$k].Count -ge 2) {
         $held[$k] = 1; $m = "$t $($l.name) stopped twice within one hour; not restarted. Waiting for J. Picione."
         Add-Content $Hold $m -Encoding UTF8; W "- HOLD: $m"; Add-Content $Prod "$t restart guard: $($l.name) stopped twice within one hour; not restarted, waiting for J. Picione" -Encoding UTF8; continue }
       $pend[$k] = Get-Date }
+    if ($pend[$k] -and $pause) { continue }
     if ($pend[$k]) {
       $rx = if ($k -eq 'chain') { @(Remaining)[0] } else { '' }
       $b = @(Busy $cur $rx)

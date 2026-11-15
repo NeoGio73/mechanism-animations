@@ -44,6 +44,27 @@ budget with the memory they actually hold. A lane is not paused when that would 
 28 GB or make Windows page; it is stopped and later rerun from scratch, and any job that does not end
 normally after a pause is rerun from scratch with no wall time reported.
 
+### Reserved windows for other work on the machine (J. Picione, 2026-11-11; additions 2026-11-15)
+
+A window (`python -m pipeline.cores window <reservation start> <cores> <MB> <who> [<clear by>]`) puts a
+reservation at the head of the queue from its reservation start: no new job starts, running jobs finish. It
+is held until J. Picione says he is done; then Claude creates `docs/level_test_queue/window_release`.
+
+Additions of 2026-11-15 (first used for the Unreal Engine block, Wed 2026-11-18 04:00–07:00, reserved from 03:00):
+- **Machine clear at the start:** with a clear-by time, any job still running 5 minutes before it (03:55) is
+  stopped. Its run moves aside as not a result (`preempted_<time>_<name>/`), the job goes back in the queue
+  behind the window, and it reruns after the window in a clean folder. Each stop is logged in the queue log
+  ("preempted …"), and `window.json` lists them and the cores other jobs held when the window was granted
+  (`others_at_grant`, must be 0). A lane started before this code (2026-11-15 14:30) cannot requeue its job;
+  it may stop, and the restart guard restarts it after the window. Tested in a scratch ledger
+  (`tests/test_window_preempt.py`).
+- **Planned pause:** from the reservation start until the release, the stall watchdog raises no stall alarm,
+  and the restart guard logs any stop but does not restart it or count it toward the two-stops-per-hour
+  limit. At the release, the queue lets waiting jobs start, and the guard restarts any lane without a
+  process (not counted). Nothing more is needed from J. Picione than saying he is done.
+- **Keep-awake:** runs until at least two days after the estimated last single point (set 2026-11-15:
+  until 2026-11-25 12:00).
+
 ### One ORCA job per folder, always (J. Picione, 2026-11-11)
 
 A job starts in a folder with no files left from a different job (one outside its own production
@@ -113,7 +134,7 @@ That is all. Restarting the computer has the same effect as steps 1–6.
 
 ### Restart guard (approved by J. Picione, 2026-11-15)
 
-**Why.** At 05:36 on 2026-11-15, every lane running under Git Bash stopped at once. The cause is not found. Keep-awake, which runs under PowerShell only, kept running. The guard therefore runs under PowerShell only. Like the lanes, it is started through WMI. It runs until 2026-11-20, 12:00. Code: `pipeline/restart_guard.ps1`, with the resume script `pipeline/resume_true_irc_prod.sh`.
+**Why.** At 05:36 on 2026-11-15, every lane running under Git Bash stopped at once. The cause is not found. Keep-awake, which runs under PowerShell only, kept running. The guard therefore runs under PowerShell only. Like the lanes, it is started through WMI. It runs until 2026-11-25, 12:00 (extended 2026-11-15 with the keep-awake; first end date 2026-11-20). Code: `pipeline/restart_guard.ps1`, with the resume script `pipeline/resume_true_irc_prod.sh`.
 
 **What it does.** Every 10 s it checks that the production chain and the stall watchdog each still have a process. When a lane has none:
 1. **Log the stop** in `docs/guard_log.md`:
@@ -140,6 +161,8 @@ That is all. Restarting the computer has the same effect as steps 1–6.
 **Tested on 2026-11-15** on a dummy Git Bash lane in a scratch folder:
 - first stop: logged and restarted;
 - second stop within the hour: logged, held, not restarted.
+- planned pause (second test, 14:12): a stop during the pause was logged and not restarted; at the
+  release the lane was restarted; the next two stops counted 1 and 2 (held), so the pause stop was not counted.
 
 The archive step was tested on a copy of the folder layout.
 
