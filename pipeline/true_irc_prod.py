@@ -48,6 +48,10 @@ def e_final(out: Path) -> float:
     return float(re.findall(r"FINAL SINGLE POINT ENERGY\s+(-?\d+\.\d+)", out.read_text(errors="replace"))[-1])
 
 
+class JobFailed(Exception):
+    """An ORCA job of the path did not end normally (crash or kill). The side is incomplete, never a result."""
+
+
 def run_side(rx_root: Path, direction: str, test: bool = False) -> dict:
     """test: 3 steps into 02_irc/smoketest/<direction> (checks the driver; never a result)."""
     from pysisyphus.calculators.Calculator import Calculator
@@ -81,7 +85,9 @@ def run_side(rx_root: Path, direction: str, test: bool = False) -> dict:
             r = orca.run(jd, "j", rx.inp(f"{kind} NoPop", g), rx.log,
                          note=("smoke test (not a result) " if test else "") + f"true IRC production {direction} {kind} {self.n - 1} (step {STEP})")
             if not r.ok:
-                raise orca.OrcaError(f"{jd} did not end normally")
+                # not a RuntimeError: pysisyphus's GonzalezSchlegel.step catches RuntimeError and reports "constrained
+                # search did not converge" (2026-11-15: a job killed by the app update was mislabelled that way)
+                raise JobFailed(f"ORCA job {jd.name} did not end normally")
             self.calls.append({"folder": jd.name, "kind": kind, "wall_s": r.wall_s})
             for f in jd.glob("*.tmp*"):
                 f.unlink()
@@ -136,7 +142,7 @@ def run_side(rx_root: Path, direction: str, test: bool = False) -> dict:
     t0, failure = time.time(), None
     try:
         irc.run()
-    except IntegratorFailure as e:
+    except (IntegratorFailure, JobFailed) as e:
         failure = str(e)
     if failure is None:
         C = [np.asarray(c) for c in getattr(irc, f"{direction}_coords")]
