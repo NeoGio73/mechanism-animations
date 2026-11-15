@@ -99,17 +99,49 @@ restarted or updated. Nothing was installed and no setting was changed to do thi
 | `orca_*_mpi.exe` (e.g. `orca_mdci_mpi.exe`, `orca_scf_mpi.exe`) | the parts of an ORCA calculation, one per core |
 | `mpiexec.exe`, `smpd.exe` | Microsoft MPI, which runs those parts in parallel |
 | `conhost.exe` | a hidden console window that belongs to each of the above |
-| `powershell.exe` (one, hidden) | keep-awake |
+| `powershell.exe` (two, hidden) | keep-awake, and the restart guard (below) |
 
 **To stop everything** (safe; nothing needs deleting afterwards):
 1. Open Task Manager (Ctrl + Shift + Esc) and choose the **Details** tab.
 2. Click the **Name** column so the list is sorted by name.
-3. End every **`bash.exe`** (right-click → **End task**). This stops new calculations from starting.
-4. End every **`python.exe`** the same way.
-5. End anything left whose name starts with **`orca`**, and every **`mpiexec.exe`** and **`smpd.exe`**.
+3. End every **`powershell.exe`** first (right-click → **End task**). This stops the restart guard, which would otherwise start the lanes again. It also stops keep-awake, which does no harm.
+4. End every **`bash.exe`**. This stops new calculations from starting.
+5. End every **`python.exe`** the same way.
+6. End anything left whose name starts with **`orca`**, and every **`mpiexec.exe`** and **`smpd.exe`**.
 
-That is all. Keep-awake (`powershell.exe`) can be left; it only keeps the computer awake and ends by
-itself on 2026-11-18. Restarting the computer has the same effect as steps 1–5.
+That is all. Restarting the computer has the same effect as steps 1–6.
+
+### Restart guard (approved by J. Picione, 2026-11-15)
+
+**Why.** At 05:36 on 2026-11-15, every lane running under Git Bash stopped at once. The cause is not found. Keep-awake, which runs under PowerShell only, kept running. The guard therefore runs under PowerShell only. Like the lanes, it is started through WMI. It runs until 2026-11-20, 12:00. Code: `pipeline/restart_guard.ps1`, with the resume script `pipeline/resume_true_irc_prod.sh`.
+
+**What it does.** Every 10 s it checks that the production chain and the stall watchdog each still have a process. When a lane has none:
+1. **Log the stop** in `docs/guard_log.md`:
+   - the time it was found and the time the lane was last seen running;
+   - the lane's processes;
+   - every process that ended or started in those 10 s;
+   - the bash, python, ORCA, MPI, PowerShell, Claude and WMI host processes still running;
+   - the Git Bash runtime version (`msys-2.0.dll` and git).
+2. **Limit:** if the same lane stops a second time within one hour, it is not restarted. The guard writes `docs/GUARD_HOLD`, logs a line in `docs/production_true_irc.log`, and waits for J. Picione.
+3. **Never a second copy:** before a restart, it checks that:
+   - none of the lane's processes is running;
+   - the core ledger has no live job in that reaction's folders;
+   - no orphaned ORCA or MPI process is running.
+   If any of these is still there, it waits. After 15 minutes it holds as in step 2.
+4. **Restart:**
+   - A side that did not finish is moved to `02_irc/attempts/killed_<time>/`, with WHY.txt saying it is not a result. A side starts only in a clean folder.
+   - A side that finished (`path.json` present) is kept.
+   - A reaction that already has a join line is skipped.
+   - The chain restarts through WMI with `resume_true_irc_prod.sh` and the same settings. Every ORCA job still goes through the core queue (`pipeline/cores.py`), as before.
+5. **Failed restart:** if a restart fails, the guard holds as in step 2.
+
+**What it never does:** change a setting, delete anything, or report by itself.
+
+**Tested on 2026-11-15** on a dummy Git Bash lane in a scratch folder:
+- first stop: logged and restarted;
+- second stop within the hour: logged, held, not restarted.
+
+The archive step was tested on a copy of the folder layout.
 
 **What stopping costs:**
 - A reaction path that was running is incomplete and is rerun from its start later. It is never used as a
