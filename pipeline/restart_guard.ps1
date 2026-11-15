@@ -19,7 +19,8 @@ $Until = Get-Date '2026-11-25 12:00'; $Poll = 10
 $Win = "$Root\docs\level_test_queue\window.json"
 $Bash = 'C:\Program Files\Git\usr\bin\bash.exe'
 $Pre = "export PATH=/usr/bin:/bin:`$PATH; cd '/c/Users/giova/Mechanism Animations' && "
-$Chain = @('hshift_2_3_dimethyl_2_butyl_m062x', 'hshift_3_methyl_2_butyl_m062x', 'e2_ethoxide_2_bromopropane_m062x')
+# order of work (2026-11-15): E2 before the rerun of the secondary hydride shift
+$Chain = @('hshift_2_3_dimethyl_2_butyl_m062x', 'e2_ethoxide_2_bromopropane_m062x', 'hshift_3_methyl_2_butyl_m062x')
 $Lanes = @(
   @{ key = 'chain'; name = 'production chain'; match = 'run_true_irc_prod\.sh|resume_true_irc_prod\.sh|pipeline\.true_irc_prod' },
   @{ key = 'watchdog'; name = 'stall watchdog'; match = 'pipeline\.stall_watchdog' })
@@ -36,7 +37,9 @@ function W([string]$t) { if ($DryRun) { $t } else { Add-Content -Path $Log -Valu
 function Snap { $h = @{}; Get-CimInstance Win32_Process | ForEach-Object { $h["$($_.ProcessId)|$($_.CreationDate.Ticks)"] = $_ }; $h }
 function Line($p) { $c = "$($p.CommandLine)" -replace '\s+', ' '; '  - {0} pid {1} (parent {2}), started {3}: {4}' -f $p.Name, $p.ProcessId, $p.ParentProcessId, $p.CreationDate.ToString('MM-dd HH:mm:ss'), $c.Substring(0, [Math]::Min(150, $c.Length)) }
 function LaneProcs($snap, $lane) { @($snap.Values | Where-Object { $_.Name -match '^(bash|python)\.exe$' -and "$($_.CommandLine)" -match $lane.match -and "$($_.CommandLine)" -notmatch 'shell-snapshots' }) }
-function Remaining { $t = if (Test-Path $Prod) { Get-Content $Prod -Raw } else { '' }; @($Chain | Where-Object { $t -notmatch [regex]::Escape("production true IRC ${_}: join exit") }) }
+# a reaction is joined when its latest "join exit" / "join withdrawn" line is a join exit (a withdrawn join is rerun)
+function Remaining { $t = if (Test-Path $Prod) { @(Get-Content $Prod) } else { @() }
+  @($Chain | Where-Object { $p = [regex]::Escape("production true IRC ${_}: join "); $m = @($t | Where-Object { $_ -match "$p(exit|withdrawn)" }); -not ($m.Count -and $m[-1] -match 'join exit') }) }
 function Runtime { $v = (Get-Item "$(Split-Path $Bash)\msys-2.0.dll").VersionInfo.FileVersion; $g = (& 'C:\Program Files\Git\cmd\git.exe' --version) 2>$null; "msys-2.0.dll $v; $g" }
 function Busy($snap, [string]$rx) {
   $why = @(); $pids = @{}; $snap.Values | ForEach-Object { $pids[[int]$_.ProcessId] = 1 }
@@ -83,6 +86,13 @@ while ((Get-Date) -lt $Until) {
     if ($held[$k] -or $done[$k]) { continue }
     if ($k -eq 'chain' -and @(Remaining).Count -eq 0) { $done[$k] = 1; W "`n### $t production chain finished: every reaction has a join line. Guard no longer watches it."; continue }
     if (@(LaneProcs $cur $l).Count -gt 0) { $alive[$k] = $true; continue }
+    # the chain ended normally after its last join (last log line a join exit) while reactions remain: continue, not a stop
+    if ($alive[$k] -and $k -eq 'chain' -and -not $pause -and "$(Get-Content $Prod -Tail 1)" -match 'join exit') {
+      $rem = (Remaining) -join ', '; $res = Start-Lane $l
+      W "`n### $t production chain finished its list; continued with ${rem} through WMI (not a stop): $res"
+      Add-Content $Prod "$t restart guard: production chain finished its list; continued with $rem (not a stop)" -Encoding UTF8
+      if ($res -notmatch 'return code 0') { $held[$k] = 1; Add-Content $Hold "$t continuing the chain failed ($res). Waiting for J. Picione." -Encoding UTF8 }
+      continue }
     if ($alive[$k]) {
       $alive[$k] = $false
       if (-not $pause) { $stops[$k] = @($stops[$k] | Where-Object { ((Get-Date) - $_).TotalMinutes -lt 60 }) + (Get-Date) }

@@ -40,7 +40,7 @@ from . import orca
 from .geometry import Geometry as PGeom
 from .geometry import read_xyz, read_xyz_frames
 from .mass_weight_evidence import read_hess_matrix
-from .steps import Reaction, irc_stop_index
+from .steps import Reaction, irc_stop_index, irc_stop_prod
 
 ROOT = Path(__file__).resolve().parents[1]
 RX = ROOT / "reactions/sn2_hydroxide_bromomethane_masvp"
@@ -146,11 +146,14 @@ class OwnStop:
         sym = [a.capitalize() for a in self.atoms]          # pysisyphus keeps symbols in lower case
         fr = [self.ts_frame] + [PGeom(sym, np.asarray(c).reshape(-1, 3) * BOHR, f"x E {e:.12f}")
                                 for c, e in zip(self.irc_coords, self.irc_energies)]
-        hit = irc_stop_index(self.rx, fr)
+        # rule as amended by J. Picione on 2026-11-15 (flat steps count only >= 1 kJ/mol below the TS; end-minimum
+        # test on 40 consecutive frames as the safeguard); sides started before that used irc_stop_index
+        hit = irc_stop_prod(self.rx, fr, [np.asarray(g) for g in self.irc_gradients])
         if hit is not None:
             self.converged = True
-            self.own_stop = {"direction": self.cur_direction, "last_event_frame": int(hit[0]), "stop_frame": int(hit[1])}
-            return f"own stopping rule met (last bond event at frame {hit[0]}, stop at frame {hit[1]})"
+            self.own_stop = {"direction": self.cur_direction, "last_event_frame": hit["last_event_frame"],
+                             "stop_frame": int(hit["stop_frame"]), "by": hit["by"], "rule": "2026-11-15"}
+            return f"own stopping rule met ({hit['by']}; stop at frame {hit['stop_frame']})"
         return ""
 
 

@@ -302,8 +302,9 @@ reaction.toml, VeryTightSCF; `pipeline/true_irc_prod.py`):
 - Hessian: ORCA's exact TS Hessian at the working level at the start (`01_stationary/ts/ts.hess`),
   Bofill updates after that, no recomputed Hessians.
 - End of a side: the project stopping rule only (|ΔE| < 0.05 kJ/mol per step for 20 consecutive steps
-  after the last bond event); pysisyphus's own gradient and energy stops are switched off; 3000 steps
-  at most. A side that ends any other way makes the path incomplete; nothing is joined.
+  after the last bond event; as amended 2026-11-15, see "IRC stopping rule"); pysisyphus's own gradient
+  and energy stops are switched off; 3000 steps at most (the last backstop). A side that ends any other
+  way makes the path incomplete; nothing is joined.
 - One ORCA job per folder (`02_irc/true_irc/<direction>/g####`), through the core ledger.
 - Joined path: backward (reversed) + TS + forward, all energies from ORCA EnGrad jobs at the working
   level (the TS energy from the path's own gradient job at the TS).
@@ -569,6 +570,24 @@ Two follow-ups were asked for:
 - whether a C2–C3 rotation transition state connects this minimum to the tertiary cation.
 
 ### IRC stopping rule (decided by J. Picione, 2026-11-09)
+
+**Amended by J. Picione, 2026-11-15** (production paths started from 15:00 that day; `pipeline/steps.irc_stop_prod`):
+- **Flat steps count only below the TS:** a step counts toward the 20 flat steps only if both its frames lie at
+  least 1 kJ/mol (0.24 kcal/mol) below the TS. Why: the secondary hydride shift TS (92i cm⁻¹ rotation TS) is so
+  flat that its first 20 steps each changed the energy by less than 0.05 kJ/mol; the old rule ended both sides
+  0.3–0.4 kJ/mol below the TS (docs/si_corrections.md, entry 1).
+- **Safeguard for a side whose minimum lies less than 1 kJ/mol below its TS** (such as the tertiary bridged
+  side): the side stops when the end-minimum test (|ΔE| < 0.005 kJ/mol from the previous frame and RMS
+  Cartesian gradient < 5×10⁻⁵ Eh/bohr) holds on **40 consecutive frames**. Next to a TS the test held on at
+  most 18 consecutive frames on any side computed so far; a single hit would have stopped the secondary sides
+  at frame 2 and the tertiary bridged side at frame 1. A late stop costs minutes, an early stop a whole rerun.
+- **Last backstop:** 3000 steps per side (pysisyphus `max_cycles`). A side that reaches it is incomplete and is
+  not joined. At 0.05 bohr·amu½ that is 150 bohr·amu½ of path; the longest side so far took 188 steps.
+- **Finished sides unchanged:** replayed point by point (`tests/test_stopping_rule.py`), the amended rule stops
+  every finished side at the frame where it stopped (SN2 153/188, cyanide 158/94, Diels–Alder reactant side 179,
+  tertiary shift 113/129); none is rerun. On those sides the 20 flat steps began 10.7–194 kJ/mol below the TS.
+  The Diels–Alder product side ended by the energy-rise stop and was accepted by J. Picione (2026-11-14). The
+  E2 sides, started at 13:49 on 2026-11-15, run under the old rule and are checked the same way at their join.
 
 Each IRC direction is ended when the energy has changed by less than **0.05 kJ/mol
 (0.012 kcal/mol) per step for 20 consecutive steps** after the last bond-forming or

@@ -36,7 +36,8 @@ BOHR = 0.529177210903
 STEP = 0.05            # bohr·amu½ (validated: SN2, B3LYP-D3(BJ)/ma-def2-SVP, tail test and full path)
 MAX_CYCLES = 3000
 METHOD = ("pysisyphus 1.0.0 Gonzalez–Schlegel, mass-weighted, step 0.05 bohr·amu½, exact TS Hessian then "
-          "Bofill updates, translations/rotations projected, project stopping rule (2026-11-13 fixes)")
+          "Bofill updates, translations/rotations projected, project stopping rule (2026-11-13 fixes; amended by J. Picione "
+          "2026-11-15: flat steps count only >= 1 kJ/mol below the TS, end-minimum test on 40 consecutive frames)")
 
 
 def ts_paths(rx):
@@ -52,8 +53,12 @@ class JobFailed(Exception):
     """An ORCA job of the path did not end normally (crash or kill). The side is incomplete, never a result."""
 
 
-def run_side(rx_root: Path, direction: str, test: bool = False) -> dict:
-    """test: 3 steps into 02_irc/smoketest/<direction> (checks the driver; never a result)."""
+def run_side(rx_root: Path, direction: str, test: bool = False, step: float | None = None,
+             check_dir: str | None = None, max_cycles: int | None = None) -> dict:
+    """test: 3 steps into 02_irc/smoketest/<direction> (checks the driver; never a result).
+    step / check_dir / max_cycles: a check run (J. Picione, 2026-11-15: tertiary open side at half the step),
+    in 02_irc/<check_dir>/<direction>, all other settings as in production; never a production path."""
+    STEP_ = step or STEP
     from pysisyphus.calculators.Calculator import Calculator
     from pysisyphus.Geometry import Geometry
     from .true_irc2 import GSmw, IntegratorFailure
@@ -64,7 +69,7 @@ def run_side(rx_root: Path, direction: str, test: bool = False) -> dict:
     sym = list(ts.symbols)
     E_TS = e_final(tso)
     x_ts = np.asarray(ts.coords).ravel() / BOHR
-    wd = rx.root / ("02_irc/smoketest" if test else "02_irc/true_irc") / direction
+    wd = rx.root / ("02_irc/smoketest" if test else f"02_irc/{check_dir}" if check_dir else "02_irc/true_irc") / direction
     wd.mkdir(parents=True, exist_ok=False)          # a clean folder; a rerun goes to a new one by hand
     (wd / "pysis").mkdir()
     os.chdir(wd / "pysis")
@@ -83,7 +88,7 @@ def run_side(rx_root: Path, direction: str, test: bool = False) -> dict:
             jd.mkdir(parents=True, exist_ok=False)
             g = PGeom(sym, c * BOHR, f"{kind} {self.n - 1}")
             r = orca.run(jd, "j", rx.inp(f"{kind} NoPop", g), rx.log,
-                         note=("smoke test (not a result) " if test else "") + f"true IRC production {direction} {kind} {self.n - 1} (step {STEP})")
+                         note=("smoke test (not a result) " if test else "") + (f"check run {check_dir} " if check_dir else "") + f"true IRC production {direction} {kind} {self.n - 1} (step {STEP_})")
             if not r.ok:
                 # not a RuntimeError: pysisyphus's GonzalezSchlegel.step catches RuntimeError and reports "constrained
                 # search did not converge" (2026-11-15: a job killed by the app update was mislabelled that way)
@@ -132,9 +137,9 @@ def run_side(rx_root: Path, direction: str, test: bool = False) -> dict:
                 self.energy_rises.append({"point": len(self.irc_energies) - 1,
                                           "rise_kJ": (self.irc_energies[-1] - self.irc_energies[-2]) * 2625.499639})
 
-    irc = GSprod(geom, hessian_recalc=None, step_length=STEP, max_cycles=3 if test else MAX_CYCLES, rms_grad_thresh=1e-12,
+    irc = GSprod(geom, hessian_recalc=None, step_length=STEP_, max_cycles=3 if test else (max_cycles or MAX_CYCLES), rms_grad_thresh=1e-12,
                energy_thresh=-1.0, hessian_init="calc", out_dir=str(wd / "pysis"),
-               forward=direction == "forward", backward=direction == "backward", displ="length", displ_length=STEP)
+               forward=direction == "forward", backward=direction == "backward", displ="length", displ_length=STEP_)
     irc.rx = rx
     irc.ts_frame = PGeom(sym, np.asarray(ts.coords), f"TS E {E_TS:.12f}")
     irc.own_stop = None
@@ -159,15 +164,16 @@ def run_side(rx_root: Path, direction: str, test: bool = False) -> dict:
     with open(wd / "path.xyz", "w") as fh:
         for c, e in zip(C, E):
             fh.write(PGeom(sym, c.reshape(-1, 3) * BOHR, "").to_xyz(f"true IRC {direction} E {e:.12f}"))
-    res = {"reaction": rx.root.name, "direction": direction, "method": METHOD, "level": rx.cfg["method"],
-           "solvent": rx.cfg["solvent"], "nprocs": rx.cfg["nprocs"], "step_bohr_amu05": STEP, "ended": ended,
+    res = {"reaction": rx.root.name, "direction": direction, "method": METHOD.replace("step 0.05", f"step {STEP_}"), "level": rx.cfg["method"],
+           "solvent": rx.cfg["solvent"], "nprocs": rx.cfg["nprocs"], "step_bohr_amu05": STEP_, "ended": ended,
+           "check_run": check_dir,
            "own_stop": irc.own_stop, "n_points": len(C), "E_TS_eh": E_TS,
            "n_engrad": sum(c["kind"] == "EnGrad" for c in calc.calls), "n_hessian": sum(c["kind"] == "Freq" for c in calc.calls),
            "calls": calc.calls, "wall_total_s": time.time() - t0, "energies": E, "gradients": [g.tolist() for g in G],
            "gs_micro_steps": len(irc.micro_log), "gs_micro_cycle_limit_hit_at": irc.micro_max_hit,
            "energy_rises": irc.energy_rises, "energy_increase_stop": "off (patch 0009, 2026-11-14)"}
     (wd / "path.json").write_text(json.dumps(res), encoding="utf-8")
-    rx.log.note(("SMOKE TEST, not a result: " if test else "") + f"`{wd.relative_to(rx.root).as_posix()}`: production true IRC ({METHOD}; ORCA {rx.cfg['method']}, SMD "
+    rx.log.note(("SMOKE TEST, not a result: " if test else f"CHECK RUN (step {STEP_}), not a production path: " if check_dir else "") + f"`{wd.relative_to(rx.root).as_posix()}`: production true IRC ({METHOD}; ORCA {rx.cfg['method']}, SMD "
                 f"{rx.cfg['solvent']}, {rx.cfg['nprocs']} cores): "
                 + (f"ended by the stopping rule, {len(C)} points" if ended == "own stopping rule"
                    else f"INCOMPLETE ({ended}), not a result")
@@ -260,4 +266,6 @@ if __name__ == "__main__":
     if sys.argv[2] == "join":
         print(join(root))
     else:
-        run_side(root, sys.argv[2], test="test" in sys.argv[3:])
+        kw = dict(a.split("=", 1) for a in sys.argv[3:] if "=" in a)      # step=0.025 check_dir=... max_cycles=80
+        run_side(root, sys.argv[2], test="test" in sys.argv[3:], step=float(kw["step"]) if "step" in kw else None,
+                 check_dir=kw.get("check_dir"), max_cycles=int(kw["max_cycles"]) if "max_cycles" in kw else None)

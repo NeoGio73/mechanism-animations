@@ -438,6 +438,52 @@ def irc_stop_index(rx: Reaction, frames) -> tuple[int, int] | None:
     return None
 
 
+BELOW_TS_KJ = 1.0          # J. Picione, 2026-11-15: flat steps count only this far below the TS
+END_TEST_DE_KJ, END_TEST_RMS_G, END_TEST_STEPS = 0.005, 5e-5, 40
+
+
+def irc_stop_prod(rx: Reaction, frames, gradients) -> dict | None:
+    """Production stopping rule as amended by J. Picione on 2026-11-15 (docs/protocol.md).
+    frames: the TS (frame 0, its energy in the comment) then the path points; gradients: Cartesian
+    gradients (Eh/bohr) of frames[1:].
+    (a) The rule of 2026-11-09 (|ΔE| < irc_stop_dE_kJ per step for irc_stop_steps consecutive steps after
+        the last bond event), where a step counts only if both its frames lie at least BELOW_TS_KJ below the
+        TS. A flat TS (secondary hydride shift, 92i cm⁻¹) otherwise meets the rule while the path is still
+        leaving it.
+    (b) Safeguard for a side whose minimum lies less than BELOW_TS_KJ below its TS: stop when the end-minimum
+        test (|ΔE| < END_TEST_DE_KJ from the previous frame and RMS gradient < END_TEST_RMS_G) holds on
+        END_TEST_STEPS consecutive frames. Next to a TS it held on at most 18 frames in a row on any side
+        computed so far, hence 40.
+    Returns {"last_event_frame", "stop_frame", "by"} or None."""
+    dE_max = float(rx.cfg.get("irc_stop_dE_kJ", 0.05))
+    n_need = int(rx.cfg.get("irc_stop_steps", 20))
+    E = [kj(e) for e in _trj_energies_eh(frames)]
+    e_ts = E[0]
+    run_end = 0
+    for k in range(1, len(E)):
+        g = gradients[k - 1] if k - 1 < len(gradients) else None
+        ok = (g is not None and abs(E[k] - E[k - 1]) < END_TEST_DE_KJ
+              and float(np.sqrt(np.mean(np.asarray(g, dtype=float) ** 2))) < END_TEST_RMS_G)
+        run_end = run_end + 1 if ok else 0
+        if run_end >= END_TEST_STEPS:
+            return {"last_event_frame": None, "stop_frame": k, "by": f"end-minimum test on {END_TEST_STEPS} consecutive frames"}
+    if len(frames) < n_need + 2:
+        return None
+    states = [_bond_states(rx, g) for g in frames]
+    end = states[-1]
+    if None in end:
+        return None
+    k0 = max((k for k, s in enumerate(states) if s != end), default=-1) + 1
+    run = 0
+    for k in range(k0 + 1, len(E)):
+        below = E[k] <= e_ts - BELOW_TS_KJ and E[k - 1] <= e_ts - BELOW_TS_KJ
+        run = run + 1 if (below and abs(E[k] - E[k - 1]) < dE_max) else 0
+        if run >= n_need:
+            return {"last_event_frame": k0, "stop_frame": k,
+                    "by": f"{n_need} flat steps at least {BELOW_TS_KJ:g} kJ/mol below the TS after the last bond event"}
+    return None
+
+
 def irc_init_scale(hess_path: Path, step_s: float) -> float:
     """ORCA Scale_Init_Displ (bohr, along the normalized Cartesian TS mode, with Init_Displ length)
     that puts the first IRC point step_s (bohr·amu½) from the TS. The first point ORCA stores is

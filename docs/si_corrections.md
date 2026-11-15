@@ -10,19 +10,23 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
 - **What happened:** the TS is a flat C2–C3 rotation TS (92i cm⁻¹). On the first 20 steps from it, each step
   changed the energy by less than 0.05 kJ/mol, and no key bond changed. The project stopping rule (20
   consecutive steps below 0.05 kJ/mol after the last bond-forming or bond-breaking event) was therefore met at
-  step 20 on both sides, while the path was still leaving the TS. The sides ended 0.36 kJ/mol (forward) and
-  0.42 kJ/mol (backward) below the TS, about 15.4 kJ/mol above the secondary cation.
+  step 20 on both sides, while the path was still leaving the TS: 0.32 kJ/mol (forward) and 0.39 kJ/mol
+  (backward) below the TS (the last stored points, one step further, 0.36 and 0.42 kJ/mol), about 15.4 kJ/mol
+  above the secondary cation.
 - **Effect:** the joined path covered only the TS region. It was not presented as the hydride shift path.
   Optimizations from the two ends reached the tertiary cation (forward) and the eclipsed secondary cation
   (backward), so the TS connects the expected minima.
 - **Fix (J. Picione, 2026-11-15):** the 20 flat steps count only once the energy is at least 1 kJ/mol below the
-  TS; a side whose minimum lies less than 1 kJ/mol below its TS stops by the end-minimum test (wording of that
-  safeguard being settled, see docs/protocol.md). Both sides are rerun from the TS in clean folders.
+  TS; a side whose minimum lies less than 1 kJ/mol below its TS stops when the end-minimum test (|ΔE| < 0.005
+  kJ/mol per step, RMS gradient < 5×10⁻⁵ Eh/bohr) holds on 40 consecutive frames (a single hit occurs right next
+  to a flat TS). Last backstop: 3000 steps per side. Both sides are rerun from the TS in clean folders, after
+  E2. The first run is kept as not results in `02_irc/attempts/first_run_early_stop_flat_ts/`.
 - **Other paths:** for every other finished side (SN2, cyanide + acetone, Diels–Alder, both tertiary hydride
   shift sides) the 20 flat steps began at least 10 kJ/mol below the TS, so the new rule stops them at the same
   frame; none is rerun. The Diels–Alder product side ended by the energy-rise stop and was accepted by
   J. Picione (2026-11-14); the rule change does not apply to it.
-- **Files:** `reactions/hshift_3_methyl_2_butyl_m062x/02_irc/` (first run), `run_log.md` there.
+- **Files:** `reactions/hshift_3_methyl_2_butyl_m062x/02_irc/attempts/first_run_early_stop_flat_ts/` (first run,
+  WHY.txt), `run_log.md` there; rule replay test `tests/test_stopping_rule.py`.
 
 ## 2. Join that picked the wrong bridged side (tertiary hydride shift, 2,3-dimethyl-2-butyl cation)
 
