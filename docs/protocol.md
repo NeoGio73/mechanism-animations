@@ -103,12 +103,31 @@ closed it, and every calculation the app had started stopped with it. Since 05:1
 started through Windows' own process service (WMI), not by the app. It keeps running if the app is closed,
 restarted or updated. Nothing was installed and no setting was changed to do this.
 
+**No visible window (J. Picione, 2026-11-15, 15:00).** A console program started through WMI was handed to
+Windows Terminal, the default terminal here, and ran as a visible tab: on 2026-11-15 the production chain, the
+watchdog, the Wednesday booking, keep-awake and the restart guard each had a tab. Closing such a window or tab,
+or anything that ends Windows Terminal, ends the lane. Every lane is therefore started through
+`pipeline/launch_hidden.py` under `pythonw.exe` (a program without a console) with CREATE_NO_WINDOW: the lane
+gets a console with no window, which is never handed to Windows Terminal, and its children (bash → python →
+ORCA) share it. Each start is logged in `docs/hidden_launches.log` with the lane's process id. The restart
+guard starts its restarts the same way. Relaunched with no window at 14:57–14:58: watchdog, booking (unchanged),
+keep-awake, guard. The E2 chain, started at 06:54, still runs in a Windows Terminal window until E2 joins (not
+stopped, by his decision); the secondary rerun after it is started by the guard with no window.
+
+Windows Terminal and the 05:36 stop (checked 2026-11-15, read-only): Windows Terminal was updated from
+1.24.12741.0 to 1.25.3131.0 by the Store at 01:02 on 2026-11-15 (AppX deployment log; install folder created
+01:02:19). The Windows Terminal process running since then started at 05:09:58 (version 1.25.3131.0) and did
+not restart at 05:36. The AppX deployment, Application and System logs have no entry between 05:30 and 05:42
+except the cleanup of the old version's folder, which has failed every 6 minutes since 04:33 (file in use) and
+was not new at 05:36. So no update or restart of Windows Terminal at 05:36 is shown; the cause stays unknown.
+What the check did show is the route: every lane then ran as a Windows Terminal tab.
+
 **What runs that way:**
 - The production reaction paths, one reaction after another. Now: tertiary hydride shift, then secondary
   hydride shift, then E2.
 - The single-point energies along a finished path. Now: SN2, coupled cluster.
 - The stall watchdog, which checks once a minute that jobs keep starting.
-- Keep-awake, which stops Windows from sleeping until 2026-11-18, 12:00.
+- Keep-awake, which stops Windows from sleeping until 2026-11-25, 12:00.
 
 **Names you would see in Task Manager** (Details tab):
 
@@ -119,8 +138,9 @@ restarted or updated. Nothing was installed and no setting was changed to do thi
 | `orca.exe` | an ORCA calculation |
 | `orca_*_mpi.exe` (e.g. `orca_mdci_mpi.exe`, `orca_scf_mpi.exe`) | the parts of an ORCA calculation, one per core |
 | `mpiexec.exe`, `smpd.exe` | Microsoft MPI, which runs those parts in parallel |
-| `conhost.exe` | a hidden console window that belongs to each of the above |
-| `powershell.exe` (two, hidden) | keep-awake, and the restart guard (below) |
+| `conhost.exe` | a hidden console (no window) that belongs to each of the above |
+| `powershell.exe` (two, no window) | keep-awake, and the restart guard (below) |
+| `pythonw.exe` | the launcher that starts a lane with no window; it ends within a second |
 
 **To stop everything** (safe; nothing needs deleting afterwards):
 1. Open Task Manager (Ctrl + Shift + Esc) and choose the **Details** tab.
