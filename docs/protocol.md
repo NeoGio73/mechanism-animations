@@ -75,6 +75,50 @@ the gradient was already below ORCA's thresholds) is incomplete, never finished.
 applies this to every IRC (docs/irc_completeness.json); the card marks an incomplete path, and the
 step-size report is not written from one.
 
+## Processes outside the app (since 2026-11-15)
+
+**Why.** On 2026-11-15 at 00:45 the Claude desktop app updated itself through the Microsoft Store. Windows
+closed it, and every calculation the app had started stopped with it. Since 05:10 the long-running work is
+started through Windows' own process service (WMI), not by the app. It keeps running if the app is closed,
+restarted or updated. Nothing was installed and no setting was changed to do this.
+
+**What runs that way:**
+- The production reaction paths, one reaction after another. Now: tertiary hydride shift, then secondary
+  hydride shift, then E2.
+- The single-point energies along a finished path. Now: SN2, coupled cluster.
+- The stall watchdog, which checks once a minute that jobs keep starting.
+- Keep-awake, which stops Windows from sleeping until 2026-11-18, 12:00.
+
+**Names you would see in Task Manager** (Details tab):
+
+| Name | What it is |
+|---|---|
+| `bash.exe` | the scripts that start the work in order |
+| `python.exe` | the programs that run each path or set of single points, and the watchdog |
+| `orca.exe` | an ORCA calculation |
+| `orca_*_mpi.exe` (e.g. `orca_mdci_mpi.exe`, `orca_scf_mpi.exe`) | the parts of an ORCA calculation, one per core |
+| `mpiexec.exe`, `smpd.exe` | Microsoft MPI, which runs those parts in parallel |
+| `conhost.exe` | a hidden console window that belongs to each of the above |
+| `powershell.exe` (one, hidden) | keep-awake |
+
+**To stop everything** (safe; nothing needs deleting afterwards):
+1. Open Task Manager (Ctrl + Shift + Esc) and choose the **Details** tab.
+2. Click the **Name** column so the list is sorted by name.
+3. End every **`bash.exe`** (right-click → **End task**). This stops new calculations from starting.
+4. End every **`python.exe`** the same way.
+5. End anything left whose name starts with **`orca`**, and every **`mpiexec.exe`** and **`smpd.exe`**.
+
+That is all. Keep-awake (`powershell.exe`) can be left; it only keeps the computer awake and ends by
+itself on 2026-11-18. Restarting the computer has the same effect as steps 1–5.
+
+**What stopping costs:**
+- A reaction path that was running is incomplete and is rerun from its start later. It is never used as a
+  result.
+- Finished single points are kept. The one that was running is redone.
+- Nothing else on the computer is affected.
+
+Or just tell Claude "stop all calculations", and it stops them in this order.
+
 ## Standard for the reaction set (decided by J. Picione, 2026-11-09; replaced 2026-11-11, see above)
 
 From E2 onward, every reaction uses one working level for geometries, the TS, the IRC and the
