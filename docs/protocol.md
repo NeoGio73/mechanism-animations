@@ -583,6 +583,9 @@ Two follow-ups were asked for:
   at frame 2 and the tertiary bridged side at frame 1. A late stop costs minutes, an early stop a whole rerun.
 - **Last backstop:** 3000 steps per side (pysisyphus `max_cycles`). A side that reaches it is incomplete and is
   not joined. At 0.05 bohr·amu½ that is 150 bohr·amu½ of path; the longest side so far took 188 steps.
+- **Runaway flag (J. Picione, 2026-11-15):** every report lists the steps of each running side
+  (`python -m pipeline.side_steps`) and flags any side past 400 steps (about twice the longest so far), so a
+  runaway is caught within about half a day instead of at the 3000-step backstop (about 5½ days).
 - **Finished sides unchanged:** replayed point by point (`tests/test_stopping_rule.py`), the amended rule stops
   every finished side at the frame where it stopped (SN2 153/188, cyanide 158/94, Diels–Alder reactant side 179,
   tertiary shift 113/129); none is rerun. On those sides the 20 flat steps began 10.7–194 kJ/mol below the TS.
