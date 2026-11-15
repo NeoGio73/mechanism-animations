@@ -51,8 +51,12 @@ def build(rx, fb, eb, ff, ef, ts, e_ts) -> dict:
     mirror = lambda x: (x[perm] - c0) @ R + c1
 
     sides = {"B": (fb, eb), "F": (ff, ef)}
+    # The side that leads to the bridged structure is the one that comes closest to it at any frame. (Fixed
+    # 2026-11-15: this used the last frame of each side, which fails when the bridged side, on the noise-limited
+    # plateau, slides back down to the open cation it started from; both sides then end at the same open cation.)
+    d_min = {t: min(rmsd(np.asarray(g.coords), xb) for g in f) for t, (f, _) in sides.items()}
     d_end = {t: rmsd(np.asarray(f[-1].coords), xb) for t, (f, _) in sides.items()}
-    tb = min(d_end, key=d_end.get)                       # the side that leads to the bridged structure
+    tb = min(d_min, key=d_min.get)
     to = "F" if tb == "B" else "B"
     fr, en = sides[tb]
     X = [np.asarray(f.coords) for f in fr]
@@ -62,12 +66,18 @@ def build(rx, fb, eb, ff, ef, ts, e_ts) -> dict:
     a_ts = asym(np.asarray(ts.coords))
     sign = np.sign(a_ts) or 1.0                          # the TS side of the asymmetry; past the bridge it flips
     drift = [i for i in range(k + 1, len(X)) if -sign * a[i] > mp.get("drift_A", 0.05)]
+    # frames past the end point that go back toward the open cation on the TS side (more asymmetric than the TS)
+    back = [i for i in range(k + 1, len(X)) if sign * a[i] > sign * a_ts]
     span = (max([e_ts] + list(en[:k + 1])) - min([e_ts] + list(en[:k + 1]))) * HARTREE_KJ
     info = {"reference": ref["name"], "reference_swap_rmsd_A": sym_rmsd, "bridged_side": tb, "open_side": to,
             "bridged_side_frames_computed": len(X), "end_frame_index": k, "end_rmsd_to_reference_A": d[k],
             "end_asymmetry_A": a[k], "end_energy_minus_reference_kJ": (en[k] - ref["E_eh"]) * HARTREE_KJ,
             "drifted_past_reference": bool(drift), "frames_beyond_end_not_used": len(X) - 1 - k,
             "largest_drift_A": float(max((-sign * a[i] for i in drift), default=0.0)),
+            "closest_approach_to_reference_A": {t: float(v) for t, v in d_min.items()},
+            "last_frame_rmsd_to_reference_A": {t: float(v) for t, v in d_end.items()},
+            "returned_toward_start_after_end": bool(back), "first_frame_back_past_TS_asymmetry": (back[0] if back else None),
+            "ts_asymmetry_A": float(a_ts),
             "energy_span_TS_to_end_kJ": span, "noise_floor_kJ": NOISE_FLOOR_KJ,
             "span_over_noise": span / NOISE_FLOOR_KJ}
     keep = fr[:k + 1]

@@ -378,6 +378,10 @@ At the join (`pipeline/mirror_path.py`):
   still runs and where it lands is reported; a slide into an open cation is not a failure.
 - On the card: at this level the bridged structure and the TS are not distinguishable within numerical
   precision, so the top of the barrier is a flat plateau.
+- Which side is the bridged side (fix, 2026-11-15): the side that comes closest to `bridged_c2` at any frame.
+  The first production join chose it by each side's last frame. That fails when the bridged side, on the
+  plateau, slides back down to the open cation it started from, as it did here: both sides then end at the
+  same open cation. That join was withdrawn (`02_irc/attempts/join_wrong_bridged_side_1213/`).
 
 Correction (2026-11-14): the M06-2X stationary point stored as "bridged"
 (`01_stationary/bridged`) is not the bridged structure. Optimized from the bridged side, it fell back to the

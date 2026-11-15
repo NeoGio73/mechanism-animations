@@ -232,7 +232,9 @@ def join(rx_root: Path) -> dict:
                     f"at frame {info['bridged_index']}) + mirror image ({info['n_mirror']} frames, C2⇄C3 swap). Bridged side: "
                     f"end {info['end_rmsd_to_reference_A']:.3f} Å from {info['reference']}, "
                     f"{'DRIFTED past it' if info['drifted_past_reference'] else 'no drift past it'} "
-                    f"({info['frames_beyond_end_not_used']} frames beyond the end not used); energy span TS to end "
+                    f"({info['frames_beyond_end_not_used']} frames beyond the end not used"
+                    + ("; after the end the side slid back toward the open cation it started from"
+                       if info.get("returned_toward_start_after_end") else "") + "); energy span TS to end "
                     f"{info['energy_span_TS_to_end_kJ']:.4f} kJ/mol against the SCF noise floor {info['noise_floor_kJ']} kJ/mol.")
     # angle check on every production path (J. Picione, 2026-11-13)
     from .path_angles import check
