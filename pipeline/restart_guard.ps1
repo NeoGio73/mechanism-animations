@@ -18,6 +18,8 @@ $Log = "$Root\docs\guard_log.md"; $Prod = "$Root\docs\production_true_irc.log"; 
 $Until = Get-Date '2026-11-25 12:00'; $Poll = 10
 $Win = "$Root\docs\level_test_queue\window.json"
 $Bash = 'C:\Program Files\Git\usr\bin\bash.exe'
+$PyW = 'C:\Users\giova\AppData\Local\Python\pythoncore-3.15-64\pythonw.exe'
+$Launcher = 'C:\Users\giova\Mechanism Animations\pipeline\launch_hidden.py'
 $Pre = "export PATH=/usr/bin:/bin:`$PATH; cd '/c/Users/giova/Mechanism Animations' && "
 # order of work (2026-11-15): E2 before the rerun of the secondary hydride shift
 $Chain = @('hshift_2_3_dimethyl_2_butyl_m062x', 'e2_ethoxide_2_bromopropane_m062x', 'hshift_3_methyl_2_butyl_m062x')
@@ -62,8 +64,11 @@ function Start-Lane($lane) {
   elseif ($lane.key -eq 'test') { $c = "`"$Bash`" -c `"export PATH=/usr/bin:/bin:`$PATH; sleep 600; echo guard_selftest_marker`"" }
   else { $c = "`"$Bash`" -c `"$Pre .venv/Scripts/python.exe -X utf8 -m pipeline.stall_watchdog >> docs/console_stall_watchdog.txt 2>&1`"" }
   if ($DryRun) { return "would start: $c" }
-  $r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $c; CurrentDirectory = $Root }
-  "return code $($r.ReturnValue), pid $($r.ProcessId)" }
+  # no visible window (J. Picione, 2026-11-15): through pythonw and pipeline/launch_hidden.py (CREATE_NO_WINDOW),
+  # so the lane is never a Windows Terminal tab; the lane's own pid is in docs/hidden_launches.log
+  $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($c))
+  $r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = "`"$PyW`" `"$Launcher`" $b64 `"$Root`""; CurrentDirectory = $Root }
+  "return code $($r.ReturnValue), launcher pid $($r.ProcessId) (no window)" }
 
 $prev = Snap; $prevT = Now; $wasPause = InPause; $alive = @{}; $stops = @{}; $pend = @{}; $held = @{}; $done = @{}; $waitNote = @{}
 W "`n## Guard started $(Now) (PowerShell pid $PID; until $($Until.ToString('yyyy-MM-dd HH:mm')); poll every $Poll s)"

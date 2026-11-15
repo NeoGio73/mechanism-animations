@@ -1,1 +1,2 @@
 ﻿- 2026-11-15 14:14  watchdog restarted with the planned pause for reserved windows (J. Picione, 2026-11-15)
+- 2026-11-15 14:57  watchdog relaunched with no visible window (it ran as a Windows Terminal tab; J. Picione 2026-11-15)

@@ -22,3 +22,12 @@
 - stall watchdog: 4 process(es) running
 - production chain, reactions not yet joined: e2_ethoxide_2_bromopropane_m062x, hshift_3_methyl_2_butyl_m062x
 - planned pause (reserved window) now: no
+
+## Guard ended 2026-11-15 14:57:48 (stopped by Claude: it ran as a Windows Terminal tab; relaunched with no window, J. Picione 2026-11-15)
+
+## Guard started 2026-11-15 14:58:35 (PowerShell pid 8060; until 2026-11-25 12:00; poll every 10 s)
+- Git Bash runtime: msys-2.0.dll 3.6.10-5a1665c8a0fb24930e55f1621441dfd98a798c15; git version 2.56.0.windows.1
+- production chain: 10 process(es) running
+- stall watchdog: 4 process(es) running
+- production chain, reactions not yet joined: e2_ethoxide_2_bromopropane_m062x, hshift_3_methyl_2_butyl_m062x
+- planned pause (reserved window) now: no
