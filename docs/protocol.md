@@ -636,6 +636,22 @@ Two follow-ups were asked for:
   is rerun; any side further off is put to J. Picione before any rerun.
 - Tested (`tests/test_stopping_rule.py`, part 3): neither side that stopped short stops within its computed points
   under the new rule; a side resting 0.3 kJ/mol above its minimum stops after 20 flat steps, 0.6 kJ/mol above does not.
+- **Every side within 0.5 kJ/mol of its minimum (J. Picione, 2026-11-16, later the same day):** the three other sides
+  further off (cyanide reactant side 0.94, E2 reactant side 1.17, E2 product side 5.01 kJ/mol) are extended as well,
+  after which rule (c) is the general rule.
+- **Continue or rerun (J. Picione, 2026-11-16):** a side is continued downhill from its last frame if that agrees with a
+  rerun from the TS; otherwise sides are rerun from the TS. Continuation (`true_irc_prod.run_side(cont_from=...)`):
+  pysisyphus downhill run from the last frame, exact Hessian there (ORCA Freq), then Bofill updates, step 0.05
+  bohr·amu½, the same patches, and the stopping rule applied to the whole side (earlier frames first). Smoke test on
+  SN2 (3 steps): the start frame recomputes to the same energy (0.0000 kJ/mol), the Hessian job runs, the steps go
+  downhill. Test on the tertiary open side: continuation from its last frame (`02_irc/attempts/continuation_test`)
+  against the rerun from the TS (`02_irc/true_irc/backward`), compared at equal arc length (`pipeline.continuation_compare`;
+  criteria fixed before the runs finished: each new frame heavy-atom RMSD ≤ 0.05 Å and |ΔE| ≤ 0.1 kJ/mol; both ends
+  within 0.5 kJ/mol of the minimum, end to end |ΔE| ≤ 0.1 kJ/mol and heavy-atom RMSD ≤ 0.2 Å). Until it is settled the
+  secondary shift's join waits (marker method "pending") and E2's single points are not started.
+- **Single points on final paths at low priority (J. Picione, 2026-11-16):** a lane started with `CORES_LOW=1` takes
+  cores only when no request is waiting and cores stay free for every path lane between two of its jobs
+  (`pipeline/cores._acquire_low`); it never enters the waiting list. First use: Diels–Alder after-path steps.
 
 **Amended by J. Picione, 2026-11-15** (production paths started from 15:00 that day; `pipeline/steps.irc_stop_prod`):
 - **Flat steps count only below the TS:** a step counts toward the 20 flat steps only if both its frames lie at
