@@ -76,6 +76,12 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
 - **Switches so far** (filled in as the optimizations finish; references kept, marked `superseded_by`):
   - SN2, reactant complex (2026-11-16): the reached form has C···O 3.309 Å instead of 3.425 Å (C–Br within
     0.001 Å, heavy-atom RMSD 0.055 Å, same bonds), E +0.036 kJ/mol, G +0.589 kJ/mol relative to the reference.
+    Single points and diagnostics on it redone in clean folders (old ones in `01_ts/superseded_20261116/`).
+    **Corrects values reported on 2026-11-14 (17:00 report)**, ΔG‡ from the reactant complex: M06-2X/ma-def2-TZVP
+    78.35 → 77.96 kJ/mol; DLPNO-CCSD(T)/ma-def2-TZVP 83.99 → 82.83 kJ/mol; B3LYP/ma-def2-TZVP 62.50 → 61.31 kJ/mol;
+    working level 75.47 → 74.88 kJ/mol. Electronic barriers from the complex: working 67.40 → 67.36, M06-2X/TZVP
+    70.28 → 70.44, DLPNO 75.92 → 75.31, B3LYP 54.43 → 53.79 kJ/mol. Barriers from separated reactants and reaction
+    energies unchanged.
   - E2, both complexes: entry 3.
 - **Free energies** (checked 2026-11-16): every free energy uses ORCA's quasi-RRHO vibrational entropy (Grimme 2012,
   ω₀ = 100 cm⁻¹), recomputed independently for all 21 stationary points (`pipeline/thermo.py`, within 0.03 kJ/mol);
