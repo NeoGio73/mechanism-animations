@@ -37,6 +37,8 @@ def frames_of(rxn, d, where=None):
     base = R / (where or FIRST_RUN.get(rxn, "02_irc/true_irc"))
     if not base.exists():
         base = R / "02_irc/true_irc"
+    if not (base / d / "path.json").exists() and rxn in STOPPED_SHORT:     # side being redone: replay the archived run
+        base = R / STOPPED_SHORT[rxn]
     sym, xts = _xyz_frames(R / "01_stationary/ts/ts.xyz")[0]
     js = json.loads((base / d / "path.json").read_text(encoding="utf-8"))
     fr = _xyz_frames(base / d / "path.xyz")
