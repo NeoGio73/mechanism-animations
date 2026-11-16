@@ -87,7 +87,7 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
     the reference (lowest frequency 37.8 cm⁻¹). Electronic barrier from the complex 75.34 → 75.63 kJ/mol, ΔG‡ from the
     complex 98.40 → 96.16 kJ/mol, ΔG complex to complex −158.04 → −160.28 kJ/mol (working level). No Diels–Alder
     after-path numbers existed yet; its single points start on the new structure. Product complex: same minimum.
-  - Cyanide product side: (pending at 08:30).
+  - Cyanide product side (2026-11-16): same minimum (E −0.031 kJ/mol, heavy-atom RMSD 0.003 Å); no change.
   - E2, both complexes: entry 3.
 - **Free energies** (checked 2026-11-16): every free energy uses ORCA's quasi-RRHO vibrational entropy (Grimme 2012,
   ω₀ = 100 cm⁻¹), recomputed independently for all 21 stationary points (`pipeline/thermo.py`, within 0.03 kJ/mol);
