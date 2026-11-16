@@ -105,4 +105,43 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
   minimum's energy; end-minimum test (40 frames) and 3000-step backstop unchanged. Both sides rerun from the TS in
   clean folders (secondary first, then tertiary), both joins redone. The earlier sides are kept as not results in
   `02_irc/attempts/backward_stopped_short_0546` (secondary) and `02_irc/attempts/open_side_stopped_short_1218`
-  (tertiary). The tertiary half-step check covers only the region near the TS and stays valid.
+  (tertiary). (Changed the same day after the continuation test, below: both sides are continued from their last frame
+  instead, so the earlier frames are the first part of each side: secondary `02_irc/true_irc/backward_part1`, the
+  earlier join's records in `02_irc/attempts/backward_stopped_short_0546`.) The tertiary half-step check covers only the region near the TS and stays valid (checked 2026-11-16:
+  heavy-atom RMSD ≤ 0.0007 Å against the production side up to s = 2.0 bohr·amu½).
+- **Pitfall (for the SI): the stopping rule fired early on a slow twist.** The secondary shift's backward side leaves
+  a flat rotation TS (92i cm⁻¹) along the C2–C3 twist. Along that twist the energy falls by only about 0.035 kJ/mol
+  per 0.05 bohr·amu½ step, below the 0.05 kJ/mol flat-step threshold, so a rule that counts "flat" steps can end the
+  side in the middle of the twist, with most of the descent (12.15 kJ/mol, 2.90 kcal/mol) still missing. Flat steps
+  must therefore not be read as "near a minimum" on a side that crosses a soft torsion; for this side they count only
+  within 0.5 kJ/mol of the secondary cation's energy (rule (c)), and the side is extended to it.
+- **Revised the same afternoon (J. Picione, 2026-11-16):** a test showed that the final approach to a minimum along
+  soft modes is far slower than expected (the tertiary open side lost about 0.01 kJ/mol per step 3 kJ/mol above
+  the open cation) and changes nothing visible. The target of ending every side within 0.5 kJ/mol of its minimum is
+  dropped; standard practice applies: each end is confirmed by optimization from its last frame, and the table of side
+  ends (below) gives how far above its minimum each side ended. Only the secondary backward side is extended (above).
+  The tertiary open side ends where the continuation test was stopped (below).
+- **Continuation test result (2026-11-16 16:13):** the rerun from the TS was stopped once it had 54 frames past the old
+  side's last frame, and the continuation at the same moment. At equal arc length the 54 compared frames agree to
+  heavy-atom RMSD ≤ 0.000013 Å (median 0.000004 Å) and |ΔE| ≤ 0.00007 kJ/mol, against criteria of 0.05 Å and
+  0.1 kJ/mol fixed before either run finished; the 112 earlier frames are identical. Continuing a side downhill from
+  its last frame (exact Hessian there) is therefore equivalent to rerunning it from the TS. The tertiary open side is
+  the earlier side's 113 frames plus 151 continued frames (264 frames, s = 13.29 bohr·amu½), ending 1.47 kJ/mol
+  (0.35 kcal/mol) above the open cation; the rerun's frames are kept as the test record
+  (`02_irc/attempts/rerun_from_ts_test_1614/`, comparison in `02_irc/attempts/continuation_test/compare_backward.md`).
+  The secondary backward side is continued the same way from its last frame (started 2026-11-16 16:17).
+- **Angle check on the continued frames:** in the slow final approach the mass-weighted angle between step and
+  gradient grows (frames past the earlier end: median 6.83°, 90th percentile 10.92°, 150 frames; earlier frames
+  beyond |s| = 1: 4.41° / 7.81°). The rerun from the TS has the same frames, so this belongs to the region, not to the
+  continuation. The open side's zone beyond |s| = 1 now has median 5.74° (rule < 5°), 90th percentile 10.18° (rule
+  < 15°); kept as computed.
+- **Side ends** (last frame above the official end minimum, working level; filled in as sides finish):
+
+  | Path | Reactant side | Product side |
+  |---|---|---|
+  | SN2 | 0.06 kJ/mol | 0.23 kJ/mol |
+  | Diels–Alder | 0.33 kJ/mol | 0.01 kJ/mol |
+  | Cyanide + acetone | 0.94 kJ/mol | −0.03 kJ/mol |
+  | E2 | 1.17 kJ/mol | 5.01 kJ/mol |
+  | Tertiary hydride shift | open side: 1.47 kJ/mol (end check pending) | bridged side: at the bridged structure |
+  | Secondary hydride shift | pending (continued from 2026-11-16 16:17) | pending (forward side, join waits) |

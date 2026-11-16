@@ -663,6 +663,30 @@ Two follow-ups were asked for:
   If the tertiary test agrees, E2's path single points start at once on the existing frames (low priority); after
   E2's re-join `pipeline.path_sp_carry` carries every finished frame over by geometry, because the extension of the
   backward side renumbers the frames.
+- **Superseded the same afternoon (J. Picione, 2026-11-16), because the tail into a minimum is far slower than
+  expected and shows nothing visible:**
+  - **Standard practice for path ends:** the target of ending every side within 0.5 kJ/mol of its minimum is dropped.
+    Each end is confirmed by optimization from its last frame (end check), and the paper lists how far above its
+    minimum each side ended. Rule (c) stays only where a minimum is named in `[irc_end_min]` for a side still to run.
+  - **Final as they are:** cyanide reactant side, E2 reactant and product sides (not extended; no renumbering; their
+    single points start at once, low priority). `pipeline.path_sp_carry` is not needed.
+  - **The one exception, the secondary shift's backward side:** it stopped in the middle of the C2–C3 twist with most
+    of its descent missing, and the animation needs the twist to the secondary cation. It is extended (continuation if
+    the tertiary test agrees, else rerun from the TS), with rule (c) (0.5 kJ/mol of `secondary_eclip`), the 50-point
+    re-check and a 3-day limit.
+  - **Early verdict of the tertiary test:** once the rerun from the TS has 50 frames past the old side's last frame,
+    the per-frame criterion (heavy-atom RMSD ≤ 0.05 Å, |ΔE| ≤ 0.1 kJ/mol at equal arc length) decides over those
+    frames; the end criterion is not applied. Both test runs are then stopped and their frames kept
+    (`pipeline.test_stop`: the side records are written from pysisyphus's data files). The tertiary open side ends
+    there: the continuation's frames if the test agrees, the rerun's otherwise (`accepted.json`); the other run is kept
+    in `02_irc/attempts/`. The tertiary join then runs on its own (`pipeline/run_join_hidden.sh`), not after the
+    secondary join (`after_join.json` cancelled).
+  - **Result (2026-11-16 16:13):** agree. 54 compared frames: heavy-atom RMSD ≤ 0.000013 Å, |ΔE| ≤ 0.00007 kJ/mol.
+    Both runs stopped at 16:13; the tertiary open side is the continuation (264 frames, 1.47 kJ/mol above the open
+    cation), the rerun kept in `02_irc/attempts/rerun_from_ts_test_1614/`; tertiary join started 16:15. The
+    secondary backward side is continued from its last frame (marker method "continue", started 16:17), watched by
+    `pipeline.continuation_watch` (50-point re-check, 72 h limit). `accepted.json` carries a `card_note` (the join
+    reads it). Keep-awake and restart guard moved to 2026-11-27 12:00.
 - **Single points on final paths at low priority (J. Picione, 2026-11-16):** a lane started with `CORES_LOW=1` takes
   cores only when no request is waiting and cores stay free for every path lane between two of its jobs
   (`pipeline/cores._acquire_low`); it never enters the waiting list. First use: Diels–Alder after-path steps.

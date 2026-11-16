@@ -46,7 +46,11 @@ def _side(base: Path, x_ts, sym):
     return X, np.array(E), s, js
 
 
-def compare(rx: str, d: str, rerun_dir: str = "true_irc", cont_dir: str = "attempts/continuation_test") -> dict:
+def compare(rx: str, d: str, rerun_dir: str = "true_irc", cont_dir: str = "attempts/continuation_test",
+            early_stop: bool = False) -> dict:
+    """early_stop (J. Picione, 2026-11-16 afternoon): both runs stopped once the rerun had 50 frames past the old side's
+    last frame; the verdict is the per-frame criterion over at least 50 compared new frames, the end criterion is not
+    applied (his message: the 0.5 kJ/mol target is dropped)."""
     R = ROOT / "reactions" / rx
     sym, x_ts = _xyz_frames(R / "01_stationary/ts/ts.xyz")[0]
     heavy = [i for i, a in enumerate(sym) if a != "H"]
@@ -77,8 +81,8 @@ def compare(rx: str, d: str, rerun_dir: str = "true_irc", cont_dir: str = "attem
                              "E_above_min_kJ": (Ec[-1] - e_min) * HARTREE_KJ if e_min else None,
                              "ended": jc["ended"], "by": (jc.get("own_stop") or {}).get("by")},
             "end_to_end": {"heavy_rmsd_A": rmsd(Xc[-1][heavy], Xr[-1][heavy]), "dE_kJ": (Ec[-1] - Er[-1]) * HARTREE_KJ}}
-    agree_frames = bool(cmp_rows) and all(r["heavy_rmsd_A"] <= RMSD_A and abs(r["dE_kJ"]) <= DE_KJ for r in cmp_rows)
-    agree_ends = (e_min is not None and ends["rerun"]["E_above_min_kJ"] <= 0.5 and ends["continuation"]["E_above_min_kJ"] <= 0.5
+    agree_frames = bool(cmp_rows) and bool(all(r["heavy_rmsd_A"] <= RMSD_A and abs(r["dE_kJ"]) <= DE_KJ for r in cmp_rows))
+    agree_ends = bool(e_min is not None and ends["rerun"]["E_above_min_kJ"] <= 0.5 and ends["continuation"]["E_above_min_kJ"] <= 0.5
                   and abs(ends["end_to_end"]["dE_kJ"]) <= END_DE_KJ and ends["end_to_end"]["heavy_rmsd_A"] <= END_RMSD_A)
     out = {"reaction": rx, "side": d, "rerun_dir": rerun_dir, "continuation_dir": cont_dir, "end_minimum": em,
            "criteria": {"frame_heavy_rmsd_A": RMSD_A, "frame_dE_kJ": DE_KJ, "end_dE_kJ": END_DE_KJ, "end_heavy_rmsd_A": END_RMSD_A},
@@ -89,7 +93,8 @@ def compare(rx: str, d: str, rerun_dir: str = "true_irc", cont_dir: str = "attem
            "max_heavy_rmsd_A": max((r["heavy_rmsd_A"] for r in cmp_rows), default=None),
            "median_heavy_rmsd_A": float(np.median([r["heavy_rmsd_A"] for r in cmp_rows])) if cmp_rows else None,
            "max_abs_dE_kJ": max((abs(r["dE_kJ"]) for r in cmp_rows), default=None),
-           "ends": ends, "agree_frames": agree_frames, "agree_ends": agree_ends, "agree": agree_frames and agree_ends,
+           "ends": ends, "agree_frames": agree_frames, "agree_ends": agree_ends, "early_stop": early_stop,
+           "agree": (agree_frames and len(cmp_rows) >= 50) if early_stop else (agree_frames and agree_ends),
            "rows": rows}
     base = R / "02_irc" / cont_dir
     (base / f"compare_{d}.json").write_text(json.dumps(out, indent=1), encoding="utf-8")
@@ -98,7 +103,10 @@ def compare(rx: str, d: str, rerun_dir: str = "true_irc", cont_dir: str = "attem
          f"Continuation from the last frame of `{jc['continuation']['from']}` vs rerun from the TS (`{rerun_dir}/{d}`), "
          f"compared at equal arc length s (rerun interpolated). Criteria: each new frame heavy-atom RMSD ≤ {RMSD_A} Å and "
          f"|ΔE| ≤ {DE_KJ} kJ/mol; both ends within 0.5 kJ/mol of {em['minimum'] if em else '—'}, end to end |ΔE| ≤ {END_DE_KJ} "
-         f"kJ/mol and heavy-atom RMSD ≤ {END_RMSD_A} Å. **Agree: {'yes' if out['agree'] else 'no'}**", "",
+         f"kJ/mol and heavy-atom RMSD ≤ {END_RMSD_A} Å."
+         + (" Early comparison (J. Picione, 2026-11-16): both runs stopped once the rerun had 50 frames past the old "
+            "side's last frame; verdict = the per-frame criterion over at least 50 compared new frames; the end criterion "
+            "is not applied." if early_stop else "") + f" **Agree: {'yes' if out['agree'] else 'no'}**", "",
          f"- Earlier frames ({len(early)}, same settings from the TS): max heavy-atom RMSD {f(out['earlier_frames']['max_heavy_rmsd_A'], 4)} Å, "
          f"max |ΔE| {f(out['earlier_frames']['max_abs_dE_kJ'], 4)} kJ/mol.",
          f"- Start frame recomputed: {jc['continuation']['start_frame_energy_recomputed_minus_earlier_kJ']:+.4f} kJ/mol.",
@@ -117,5 +125,5 @@ def compare(rx: str, d: str, rerun_dir: str = "true_irc", cont_dir: str = "attem
 
 if __name__ == "__main__":
     a = sys.argv[1:]
-    o = compare(a[0], a[1], *(a[2:4]))
+    o = compare(a[0], a[1], *[x for x in a[2:4] if x != "early"], early_stop="early" in a[2:])
     print(json.dumps({k: v for k, v in o.items() if k != "rows"}, indent=1))

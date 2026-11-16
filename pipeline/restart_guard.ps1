@@ -15,7 +15,7 @@
 param([switch]$DryRun, [string]$Root = 'C:\Users\giova\Mechanism Animations', [switch]$SelfTest)
 $ErrorActionPreference = 'Continue'
 $Log = "$Root\docs\guard_log.md"; $Prod = "$Root\docs\production_true_irc.log"; $Hold = "$Root\docs\GUARD_HOLD"
-$Until = Get-Date '2026-11-25 12:00'; $Poll = 10
+$Until = Get-Date '2026-11-27 12:00'; $Poll = 10
 $Win = "$Root\docs\level_test_queue\window.json"
 $Bash = 'C:\Program Files\Git\usr\bin\bash.exe'
 $PyW = 'C:\Users\giova\AppData\Local\Python\pythoncore-3.15-64\pythonw.exe'
