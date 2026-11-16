@@ -649,6 +649,10 @@ Two follow-ups were asked for:
   criteria fixed before the runs finished: each new frame heavy-atom RMSD ≤ 0.05 Å and |ΔE| ≤ 0.1 kJ/mol; both ends
   within 0.5 kJ/mol of the minimum, end to end |ΔE| ≤ 0.1 kJ/mol and heavy-atom RMSD ≤ 0.2 Å). Until it is settled the
   secondary shift's join waits (marker method "pending") and E2's single points are not started.
+  Checkpoint (J. Picione, 2026-11-16): before any continuation starts, the number of points and hours each side needs to
+  get within 0.5 kJ/mol of its minimum is estimated (`pipeline.continuation_estimate`: harmonic descent from the side's
+  own last 10 points, calibrated by the ratio of actual to modelled points on the tertiary test; its own wall time per
+  point). A side estimated at more than about a day (24 h) is not started until J. Picione has seen the estimate.
 - **Single points on final paths at low priority (J. Picione, 2026-11-16):** a lane started with `CORES_LOW=1` takes
   cores only when no request is waiting and cores stay free for every path lane between two of its jobs
   (`pipeline/cores._acquire_low`); it never enters the waiting list. First use: Diels–Alder after-path steps.
