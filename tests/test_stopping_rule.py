@@ -19,6 +19,7 @@ EXPECT = {("sn2_hydroxide_bromomethane_m062x", "backward"): 153, ("sn2_hydroxide
           ("nucadd_cyanide_acetone_m062x", "backward"): 158, ("nucadd_cyanide_acetone_m062x", "forward"): 94,
           ("da_butadiene_ethylene_m062x", "backward"): 179,
           ("hshift_2_3_dimethyl_2_butyl_m062x", "backward"): 113, ("hshift_2_3_dimethyl_2_butyl_m062x", "forward"): 129,
+          ("e2_ethoxide_2_bromopropane_m062x", "backward"): 132, ("e2_ethoxide_2_bromopropane_m062x", "forward"): 399,
           ("hshift_3_methyl_2_butyl_m062x", "backward"): None, ("hshift_3_methyl_2_butyl_m062x", "forward"): None}
 FIRST_RUN = {"hshift_3_methyl_2_butyl_m062x": "02_irc/attempts/first_run_early_stop_flat_ts/true_irc"}
 
