@@ -134,7 +134,9 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
   gradient grows (frames past the earlier end: median 6.83°, 90th percentile 10.92°, 150 frames; earlier frames
   beyond |s| = 1: 4.41° / 7.81°). The rerun from the TS has the same frames, so this belongs to the region, not to the
   continuation. The open side's zone beyond |s| = 1 now has median 5.74° (rule < 5°), 90th percentile 10.18° (rule
-  < 15°); kept as computed.
+  < 15°); kept as computed, both parts stated (J. Picione, 2026-11-16 evening). All 151 continued frames are kept
+  (every frame computed by the time of the comparison, not only the 54 that overlap the rerun; J. Picione, same
+  evening); cutting at the overlap would have ended the side about 3.1 kJ/mol (0.75 kcal/mol) above the open cation.
 - **Side ends** (last frame above the official end minimum, working level; filled in as sides finish):
 
   | Path | Reactant side | Product side |
@@ -145,3 +147,28 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
   | E2 | 1.17 kJ/mol | 5.01 kJ/mol |
   | Tertiary hydride shift | open side: 1.47 kJ/mol (end check pending) | bridged side: at the bridged structure |
   | Secondary hydride shift | pending (continued from 2026-11-16 16:17) | pending (forward side, join waits) |
+
+## 6. Angle check against gradient size (all six paths; for the SI figure)
+
+- **Requested:** J. Picione, 2026-11-16 evening, after the tertiary open side's angle check (entry 5). Existing data only,
+  no new calculation: `pipeline/angle_vs_gradient.py`; figure `docs/si_figures/angle_vs_gradient.png`, per-frame values
+  `docs/si_figures/angle_vs_gradient.json`.
+- **What is plotted:** for every computed frame of every production side (2108 frames; mirror frames of the tertiary
+  shift have no jobs and are left out), the mass-weighted angle between the path direction and the downhill gradient
+  (the angle of the angle check) against the RMS Cartesian gradient at that frame (Eh/bohr, log scale). Frames are marked
+  by zone: near the TS (|s| ≤ 1 bohr·amu½, as in the angle check); final approach (from the frame after which the RMS
+  gradient stays below 5 × 10⁻⁴ Eh/bohr to the side's end, ten times the end-minimum test's 5 × 10⁻⁵); middle (the rest).
+  The secondary shift's backward side is still being extended; its first part (85 frames) is used, and the figure is
+  redrawn when the side ends.
+- **Result: the large angles occur only where the gradient is nearly zero.** All 59 frames with an angle above 15° have
+  an RMS gradient of at most 2.0 × 10⁻⁴ Eh/bohr: 30 lie near the TS of the two hydride shifts, whose TSs are very flat
+  (tertiary 21, secondary 9), and 29 in the slow final approach to a minimum (cyanide product side 18, Diels–Alder 5,
+  tertiary open side 3, SN2 2, secondary 1). None is in the middle of a side. Where the RMS gradient exceeds
+  5 × 10⁻⁴ Eh/bohr (1196 frames) the largest angle is 5.65° (median 0.09°), and above 1 × 10⁻³ Eh/bohr (927 frames)
+  4.07° (median 0.04°). Near the TS of the four reactions with sharp TSs (SN2, cyanide, Diels–Alder, E2) the angles
+  stay small (largest 5.65°). The largest angles (up to 117°) are on the cyanide product side, which ends at its
+  minimum (−0.03 kJ/mol), where the gradient is about 1.5 × 10⁻⁵ Eh/bohr and its direction carries little information.
+- **Reading for the paper:** a large angle in these paths marks a region where the energy surface is nearly flat (a very
+  flat TS, or the last approach to a minimum along soft modes), not a path that leaves the valley: wherever the gradient
+  is appreciable, path and gradient agree within a few degrees. The angle-check results are kept as computed (J. Picione,
+  2026-11-15 and 2026-11-16).

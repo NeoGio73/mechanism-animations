@@ -687,6 +687,10 @@ Two follow-ups were asked for:
     secondary backward side is continued from its last frame (marker method "continue", started 16:17), watched by
     `pipeline.continuation_watch` (50-point re-check, 72 h limit). `accepted.json` carries a `card_note` (the join
     reads it). Keep-awake and restart guard moved to 2026-11-27 12:00.
+  - **Confirmed by J. Picione (2026-11-16 evening):** the tertiary open side keeps all 151 continued frames; its angle
+    check past the TS region (median 5.74°, 90th percentile 10.18°) is kept as computed, both parts stated in the SI.
+    For the SI: each frame's angle plotted against its gradient size for all six paths, from existing data
+    (`pipeline/angle_vs_gradient.py`).
 - **Single points on final paths at low priority (J. Picione, 2026-11-16):** a lane started with `CORES_LOW=1` takes
   cores only when no request is waiting and cores stay free for every path lane between two of its jobs
   (`pipeline/cores._acquire_low`); it never enters the waiting list. First use: Diels–Alder after-path steps.
