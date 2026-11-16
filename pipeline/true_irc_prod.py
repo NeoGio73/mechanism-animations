@@ -54,10 +54,16 @@ class JobFailed(Exception):
 
 
 def run_side(rx_root: Path, direction: str, test: bool = False, step: float | None = None,
-             check_dir: str | None = None, max_cycles: int | None = None) -> dict:
+             check_dir: str | None = None, max_cycles: int | None = None, cont_from: str | None = None,
+             out: str | None = None) -> dict:
     """test: 3 steps into 02_irc/smoketest/<direction> (checks the driver; never a result).
     step / check_dir / max_cycles: a check run (J. Picione, 2026-11-15: tertiary open side at half the step),
-    in 02_irc/<check_dir>/<direction>, all other settings as in production; never a production path."""
+    in 02_irc/<check_dir>/<direction>, all other settings as in production; never a production path.
+    cont_from (J. Picione, 2026-11-16): continue the side in 02_irc/<cont_from> downhill from its last frame
+    (pysisyphus downhill run: no displacement, exact Hessian at that frame by an ORCA Freq job, then Bofill updates;
+    step, patches and stopping rule as in production, the rule seeing the whole side). path.json/path.xyz in the new
+    folder hold the whole side: the earlier frames, then the new ones (the start frame recomputed, its energy checked).
+    out: the folder (relative to 02_irc) instead of the default."""
     STEP_ = step or STEP
     from pysisyphus.calculators.Calculator import Calculator
     from pysisyphus.Geometry import Geometry
@@ -70,6 +76,16 @@ def run_side(rx_root: Path, direction: str, test: bool = False, step: float | No
     E_TS = e_final(tso)
     x_ts = np.asarray(ts.coords).ravel() / BOHR
     wd = rx.root / ("02_irc/smoketest" if test else f"02_irc/{check_dir}" if check_dir else "02_irc/true_irc") / direction
+    if out:
+        wd = rx.root / "02_irc" / out
+    old = None
+    if cont_from:
+        od = rx.root / "02_irc" / cont_from
+        oj = json.loads((od / "path.json").read_text(encoding="utf-8"))
+        ofr = read_xyz_frames(od / "path.xyz")
+        old = {"dir": cont_from, "json": oj, "C": [np.asarray(f.coords).ravel() / BOHR for f in ofr],
+               "E": list(oj["energies"]), "G": [np.asarray(g) for g in oj["gradients"]]}
+        assert len(old["C"]) == len(old["E"]) == len(old["G"]), "earlier side: frames, energies and gradients differ in number"
     wd.mkdir(parents=True, exist_ok=False)          # a clean folder; a rerun goes to a new one by hand
     (wd / "pysis").mkdir()
     os.chdir(wd / "pysis")
@@ -117,7 +133,7 @@ def run_side(rx_root: Path, direction: str, test: bool = False, step: float | No
             jd, r = self._job(atoms, coords, "Freq")
             return {"energy": r.energy_eh, "hessian": read_hess_matrix(jd / "j.hess")}
 
-    geom = Geometry(sym, x_ts)
+    geom = Geometry(sym, old["C"][-1] if old else x_ts)
     calc = RxCalc(out_dir=str(wd / "pysis"))
     geom.set_calculator(calc)
     class GSprod(GSmw):
@@ -139,9 +155,13 @@ def run_side(rx_root: Path, direction: str, test: bool = False, step: float | No
 
     irc = GSprod(geom, hessian_recalc=None, step_length=STEP_, max_cycles=3 if test else (max_cycles or MAX_CYCLES), rms_grad_thresh=1e-12,
                energy_thresh=-1.0, hessian_init="calc", out_dir=str(wd / "pysis"),
-               forward=direction == "forward", backward=direction == "backward", displ="length", displ_length=STEP_)
+               forward=direction == "forward", backward=direction == "backward", displ="length", displ_length=STEP_,
+               downhill=bool(old))
     irc.rx = rx
-    em = None if (test or check_dir) else end_min(rx, direction)      # J. Picione, 2026-11-16 (reaction.toml [irc_end_min])
+    em = None if (test or (check_dir and not old)) else end_min(rx, direction)      # J. Picione, 2026-11-16 (reaction.toml [irc_end_min])
+    if old:
+        irc.prefix_frames = [PGeom(sym, c.reshape(-1, 3) * BOHR, f"x E {e:.12f}") for c, e in zip(old["C"][:-1], old["E"][:-1])]
+        irc.prefix_gradients = old["G"][:-1]
     irc.e_min_eh = em[1] if em else None
     irc.ts_frame = PGeom(sym, np.asarray(ts.coords), f"TS E {E_TS:.12f}")
     irc.own_stop = None
@@ -152,9 +172,10 @@ def run_side(rx_root: Path, direction: str, test: bool = False, step: float | No
     except (IntegratorFailure, JobFailed) as e:
         failure = str(e)
     if failure is None:
-        C = [np.asarray(c) for c in getattr(irc, f"{direction}_coords")]
-        E = list(getattr(irc, f"{direction}_energies"))
-        G = [np.asarray(g) for g in getattr(irc, f"{direction}_gradients")]
+        key = "downhill" if old else direction
+        C = [np.asarray(c) for c in getattr(irc, f"{key}_coords")]
+        E = list(getattr(irc, f"{key}_energies"))
+        G = [np.asarray(g) for g in getattr(irc, f"{key}_gradients")]
     else:
         n = min(len(irc.irc_coords), len(irc.irc_energies), len(irc.irc_gradients))
         C, E, G = ([np.asarray(c) for c in irc.irc_coords[:n]], list(irc.irc_energies[:n]),
@@ -163,12 +184,20 @@ def run_side(rx_root: Path, direction: str, test: bool = False, step: float | No
         C, E, G = C[::-1], E[::-1], G[::-1]
     ended = (f"FAILED: {failure}" if failure else "own stopping rule" if irc.own_stop else
              "max cycles")
+    cont = None
+    if old and C:
+        cont = {"from": old["dir"], "earlier_points": len(old["C"]), "new_points": len(C) - 1,
+                "start_frame_energy_recomputed_minus_earlier_kJ": (E[0] - old["E"][-1]) * 2625.499639,
+                "start_frame_max_coordinate_difference_bohr": float(np.max(np.abs(C[0] - old["C"][-1]))),
+                "hessian_at_start": "exact (ORCA Freq at the start frame, h0000), then Bofill updates",
+                "earlier_n_engrad": old["json"].get("n_engrad"), "earlier_wall_s": old["json"].get("wall_total_s")}
+        C, E, G = old["C"][:-1] + C, old["E"][:-1] + E, old["G"][:-1] + G
     with open(wd / "path.xyz", "w") as fh:
         for c, e in zip(C, E):
             fh.write(PGeom(sym, c.reshape(-1, 3) * BOHR, "").to_xyz(f"true IRC {direction} E {e:.12f}"))
     res = {"reaction": rx.root.name, "direction": direction, "method": METHOD.replace("step 0.05", f"step {STEP_}"), "level": rx.cfg["method"],
            "solvent": rx.cfg["solvent"], "nprocs": rx.cfg["nprocs"], "step_bohr_amu05": STEP_, "ended": ended,
-           "check_run": check_dir,
+           "check_run": check_dir, "continuation": cont,
            "own_stop": irc.own_stop, "end_min": ({"minimum": em[0], "E_eh": em[1], "near_min_kJ": NEAR_MIN_KJ} if em else None),
            "n_points": len(C), "E_TS_eh": E_TS,
            "n_engrad": sum(c["kind"] == "EnGrad" for c in calc.calls), "n_hessian": sum(c["kind"] == "Freq" for c in calc.calls),
@@ -178,6 +207,9 @@ def run_side(rx_root: Path, direction: str, test: bool = False, step: float | No
     (wd / "path.json").write_text(json.dumps(res), encoding="utf-8")
     rx.log.note(("SMOKE TEST, not a result: " if test else f"CHECK RUN (step {STEP_}), not a production path: " if check_dir else "") + f"`{wd.relative_to(rx.root).as_posix()}`: production true IRC ({METHOD}; ORCA {rx.cfg['method']}, SMD "
                 f"{rx.cfg['solvent']}, {rx.cfg['nprocs']} cores): "
+                + (f"continued downhill from the last frame of `02_irc/{cont['from']}` ({cont['earlier_points']} earlier "
+                   f"points, {cont['new_points']} new; start frame recomputed {cont['start_frame_energy_recomputed_minus_earlier_kJ']:+.4f} kJ/mol); "
+                   if cont else "")
                 + (f"ended by the stopping rule{f' (flat steps counted within {NEAR_MIN_KJ:g} kJ/mol of {em[0]}, J. Picione 2026-11-16)' if em else ''}, {len(C)} points" if ended == "own stopping rule"
                    else f"INCOMPLETE ({ended}), not a result")
                 + f"; {res['n_engrad']} gradients, {res['n_hessian']} Hessians, {res['wall_total_s'] / 3600:.1f} h")
@@ -186,12 +218,18 @@ def run_side(rx_root: Path, direction: str, test: bool = False, step: float | No
 
 
 def _rerun_marked_sides(rx: Reaction) -> None:
-    """J. Picione, 2026-11-16: a side marked for a rerun (02_irc/true_irc/rerun_<side>.json, written by Claude for an
-    approved rerun) is rerun here, at the start of the join, so the chain and the restart guard see one lane: its
-    folder and console go to 02_irc/attempts/<archive_as>/ (not results, WHY.txt), the earlier join's outputs are
-    copied there as a record and its end-check folders moved there (the new end check runs in clean folders), the
-    marker moves with them, and the side runs from the TS in a clean folder with the settings in reaction.toml.
-    If this process is killed, the guard archives the unfinished side and the chain reruns it the usual way."""
+    """J. Picione, 2026-11-16: a side marked for a redo (02_irc/true_irc/rerun_<side>.json, written by Claude for an
+    approved redo) is redone here, at the start of the join, so the chain and the restart guard see one lane.
+    The marker's "method":
+      "pending"  - the method is not settled yet (the continuation test); the join waits, polling every minute;
+      "rerun"    - the side's folder and console go to 02_irc/attempts/<archive_as>/ (not results, WHY.txt) and the
+                   side runs from the TS in a clean folder with the settings in reaction.toml;
+      "continue" - the side's folder becomes true_irc/<side>_part1 (kept: its frames are the first part of the side)
+                   and the side is continued downhill from its last frame into a clean true_irc/<side> (run_side
+                   cont_from), whose path.json holds the whole side.
+    Either way the earlier join's outputs are copied to the attempts folder as a record and its end-check folders
+    moved there (the new end check runs in clean folders); the marker moves there too.
+    If this process is killed, the guard archives the unfinished side and the chain reruns it from the TS."""
     import shutil
     import subprocess
     wd = rx.root / "02_irc"
@@ -200,6 +238,16 @@ def _rerun_marked_sides(rx: Reaction) -> None:
         if not mk.exists():
             continue
         m = json.loads(mk.read_text(encoding="utf-8"))
+        if m.get("method", "rerun") == "pending":
+            with open(ROOT / "docs/production_true_irc.log", "a", encoding="utf-8") as fh:
+                fh.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} production true IRC {rx.root.name}: join waits for the "
+                         f"{d} side's method (continuation test, J. Picione 2026-11-16)\n")
+            rx.log.note(f"join waits: the {d} side's redo method (continue from its last frame or rerun from the TS) is "
+                        "settled by the continuation test on the tertiary open side (J. Picione 2026-11-16)")
+            while m.get("method", "rerun") == "pending":
+                time.sleep(60)
+                m = json.loads(mk.read_text(encoding="utf-8"))
+        method = m.get("method", "rerun")
         A = wd / "attempts" / m["archive_as"]
         A.mkdir(parents=True, exist_ok=False)
         for f in ("irc_IRC_Full_trj.xyz", "irc_IRC_B.xyz", "irc_IRC_F.xyz", "irc_path.json", "mirror_path.json",
@@ -207,27 +255,36 @@ def _rerun_marked_sides(rx: Reaction) -> None:
             if (wd / f).exists():
                 (A / "earlier_join").mkdir(exist_ok=True)
                 shutil.copy2(wd / f, A / "earlier_join" / Path(f).name)
-        for f in [wd / "true_irc" / d, wd / f"console_true_irc_{d}.txt"] + sorted((wd / "true_irc").glob("end_check*")):
+        moves = sorted((wd / "true_irc").glob("end_check*"))
+        if method == "rerun":
+            moves += [wd / "true_irc" / d, wd / f"console_true_irc_{d}.txt"]
+        else:
+            shutil.move(str(wd / "true_irc" / d), str(wd / "true_irc" / f"{d}_part1"))
+            if (wd / f"console_true_irc_{d}.txt").exists():
+                shutil.move(str(wd / f"console_true_irc_{d}.txt"), str(wd / f"console_true_irc_{d}_part1.txt"))
+        for f in moves:
             if f.exists():
                 shutil.move(str(f), str(A / f.name))
         (A / "WHY.txt").write_text(m["why"] + "\n", encoding="utf-8")
         shutil.move(str(mk), str(A / mk.name))
         t = time.strftime("%Y-%m-%d %H:%M:%S")
+        what = ("rerun from the TS" if method == "rerun" else
+                f"continued downhill from its last frame (first part kept as true_irc/{d}_part1)")
         with open(ROOT / "docs/production_true_irc.log", "a", encoding="utf-8") as fh:
-            fh.write(f"{t} production true IRC {rx.root.name}: {d} side rerun from the TS at the start of the join "
-                     f"({m['decision']}); earlier side in 02_irc/attempts/{m['archive_as']}\n")
-        rx.log.note(f"{d} side archived to `02_irc/attempts/{m['archive_as']}` (not results) and rerun from the TS in a clean "
-                    f"folder: {m['decision']}")
+            fh.write(f"{t} production true IRC {rx.root.name}: {d} side {what} at the start of the join "
+                     f"({m['decision']}); records in 02_irc/attempts/{m['archive_as']}\n")
+        rx.log.note(f"{d} side {what}: {m['decision']} (records in `02_irc/attempts/{m['archive_as']}`)")
         (wd / "logs" / d).mkdir(parents=True, exist_ok=True)
         con = wd / f"console_true_irc_{d}.txt"
+        extra = [] if method == "rerun" else [f"continue_from=true_irc/{d}_part1", f"out=true_irc/{d}"]
         with open(con, "w", encoding="utf-8") as fh:
             rc = subprocess.run([sys.executable, "-X", "utf8", "-W", "ignore", "-u", "-m", "pipeline.true_irc_prod",
-                                 str(rx.root), d], cwd=wd / "logs" / d, stdout=fh, stderr=subprocess.STDOUT,
+                                 str(rx.root), d] + extra, cwd=wd / "logs" / d, stdout=fh, stderr=subprocess.STDOUT,
                                 env={**os.environ, "PYTHONPATH": str(ROOT)}).returncode
         with open(con, "a", encoding="utf-8") as fh:
             fh.write(f"end {time.strftime('%H:%M')} exit {rc}\n")
         if rc != 0:
-            raise RuntimeError(f"{d} side rerun ended with exit {rc}: incomplete, nothing joined")
+            raise RuntimeError(f"{d} side ({method}) ended with exit {rc}: incomplete, nothing joined")
 
 
 def join(rx_root: Path) -> dict:
@@ -335,4 +392,5 @@ if __name__ == "__main__":
     else:
         kw = dict(a.split("=", 1) for a in sys.argv[3:] if "=" in a)      # step=0.025 check_dir=... max_cycles=80
         run_side(root, sys.argv[2], test="test" in sys.argv[3:], step=float(kw["step"]) if "step" in kw else None,
-                 check_dir=kw.get("check_dir"), max_cycles=int(kw["max_cycles"]) if "max_cycles" in kw else None)
+                 check_dir=kw.get("check_dir"), max_cycles=int(kw["max_cycles"]) if "max_cycles" in kw else None,
+                 cont_from=kw.get("continue_from"), out=kw.get("out"))

@@ -165,6 +165,58 @@ def request(inp: str) -> tuple[int, int]:
     return cores, cores * (int(mc.group(1)) if mc else 1000)
 
 
+LOW_LANE_CORES = 4      # cores kept free for each IRC lane between two of its gradient jobs
+
+
+def _lane_reserve(s: dict) -> int:
+    """Cores to keep free for path lanes that are alive but hold nothing at this instant (an IRC side releases its
+    cores between gradient jobs and asks again at once). Joins waiting on a decision are not counted."""
+    import psutil
+    held_pids = {h["pid"] for h in s["held"]} | {w["pid"] for w in s["waiting"]}
+    lanes = {}
+    for p in psutil.process_iter(["pid", "ppid", "name", "cmdline"]):
+        try:
+            cl = " ".join(p.info["cmdline"] or [])
+        except Exception:
+            continue
+        if (p.info["name"] or "").lower().startswith("python") and re.search(r"-m pipeline\.(true_irc_prod|end_check)\b", cl) \
+                and " join" not in cl:
+            lanes[p.info["pid"]] = p.info["ppid"]
+    # a venv python.exe on Windows is a launcher whose child runs the lane: count the child (the pid the queue sees)
+    lanes = {k: v for k, v in lanes.items() if k not in set(lanes.values())}
+    return LOW_LANE_CORES * sum(1 for k in lanes if k not in held_pids)
+
+
+def _acquire_low(cores: int, mem_mb: int, what: str, pid: int, lane: str, folder: str | None) -> str:
+    """Low priority (J. Picione, 2026-11-16: "keep free cores busy with single points on paths that are final"; set by
+    CORES_LOW=1 in the lane's environment). The request never enters the waiting list, so lanes running older code of
+    this module cannot queue behind it; it takes cores only when nothing is waiting, the cores and memory are free, and
+    cores stay free for every path lane between two of its jobs (_lane_reserve)."""
+    rid = f"{pid}-{time.time_ns()}"
+    logged = False
+    while True:
+        try:
+            with _locked():
+                s = _read()
+                c = sum(h["cores"] for h in s["held"])
+                m = sum(h["mem_mb"] for h in s["held"])
+                busy = {h.get("folder") for h in s["held"]} - {None}
+                if (not s["waiting"] and folder not in busy and c + cores + _lane_reserve(s) <= CORES
+                        and m + mem_mb <= MEM_MB):
+                    s["held"].append({"id": rid, "pid": pid, "lane": lane, "what": what, "cores": cores, "mem_mb": mem_mb,
+                                      "folder": folder, "since": time.strftime("%H:%M:%S"), "beat": time.time(),
+                                      "front": False, "low": True})
+                    _write(s)
+                    _log(f"start  {lane}: {what}  {cores} cores, {mem_mb} MB (low priority) -> {_summary(s)}")
+                    return rid
+                if not logged:
+                    _log(f"low    {lane}: {what}  waits for free cores (low priority, not queued)")
+                    logged = True
+        except OSError as e:
+            _log(f"retry  {lane}: {what}  ({type(e).__name__}: {e})")
+        time.sleep(POLL_S)
+
+
 def acquire(cores: int, mem_mb: int, what: str, pid: int | None = None, lane: str | None = None,
             folder: str | None = None, front: bool = False) -> str:
     """Wait until the job fits in the budget and no older request is waiting; then hold it.
@@ -175,6 +227,8 @@ def acquire(cores: int, mem_mb: int, what: str, pid: int | None = None, lane: st
         raise RuntimeError(f"{what}: {cores} cores / {mem_mb} MB exceeds the budget {CORES} / {MEM_MB} MB")
     pid = pid or os.getpid()
     lane = lane or lane_name()
+    if os.environ.get("CORES_LOW") == "1" and not front:
+        return _acquire_low(cores, mem_mb, what, pid, lane, folder)
     rid = f"{pid}-{time.time_ns()}"
     with _locked():
         s = _read()

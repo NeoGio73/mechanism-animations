@@ -7,7 +7,10 @@ This script compares the two at equal distance along the path: for each producti
 the TS, mass-weighted, bohr·amu½) the check frame with the nearest s (they differ by at most half a check step;
 no interpolation), heavy-atom RMSD between the two frames and the angle check value of each. Nothing in the
 production path is changed by this script.
-Usage: python -m pipeline.halfstep_compare <reaction> <side> <check_dir> [s_max]
+Usage: python -m pipeline.halfstep_compare <reaction> <side> <check_dir> [s_max] [production folder, default true_irc]
+2026-11-16: the tertiary open side the check was made for was moved to 02_irc/attempts/open_side_stopped_short_1218
+(rerun from the TS with the stopping rule near the end minimum); its region near the TS is what the check tests, so it
+is compared there: production folder attempts/open_side_stopped_short_1218.
 """
 from __future__ import annotations
 
@@ -29,11 +32,11 @@ def _side(base: Path, d: str, x_ts, sym):
     return X, side_angles(X, G, x_ts, sym), js
 
 
-def compare(rx: str, d: str, check_dir: str, s_max: float = 2.0) -> dict:
+def compare(rx: str, d: str, check_dir: str, s_max: float = 2.0, prod_dir: str = "true_irc") -> dict:
     R = ROOT / "reactions" / rx
     sym, x_ts = _xyz_frames(R / "01_stationary/ts/ts.xyz")[0]
     heavy = [i for i, s in enumerate(sym) if s != "H"]
-    Xp, Ap, jp = _side(R / "02_irc/true_irc", d, x_ts, sym)
+    Xp, Ap, jp = _side(R / "02_irc" / prod_dir, d, x_ts, sym)
     Xc, Ac, jc = _side(R / "02_irc" / check_dir, d, x_ts, sym)
     sc = np.array([r["s_abs"] for r in Ac])
     rows = []
@@ -47,7 +50,7 @@ def compare(rx: str, d: str, check_dir: str, s_max: float = 2.0) -> dict:
         rows.append({"prod_frame": i, "s_prod": r["s_abs"], "check_frame": j, "s_check": float(sc[j]),
                      "heavy_rmsd_A": rmsd(Xp[i][heavy], Xc[j][heavy]),
                      "angle_prod_deg": r["mw_deg"], "angle_check_deg": Ac[j]["mw_deg"]})
-    out = {"reaction": rx, "side": d, "check_dir": check_dir, "step_prod": jp["step_bohr_amu05"],
+    out = {"reaction": rx, "side": d, "check_dir": check_dir, "production_dir": prod_dir, "step_prod": jp["step_bohr_amu05"],
            "step_check": jc["step_bohr_amu05"], "s_max": s_max, "rows": rows,
            "max_heavy_rmsd_A": max(r["heavy_rmsd_A"] for r in rows) if rows else None}
     (R / "02_irc" / check_dir / f"compare_{d}.json").write_text(json.dumps(out, indent=1), encoding="utf-8")
@@ -64,5 +67,5 @@ def compare(rx: str, d: str, check_dir: str, s_max: float = 2.0) -> dict:
 
 if __name__ == "__main__":
     a = sys.argv[1:]
-    o = compare(a[0], a[1], a[2], float(a[3]) if len(a) > 3 else 2.0)
+    o = compare(a[0], a[1], a[2], float(a[3]) if len(a) > 3 else 2.0, a[4] if len(a) > 4 else "true_irc")
     print(json.dumps({k: v for k, v in o.items() if k != "rows"}, indent=1))

@@ -144,14 +144,17 @@ class OwnStop:
 
     def get_additional_print(self):
         sym = [a.capitalize() for a in self.atoms]          # pysisyphus keeps symbols in lower case
-        fr = [self.ts_frame] + [PGeom(sym, np.asarray(c).reshape(-1, 3) * BOHR, f"x E {e:.12f}")
-                                for c, e in zip(self.irc_coords, self.irc_energies)]
+        # a side continued downhill from its last frame (J. Picione, 2026-11-16): the rule sees the whole side, the
+        # earlier frames (prefix_frames, prefix_gradients; the start frame is recomputed as the first new point) first
+        fr = [self.ts_frame] + list(getattr(self, "prefix_frames", [])) + [
+            PGeom(sym, np.asarray(c).reshape(-1, 3) * BOHR, f"x E {e:.12f}") for c, e in zip(self.irc_coords, self.irc_energies)]
+        grads = list(getattr(self, "prefix_gradients", [])) + [np.asarray(g) for g in self.irc_gradients]
         # rule as amended by J. Picione on 2026-11-15 (flat steps count only >= 1 kJ/mol below the TS; end-minimum
         # test on 40 consecutive frames as the safeguard); sides started before that used irc_stop_index
         # J. Picione, 2026-11-16: a side with a minimum named in reaction.toml [irc_end_min] counts flat steps only
         # within 0.5 kJ/mol of that minimum's energy (steps.irc_stop_prod (c))
         e_min = getattr(self, "e_min_eh", None)
-        hit = irc_stop_prod(self.rx, fr, [np.asarray(g) for g in self.irc_gradients], e_min_eh=e_min)
+        hit = irc_stop_prod(self.rx, fr, grads, e_min_eh=e_min)
         if hit is not None:
             self.converged = True
             self.own_stop = {"direction": self.cur_direction, "last_event_frame": hit["last_event_frame"],
