@@ -143,6 +143,22 @@ class OwnStop:
     with "Integrator indicated convergence!" when it is met)."""
 
     def get_additional_print(self):
+        # J. Picione, 2026-11-16: a continuation whose re-estimate after 50 points passes its limit is paused, not
+        # killed: pipeline.continuation_watch writes <side folder>/PAUSE; the side ends here cleanly (path.json written,
+        # ended "paused"), is never joined, and can later be continued from its last frame.
+        pf = getattr(self, "pause_file", None)
+        if pf is not None and pf.exists():
+            self.converged = True
+            self.paused = pf.read_text(encoding="utf-8", errors="ignore").strip() or "paused"
+            return f"PAUSED: {self.paused}"
+        if pf is not None:          # progress of a production side, read by pipeline.continuation_watch
+            import json as _j, time as _t
+            self._ptimes = getattr(self, "_ptimes", []) + [_t.time()]
+            try:
+                pf.with_name("progress.json").write_text(_j.dumps({"times": self._ptimes, "n_new": len(self.irc_energies),
+                                                                    "energies": [float(e) for e in self.irc_energies]}), encoding="utf-8")
+            except OSError:
+                pass
         sym = [a.capitalize() for a in self.atoms]          # pysisyphus keeps symbols in lower case
         # a side continued downhill from its last frame (J. Picione, 2026-11-16): the rule sees the whole side, the
         # earlier frames (prefix_frames, prefix_gradients; the start frame is recomputed as the first new point) first

@@ -653,6 +653,16 @@ Two follow-ups were asked for:
   get within 0.5 kJ/mol of its minimum is estimated (`pipeline.continuation_estimate`: harmonic descent from the side's
   own last 10 points, calibrated by the ratio of actual to modelled points on the tertiary test; its own wall time per
   point). A side estimated at more than about a day (24 h) is not started until J. Picione has seen the estimate.
+  Limits set by J. Picione (2026-11-16, in advance of the estimates): secondary shift backward side under 3 days (the
+  missing part is the twist to the secondary cation, which the animation needs); E2 product side under 2 days; cyanide
+  reactant side and E2 reactant side start without a limit (the 50-point check below uses 24 h for them); a side over
+  its limit waits for him. After its first 50 new points each continuation is re-estimated from its own rate
+  (`pipeline.continuation_watch`: drop per point against the gap over its last 50 points, fitted as a power law, its
+  own time per point); over its limit (hours spent + hours left) it is paused: `PAUSE` in the side folder ends it
+  cleanly at the next step (path.json written, ended "paused", nothing joined), and J. Picione is told.
+  If the tertiary test agrees, E2's path single points start at once on the existing frames (low priority); after
+  E2's re-join `pipeline.path_sp_carry` carries every finished frame over by geometry, because the extension of the
+  backward side renumbers the frames.
 - **Single points on final paths at low priority (J. Picione, 2026-11-16):** a lane started with `CORES_LOW=1` takes
   cores only when no request is waiting and cores stay free for every path lane between two of its jobs
   (`pipeline/cores._acquire_low`); it never enters the waiting list. First use: Diels–Alder after-path steps.

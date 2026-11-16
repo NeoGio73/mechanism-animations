@@ -165,6 +165,7 @@ def run_side(rx_root: Path, direction: str, test: bool = False, step: float | No
     irc.e_min_eh = em[1] if em else None
     irc.ts_frame = PGeom(sym, np.asarray(ts.coords), f"TS E {E_TS:.12f}")
     irc.own_stop = None
+    irc.pause_file, irc.paused = wd / "PAUSE", None
     irc.fallbacks, irc.micro_log, irc.micro_max_hit, irc.energy_rises = [], [], [], []
     t0, failure = time.time(), None
     try:
@@ -182,8 +183,8 @@ def run_side(rx_root: Path, direction: str, test: bool = False, step: float | No
                    [np.asarray(g) for g in irc.irc_gradients[:n]])
     if C and np.linalg.norm(C[-1] - x_ts) < np.linalg.norm(C[0] - x_ts):      # TS-outward order
         C, E, G = C[::-1], E[::-1], G[::-1]
-    ended = (f"FAILED: {failure}" if failure else "own stopping rule" if irc.own_stop else
-             "max cycles")
+    ended = (f"FAILED: {failure}" if failure else f"paused ({irc.paused})" if irc.paused else
+             "own stopping rule" if irc.own_stop else "max cycles")
     cont = None
     if old and C:
         cont = {"from": old["dir"], "earlier_points": len(old["C"]), "new_points": len(C) - 1,
