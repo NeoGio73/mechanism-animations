@@ -440,9 +440,20 @@ def irc_stop_index(rx: Reaction, frames) -> tuple[int, int] | None:
 
 BELOW_TS_KJ = 1.0          # J. Picione, 2026-11-15: flat steps count only this far below the TS
 END_TEST_DE_KJ, END_TEST_RMS_G, END_TEST_STEPS = 0.005, 5e-5, 40
+NEAR_MIN_KJ = 0.5          # J. Picione, 2026-11-16: flat steps count only this close to the end minimum's energy
 
 
-def irc_stop_prod(rx: Reaction, frames, gradients) -> dict | None:
+def end_min(rx: Reaction, direction: str) -> tuple[str, float] | None:
+    """The minimum named for this side in reaction.toml [irc_end_min] (J. Picione, 2026-11-16) and its energy (Eh)
+    from docs/stationary_m062x.json, or None (then the rule of 2026-11-15 applies)."""
+    key = (rx.cfg.get("irc_end_min") or {}).get(direction)
+    if not key:
+        return None
+    st = json.loads((Path(__file__).resolve().parents[1] / "docs/stationary_m062x.json").read_text(encoding="utf-8"))
+    return key, float(st[key]["E_eh"])
+
+
+def irc_stop_prod(rx: Reaction, frames, gradients, e_min_eh: float | None = None) -> dict | None:
     """Production stopping rule as amended by J. Picione on 2026-11-15 (docs/protocol.md).
     frames: the TS (frame 0, its energy in the comment) then the path points; gradients: Cartesian
     gradients (Eh/bohr) of frames[1:].
@@ -454,6 +465,10 @@ def irc_stop_prod(rx: Reaction, frames, gradients) -> dict | None:
         test (|ΔE| < END_TEST_DE_KJ from the previous frame and RMS gradient < END_TEST_RMS_G) holds on
         END_TEST_STEPS consecutive frames. Next to a TS it held on at most 18 frames in a row on any side
         computed so far, hence 40.
+    (c) e_min_eh given (J. Picione, 2026-11-16; the side's minimum named in reaction.toml [irc_end_min]): in (a) a
+        step counts only if both its frames lie within NEAR_MIN_KJ of that minimum's energy, instead of BELOW_TS_KJ
+        below the TS. The secondary shift's backward side met (a) 12.15 kJ/mol above its cation, on the slow
+        rotation away from a flat TS. (b) and the 3000-step backstop are unchanged.
     Returns {"last_event_frame", "stop_frame", "by"} or None."""
     dE_max = float(rx.cfg.get("irc_stop_dE_kJ", 0.05))
     n_need = int(rx.cfg.get("irc_stop_steps", 20))
@@ -475,12 +490,15 @@ def irc_stop_prod(rx: Reaction, frames, gradients) -> dict | None:
         return None
     k0 = max((k for k, s in enumerate(states) if s != end), default=-1) + 1
     run = 0
+    cap = kj(e_min_eh) + NEAR_MIN_KJ if e_min_eh is not None else e_ts - BELOW_TS_KJ
     for k in range(k0 + 1, len(E)):
-        below = E[k] <= e_ts - BELOW_TS_KJ and E[k - 1] <= e_ts - BELOW_TS_KJ
+        below = E[k] <= cap and E[k - 1] <= cap
         run = run + 1 if (below and abs(E[k] - E[k - 1]) < dE_max) else 0
         if run >= n_need:
             return {"last_event_frame": k0, "stop_frame": k,
-                    "by": f"{n_need} flat steps at least {BELOW_TS_KJ:g} kJ/mol below the TS after the last bond event"}
+                    "by": (f"{n_need} flat steps within {NEAR_MIN_KJ:g} kJ/mol of the end minimum's energy after the last bond event"
+                           if e_min_eh is not None else
+                           f"{n_need} flat steps at least {BELOW_TS_KJ:g} kJ/mol below the TS after the last bond event")}
     return None
 
 

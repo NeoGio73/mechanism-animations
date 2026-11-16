@@ -34,6 +34,7 @@ from .path_angles import HARTREE_KJ, ROOT, _minima, _xyz_frames, rmsd
 from .steps import Reaction
 
 LIMIT_KJ = 0.5                       # J. Picione, 2026-11-14
+ALWAYS_OPTIMIZE = True               # J. Picione, 2026-11-16: every side of every path is optimized from its last frame
 SAME_E_KJ = 0.1             # kJ/mol
 SAME_RMSD_HEAVY_A = 0.2      # Å, heavy atoms only
 SAME_KEY_A = 0.05            # Å, each key distance
@@ -54,8 +55,21 @@ def _ref_opt_keyword(rx_root: Path, name: str) -> str:
     raise RuntimeError(f"no Opt keyword in {inp}")
 
 
-def check(rx_root: Path) -> dict:
+def check(rx_root: Path, sides: list[str] | None = None, sub: str = "end_check") -> dict:
+    """sides: only these sides (default both); sub: folder and file stem in 02_irc/true_irc (default end_check;
+    end_check_all for the sides of finished paths optimized on 2026-11-16).
+    From 2026-11-16 (J. Picione) every side is optimized from its last frame (ALWAYS_OPTIMIZE), not only one ending
+    more than LIMIT_KJ above its minimum; a side whose optimization reaches a different form of the minimum with the
+    same bonds makes that form the official end structure (pipeline/path_minimum.py); different bonds: STOP, nothing
+    switched."""
+    from . import path_minimum
+    from .atom_map import best_map
     rx = Reaction.load(rx_root)
+
+    def ref_of(sym_, x_, xref):
+        """The reference minimum numbered as this path: only for the mirror-path reaction (tertiary shift), whose
+        minima were built with another numbering; elsewhere the numbering is the same."""
+        return xref[best_map(sym_, x_, xref)[0]] if rx.cfg.get("mirror_path") else xref
     wd = rx.root / "02_irc/true_irc"
     ang = json.loads((wd / "angles.json").read_text(encoding="utf-8"))
     mins = {m["name"]: m for m in _minima(rx.root)}
@@ -67,8 +81,20 @@ def check(rx_root: Path) -> dict:
     mpi = json.loads((rx.root / "02_irc/mirror_path.json").read_text(encoding="utf-8")) if mp else None
     forced = ({"B": "backward", "F": "forward"}[mpi["bridged_side"]] if mp and mp.get("end_check_always") else None)
     for d, v in ang["sides"].items():
+        if sides and d not in sides:
+            continue
         n = (v.get("end") or {}).get("nearest")
         start = None
+        named = (rx.cfg.get("irc_end_min") or {}).get(d)
+        if named and d != forced:
+            # 2026-11-16: the side's minimum named in reaction.toml [irc_end_min] is its expected end (the nearest by plain
+            # RMSD can be another minimum when atoms are numbered differently, as on the tertiary shift's open side)
+            st = json.loads((ROOT / "docs/stationary_m062x.json").read_text(encoding="utf-8"))[named]
+            nm = st.get("superseded_by") or st["name"]
+            sym_, x_ = _xyz_frames(wd / d / "path.xyz")[-1]
+            e_last = json.loads((wd / d / "path.json").read_text(encoding="utf-8"))["energies"][-1]
+            n = {"minimum": nm, "rmsd_A": rmsd(x_, ref_of(sym_, x_, mins[nm]["xyz"])),
+                 "end_above_min_kJ": (e_last - mins[nm]["E_eh"]) * HARTREE_KJ, "named_in_reaction_toml": named}
         if d == forced:
             # J. Picione, 2026-11-14: always check the bridged side's end point against the optimized bridged structure
             sym, x = _xyz_frames(rx.root / "02_irc/irc_IRC_Full_trj.xyz")[mpi["bridged_index"]]
@@ -76,14 +102,14 @@ def check(rx_root: Path) -> dict:
             n = {"minimum": mpi["reference"], "rmsd_A": mpi["end_rmsd_to_reference_A"],
                  "end_above_min_kJ": mpi["end_energy_minus_reference_kJ"]}
             start = (sym, x)
-        elif n is None or v["ended"] != "own stopping rule":
-            out["sides"][d] = {"needed": False, "why": "no nearest minimum or not ended by the stopping rule"}
+        elif n is None or (v["ended"] != "own stopping rule" and not (wd / d / "accepted.json").exists()):
+            out["sides"][d] = {"needed": False, "why": "no nearest minimum, or not ended by the stopping rule and not accepted"}
             continue
-        elif n["end_above_min_kJ"] <= LIMIT_KJ:
+        elif n["end_above_min_kJ"] <= LIMIT_KJ and not ALWAYS_OPTIMIZE:
             out["sides"][d] = {"needed": False, "end_above_min_kJ": n["end_above_min_kJ"], "minimum": n["minimum"]}
             continue
         sym, x = start if start else _xyz_frames(wd / d / "path.xyz")[-1]
-        jd = wd / "end_check" / d
+        jd = wd / sub / d
         jd.mkdir(parents=True, exist_ok=True)
         kw = _ref_opt_keyword(rx.root, n["minimum"]) if (rx.root / "01_stationary" / n["minimum"]).exists() else "Opt"
         r = orca.run(jd, "opt", rx.inp(f"{kw} Freq", PGeom(sym, x, f"last frame of the {d} side"),
@@ -110,10 +136,11 @@ def check(rx_root: Path) -> dict:
             go = read_xyz(jd / f"{last}.xyz")
             xo = np.asarray(go.coords)
             m = mins[n["minimum"]]
+            ref = m["xyz"] if d == forced else ref_of(go.symbols, xo, m["xyz"])      # numbered as the path (atom_map)
             dE = (r.energy_eh - m["E_eh"]) * HARTREE_KJ
-            dR = rmsd(xo, m["xyz"])
-            dH = _heavy_rmsd(go.symbols, xo, m["xyz"])
-            gm = PGeom(go.symbols, m["xyz"], "reference minimum")
+            dR = rmsd(xo, ref)
+            dH = _heavy_rmsd(go.symbols, xo, ref)
+            gm = PGeom(go.symbols, ref, "reference minimum")
             keys = {b["label"]: {"optimized_A": go.distance(*b["atoms"]), "minimum_A": gm.distance(*b["atoms"])}
                     for b in rx.key_bonds(go.symbols)}
             for k_ in keys.values():
@@ -125,11 +152,30 @@ def check(rx_root: Path) -> dict:
             failed = [k for k, v in ok.items() if not v]
             outcome = "reaches the same minimum" if not failed else "fails: " + ", ".join(failed)
             verdict = "accepted with a note" if not failed else "decision"
+            bd = path_minimum.bond_difference(go.symbols, xo, ref)
+            adopted = None
+            if d != forced and not bd["same"]:
+                # safeguard (J. Picione, 2026-11-16): different bonds from the expected end: stop, switch nothing
+                outcome, verdict = "STOP: different bonds from the expected end; nothing switched", "decision"
+                path_minimum.stop_flag(rx.root.name, d, n["minimum"], bd)
+            elif d != forced and failed and r.imaginary:
+                verdict = "decision"            # an imaginary mode left after the TightOpt step: not a minimum, nothing switched
+            elif d != forced and failed:
+                # J. Picione, 2026-11-16: the minimum the path reaches becomes the official end structure
+                adopted = path_minimum.adopt(rx.root, d, n["minimum"], jd, last,
+                                             f"last frame of the {d} side of the production IRC (02_irc/true_irc/{d}/path.xyz)",
+                                             {"opt_E_minus_min_kJ": dE, "opt_rmsd_heavy_A": dH, "opt_rmsd_all_atoms_A": dR,
+                                              "key_distances": keys, "criteria": ok})
+                outcome = (f"a different form of {n['minimum']} with the same bonds (fails: {', '.join(failed)}); "
+                           f"now the official end structure {adopted}")
+                verdict = "switched to the minimum the path reaches"
+            elif n["end_above_min_kJ"] <= LIMIT_KJ:
+                verdict = "same minimum: no change"
             res = {"needed": True, "minimum": n["minimum"], "end_above_min_kJ": n["end_above_min_kJ"],
                    "end_rmsd_A": n["rmsd_A"], "jobs": jobs, "final_job": last, "opt_E_minus_min_kJ": dE,
                    "opt_rmsd_heavy_A": dH, "opt_rmsd_all_atoms_A": dR, "key_distances": keys,
                    "opt_imaginary_cm": r.imaginary, "nearest_minima_after_opt": others, "criteria": ok,
-                   "outcome": outcome, "verdict": verdict}
+                   "bonds": bd, "adopted": adopted, "outcome": outcome, "verdict": verdict}
         if d == forced and mp.get("bridged_side_rule") == "frame match":
             # J. Picione, 2026-11-14 (tertiary hydride shift only): the bridged well (0.012 kJ/mol) is shallower than the
             # optimizer's tolerance and below the SCF noise floor, so the optimization is not a test there. The side is
@@ -159,10 +205,14 @@ def check(rx_root: Path) -> dict:
         out["sides"][d] = res
     out["verdict"] = ("decision" if any(s.get("verdict") == "decision" for s in out["sides"].values())
                       else "ok")
-    (wd / "end_check.json").write_text(json.dumps(out, indent=1), encoding="utf-8")
+    if any(s.get("adopted") for s in out["sides"].values()):
+        out["endpoints_rewritten"] = path_minimum.rewrite_endpoints(rx.root)
+    (wd / f"{sub}.json").write_text(json.dumps(out, indent=1), encoding="utf-8")
     L = [f"# End check, production path: {rx.root.name}", "",
          f"A side ending more than {LIMIT_KJ} kJ/mol above its nearest optimized minimum is accepted with a note only if "
-         f"Opt Freq from its last frame reaches that minimum ({out['same_minimum']}). Verdict: **{out['verdict']}**", "",
+         f"Opt Freq from its last frame reaches that minimum ({out['same_minimum']}). From 2026-11-16 (J. Picione) every side "
+         "is optimized from its last frame; a different form of the minimum with the same bonds becomes the official end "
+         f"structure (the path defines which minima the TS connects); different bonds stop the switch. Verdict: **{out['verdict']}**", "",
          "| Side | minimum | end above it (kJ/mol) | end RMSD (Å) | check needed | optimized: E − minimum (kJ/mol) | "
          "heavy-atom RMSD (Å) | all-atom RMSD (Å, information) | largest key-distance difference (Å) | imaginary | outcome |",
          "|---|---|---|---|---|---|---|---|---|---|---|"]
@@ -180,13 +230,16 @@ def check(rx_root: Path) -> dict:
             ks = f"{kd[1]:+.3f} ({kd[0]})" if kd else "—"
             L.append(f"| {d} | {s['minimum']} | {s['end_above_min_kJ']:+.3f} | {s['end_rmsd_A']:.3f} | yes | {oe} | {oh} | {oa} | "
                      f"{ks} | {len(s.get('opt_imaginary_cm') or [])} | {s['outcome']} |")
-    (wd / "end_check.md").write_text("\n".join(L) + "\n", encoding="utf-8")
-    rx.log.note(f"`02_irc/true_irc/end_check.md`: end check {out['verdict']}: " + "; ".join(
+    (wd / f"{sub}.md").write_text("\n".join(L) + "\n", encoding="utf-8")
+    rx.log.note(f"`02_irc/true_irc/{sub}.md`: end check {out['verdict']}: " + "; ".join(
         f"{d}: {s.get('outcome', 'not needed')}" for d, s in out["sides"].items()))
     print("\n".join(L))
     return out
 
 
 if __name__ == "__main__":
+    # python -m pipeline.end_check <reaction> [sides=backward,forward] [sub=end_check_all]
     p = Path(sys.argv[1])
-    check(p if p.is_absolute() else ROOT / "reactions" / p)
+    kw = dict(a.split("=", 1) for a in sys.argv[2:] if "=" in a)
+    check(p if p.is_absolute() else ROOT / "reactions" / p,
+          sides=kw["sides"].split(",") if "sides" in kw else None, sub=kw.get("sub", "end_check"))

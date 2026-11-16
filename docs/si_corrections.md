@@ -66,3 +66,31 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
   new structures `02_irc/true_irc/end_check/{backward,forward}/opt`; references `01_stationary/{reactant,product}_complex`;
   `docs/stationary_m062x.json` (`superseded_by`, `official_end`); `02_irc/endpoints.json`.
 
+
+## 4. Every path: the minimum the path reaches is the official end structure (all six reactions)
+
+- **Decision (J. Picione, 2026-11-16):** extends entry 3 to every path, the finished ones included, so all six are
+  treated alike. Every side is optimized from its last frame (Opt Freq as its reference minimum); where that reaches
+  a different form of the reference with the same bonds, the reached form replaces it, and every quantity measured
+  from it is redone. Different bonds: nothing is switched and the case goes to J. Picione.
+- **Switches so far** (filled in as the optimizations finish; references kept, marked `superseded_by`):
+  - SN2, reactant complex (2026-11-16): the reached form has C···O 3.309 Å instead of 3.425 Å (C–Br within
+    0.001 Å, heavy-atom RMSD 0.055 Å, same bonds), E +0.036 kJ/mol, G +0.589 kJ/mol relative to the reference.
+  - E2, both complexes: entry 3.
+- **Free energies** (checked 2026-11-16): every free energy uses ORCA's quasi-RRHO vibrational entropy (Grimme 2012,
+  ω₀ = 100 cm⁻¹), recomputed independently for all 21 stationary points (`pipeline/thermo.py`, within 0.03 kJ/mol);
+  plain harmonic entropy would change G − E by up to 13.2 kJ/mol. No change needed.
+- **Files:** `02_irc/true_irc/end_check_all.{json,md}` per reaction; `docs/stationary_m062x.json`;
+  `02_irc/endpoints.json`; `pipeline/path_minimum.py`.
+
+## 5. Stopping rule near the end minimum; secondary and tertiary shift sides rerun
+
+- **Found:** 2026-11-16 05:46. The secondary shift's rerun backward side (rule of 2026-11-15) stopped 3.71 kJ/mol
+  below its flat TS and 12.15 kJ/mol (2.90 kcal/mol) above the secondary cation, while the energy still fell about
+  0.035 kJ/mol per step. The tertiary shift's open side had stopped 4.1 kJ/mol above the open cation (accepted with
+  a note on 2026-11-15).
+- **Decision (J. Picione, 2026-11-16):** on these sides the 20 flat steps count only within 0.5 kJ/mol of the end
+  minimum's energy; end-minimum test (40 frames) and 3000-step backstop unchanged. Both sides rerun from the TS in
+  clean folders (secondary first, then tertiary), both joins redone. The earlier sides are kept as not results in
+  `02_irc/attempts/backward_stopped_short_0546` (secondary) and `02_irc/attempts/open_side_stopped_short_1218`
+  (tertiary). The tertiary half-step check covers only the region near the TS and stays valid.

@@ -29,7 +29,7 @@ from . import orca
 from .geometry import Geometry as PGeom
 from .geometry import read_xyz, read_xyz_frames
 from .mass_weight_evidence import read_hess_matrix
-from .steps import Reaction, _write_json
+from .steps import NEAR_MIN_KJ, Reaction, _write_json, end_min
 
 ROOT = Path(__file__).resolve().parents[1]
 BOHR = 0.529177210903
@@ -141,6 +141,8 @@ def run_side(rx_root: Path, direction: str, test: bool = False, step: float | No
                energy_thresh=-1.0, hessian_init="calc", out_dir=str(wd / "pysis"),
                forward=direction == "forward", backward=direction == "backward", displ="length", displ_length=STEP_)
     irc.rx = rx
+    em = None if (test or check_dir) else end_min(rx, direction)      # J. Picione, 2026-11-16 (reaction.toml [irc_end_min])
+    irc.e_min_eh = em[1] if em else None
     irc.ts_frame = PGeom(sym, np.asarray(ts.coords), f"TS E {E_TS:.12f}")
     irc.own_stop = None
     irc.fallbacks, irc.micro_log, irc.micro_max_hit, irc.energy_rises = [], [], [], []
@@ -167,7 +169,8 @@ def run_side(rx_root: Path, direction: str, test: bool = False, step: float | No
     res = {"reaction": rx.root.name, "direction": direction, "method": METHOD.replace("step 0.05", f"step {STEP_}"), "level": rx.cfg["method"],
            "solvent": rx.cfg["solvent"], "nprocs": rx.cfg["nprocs"], "step_bohr_amu05": STEP_, "ended": ended,
            "check_run": check_dir,
-           "own_stop": irc.own_stop, "n_points": len(C), "E_TS_eh": E_TS,
+           "own_stop": irc.own_stop, "end_min": ({"minimum": em[0], "E_eh": em[1], "near_min_kJ": NEAR_MIN_KJ} if em else None),
+           "n_points": len(C), "E_TS_eh": E_TS,
            "n_engrad": sum(c["kind"] == "EnGrad" for c in calc.calls), "n_hessian": sum(c["kind"] == "Freq" for c in calc.calls),
            "calls": calc.calls, "wall_total_s": time.time() - t0, "energies": E, "gradients": [g.tolist() for g in G],
            "gs_micro_steps": len(irc.micro_log), "gs_micro_cycle_limit_hit_at": irc.micro_max_hit,
@@ -175,16 +178,62 @@ def run_side(rx_root: Path, direction: str, test: bool = False, step: float | No
     (wd / "path.json").write_text(json.dumps(res), encoding="utf-8")
     rx.log.note(("SMOKE TEST, not a result: " if test else f"CHECK RUN (step {STEP_}), not a production path: " if check_dir else "") + f"`{wd.relative_to(rx.root).as_posix()}`: production true IRC ({METHOD}; ORCA {rx.cfg['method']}, SMD "
                 f"{rx.cfg['solvent']}, {rx.cfg['nprocs']} cores): "
-                + (f"ended by the stopping rule, {len(C)} points" if ended == "own stopping rule"
+                + (f"ended by the stopping rule{f' (flat steps counted within {NEAR_MIN_KJ:g} kJ/mol of {em[0]}, J. Picione 2026-11-16)' if em else ''}, {len(C)} points" if ended == "own stopping rule"
                    else f"INCOMPLETE ({ended}), not a result")
                 + f"; {res['n_engrad']} gradients, {res['n_hessian']} Hessians, {res['wall_total_s'] / 3600:.1f} h")
     print(json.dumps({k: v for k, v in res.items() if k not in ("gradients", "energies", "calls")}))
     return res
 
 
+def _rerun_marked_sides(rx: Reaction) -> None:
+    """J. Picione, 2026-11-16: a side marked for a rerun (02_irc/true_irc/rerun_<side>.json, written by Claude for an
+    approved rerun) is rerun here, at the start of the join, so the chain and the restart guard see one lane: its
+    folder and console go to 02_irc/attempts/<archive_as>/ (not results, WHY.txt), the earlier join's outputs are
+    copied there as a record and its end-check folders moved there (the new end check runs in clean folders), the
+    marker moves with them, and the side runs from the TS in a clean folder with the settings in reaction.toml.
+    If this process is killed, the guard archives the unfinished side and the chain reruns it the usual way."""
+    import shutil
+    import subprocess
+    wd = rx.root / "02_irc"
+    for d in ("backward", "forward"):
+        mk = wd / "true_irc" / f"rerun_{d}.json"
+        if not mk.exists():
+            continue
+        m = json.loads(mk.read_text(encoding="utf-8"))
+        A = wd / "attempts" / m["archive_as"]
+        A.mkdir(parents=True, exist_ok=False)
+        for f in ("irc_IRC_Full_trj.xyz", "irc_IRC_B.xyz", "irc_IRC_F.xyz", "irc_path.json", "mirror_path.json",
+                  "endpoints.json", "true_irc/angles.json", "true_irc/angles.md", "true_irc/angles_ts_region.md"):
+            if (wd / f).exists():
+                (A / "earlier_join").mkdir(exist_ok=True)
+                shutil.copy2(wd / f, A / "earlier_join" / Path(f).name)
+        for f in [wd / "true_irc" / d, wd / f"console_true_irc_{d}.txt"] + sorted((wd / "true_irc").glob("end_check*")):
+            if f.exists():
+                shutil.move(str(f), str(A / f.name))
+        (A / "WHY.txt").write_text(m["why"] + "\n", encoding="utf-8")
+        shutil.move(str(mk), str(A / mk.name))
+        t = time.strftime("%Y-%m-%d %H:%M:%S")
+        with open(ROOT / "docs/production_true_irc.log", "a", encoding="utf-8") as fh:
+            fh.write(f"{t} production true IRC {rx.root.name}: {d} side rerun from the TS at the start of the join "
+                     f"({m['decision']}); earlier side in 02_irc/attempts/{m['archive_as']}\n")
+        rx.log.note(f"{d} side archived to `02_irc/attempts/{m['archive_as']}` (not results) and rerun from the TS in a clean "
+                    f"folder: {m['decision']}")
+        (wd / "logs" / d).mkdir(parents=True, exist_ok=True)
+        con = wd / f"console_true_irc_{d}.txt"
+        with open(con, "w", encoding="utf-8") as fh:
+            rc = subprocess.run([sys.executable, "-X", "utf8", "-W", "ignore", "-u", "-m", "pipeline.true_irc_prod",
+                                 str(rx.root), d], cwd=wd / "logs" / d, stdout=fh, stderr=subprocess.STDOUT,
+                                env={**os.environ, "PYTHONPATH": str(ROOT)}).returncode
+        with open(con, "a", encoding="utf-8") as fh:
+            fh.write(f"end {time.strftime('%H:%M')} exit {rc}\n")
+        if rc != 0:
+            raise RuntimeError(f"{d} side rerun ended with exit {rc}: incomplete, nothing joined")
+
+
 def join(rx_root: Path) -> dict:
     """Both sides ended by the stopping rule: write 02_irc in the layout of pipeline.steps.irc."""
     rx = Reaction.load(rx_root)
+    _rerun_marked_sides(rx)
     tsx, _, tso = ts_paths(rx)
     ts = read_xyz(tsx)
     wd = rx.root / "02_irc"
@@ -257,7 +306,25 @@ def join(rx_root: Path) -> dict:
     # last frame; accepted with a note only if that reaches the same minimum, otherwise a decision
     from .end_check import check as end_check
     ec = end_check(rx.root)
+    _after_join(rx)
     return {"frames": len(frames), "ts_index": len(fb), "angles_pass": a["passes"], "end_check": ec["verdict"]}
+
+
+def _after_join(rx: Reaction) -> None:
+    """J. Picione, 2026-11-16 ("rerun it after the secondary side, and redo both joins"): 02_irc/after_join.json names
+    joined reactions to withdraw once this join has finished. Their "join withdrawn" lines are written before the
+    chain writes this reaction's "join exit" line, so the restart guard then continues the chain with them (it
+    restarts the reactions of its list in a fixed order, so they cannot be withdrawn while this one still runs)."""
+    mk = rx.root / "02_irc" / "after_join.json"
+    if not mk.exists():
+        return
+    m = json.loads(mk.read_text(encoding="utf-8"))
+    t = time.strftime("%Y-%m-%d %H:%M:%S")
+    with open(ROOT / "docs/production_true_irc.log", "a", encoding="utf-8") as fh:
+        for w in m["withdraw"]:
+            fh.write(f"{t} production true IRC {w['reaction']}: join withdrawn ({w['why']})\n")
+    rx.log.note("after this join: " + "; ".join(f"join of {w['reaction']} withdrawn ({w['why']})" for w in m["withdraw"]))
+    mk.rename(mk.with_name("after_join.done.json"))
 
 
 if __name__ == "__main__":

@@ -3,6 +3,10 @@
    side must stop at the frame recorded under the old rule; the secondary hydride shift sides (stopped at
    frame 20 on its flat TS by the old rule) must not stop within their 20 computed points.
 2. The safeguard: the end-minimum test must hold on 40 consecutive frames (39 is not enough).
+3. Rule (c) of 2026-11-16 (J. Picione; flat steps count only within 0.5 kJ/mol of the side's named end minimum):
+   the two sides that stopped short (secondary shift backward, 12.15 kJ/mol above its cation; tertiary shift open
+   side, 4.1 kJ/mol above the open cation) must not stop within their computed points, and a side that then rests
+   0.3 kJ/mol above its minimum stops after 20 flat steps (0.6 kJ/mol above: no stop).
 Run: .venv/Scripts/python.exe -X utf8 tests/test_stopping_rule.py
 """
 import json
@@ -13,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from pipeline.geometry import Geometry as G  # noqa: E402
 from pipeline.path_angles import _xyz_frames  # noqa: E402
-from pipeline.steps import END_TEST_STEPS, Reaction, irc_stop_prod  # noqa: E402
+from pipeline.steps import END_TEST_STEPS, Reaction, end_min, irc_stop_prod  # noqa: E402
 
 EXPECT = {("sn2_hydroxide_bromomethane_m062x", "backward"): 153, ("sn2_hydroxide_bromomethane_m062x", "forward"): 188,
           ("nucadd_cyanide_acetone_m062x", "backward"): 158, ("nucadd_cyanide_acetone_m062x", "forward"): 94,
@@ -24,9 +28,13 @@ EXPECT = {("sn2_hydroxide_bromomethane_m062x", "backward"): 153, ("sn2_hydroxide
 FIRST_RUN = {"hshift_3_methyl_2_butyl_m062x": "02_irc/attempts/first_run_early_stop_flat_ts/true_irc"}
 
 
-def frames_of(rxn, d):
+STOPPED_SHORT = {"hshift_3_methyl_2_butyl_m062x": "02_irc/attempts/backward_stopped_short_0546",
+                 "hshift_2_3_dimethyl_2_butyl_m062x": "02_irc/attempts/open_side_stopped_short_1218"}
+
+
+def frames_of(rxn, d, where=None):
     R = ROOT / "reactions" / rxn
-    base = R / FIRST_RUN.get(rxn, "02_irc/true_irc")
+    base = R / (where or FIRST_RUN.get(rxn, "02_irc/true_irc"))
     if not base.exists():
         base = R / "02_irc/true_irc"
     sym, xts = _xyz_frames(R / "01_stationary/ts/ts.xyz")[0]
@@ -36,9 +44,9 @@ def frames_of(rxn, d):
     return Reaction.load(R), frames, js["gradients"]
 
 
-def replay(rx, frames, grads):
+def replay(rx, frames, grads, e_min_eh=None):
     for n in range(2, len(frames) + 1):
-        h = irc_stop_prod(rx, frames[:n], grads[:n - 1])
+        h = irc_stop_prod(rx, frames[:n], grads[:n - 1], e_min_eh=e_min_eh)
         if h:
             return h["stop_frame"]
     return None
@@ -59,6 +67,23 @@ def main():
         h = irc_stop_prod(rx, fr, [[1e-6] * (3 * len(ts.symbols))] * (n + 1))
         assert (h and h["stop_frame"]) == want or (h is None and want is None), (n, h)
         print(f"ok  safeguard with {n} test frames in a row: {'stops at ' + str(h['stop_frame']) if h else 'no stop'}")
+    # rule (c), 2026-11-16
+    for rxn, old_stop in (("hshift_3_methyl_2_butyl_m062x", 85), ("hshift_2_3_dimethyl_2_butyl_m062x", 113)):
+        where = STOPPED_SHORT[rxn] if (ROOT / "reactions" / rxn / STOPPED_SHORT[rxn]).exists() else "02_irc/true_irc"
+        rx, frames, grads = frames_of(rxn, "backward", where)
+        key, e_min = end_min(rx, "backward")
+        assert replay(rx, frames, grads) == old_stop, (rxn, "old rule no longer reproduces the stop")
+        got = replay(rx, frames, grads, e_min)
+        assert got is None, (rxn, got)
+        print(f"ok  rule (c) {rxn} backward: the old rule stopped at {old_stop}; with {key} no stop in {len(frames) - 1} points")
+        last = frames[-1]
+        for above, want in ((0.3, True), (0.6, False)):
+            e = e_min + above / 2625.499639
+            ext = [G(last.symbols, last.coords, f"x E {e:.12f}") for _ in range(22)]
+            g = [[1e-3] * (3 * len(last.symbols))] * (len(frames) - 1 + 22)     # gradient too large for the safeguard
+            h = irc_stop_prod(rx, frames + ext, g, e_min_eh=e_min)
+            assert bool(h) == want, (rxn, above, h)
+            print(f"ok  rule (c) {rxn}: resting {above} kJ/mol above {key}: " + (f"stops at {h['stop_frame']} ({h['by']})" if h else "no stop"))
     print("all passed")
 
 

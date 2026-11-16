@@ -12,4 +12,4 @@ PYTHONPATH="$R" "$PY" -X utf8 -W ignore -u -m pipeline.true_irc_prod "$RX" backw
     > "$D/console_halfstep_check_backward.txt" 2>&1
 rc=$?
 echo "end $(date +%H:%M) exit $rc" >> "$D/console_halfstep_check_backward.txt"
-echo "$(date '+%Y-%m-%d %H:%M:%S') half-step check hshift_2_3_dimethyl_2_butyl_m062x backward: exit $rc" >> "$R/docs/production_true_irc.log"
+echo "$(date '+%Y-%m-%d %H:%M:%S') half-step check hshift_2_3_dimethyl_2_butyl_m062x backward: exit $rc" >> "$R/docs/halfstep_check.log"

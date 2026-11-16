@@ -148,11 +148,15 @@ class OwnStop:
                                 for c, e in zip(self.irc_coords, self.irc_energies)]
         # rule as amended by J. Picione on 2026-11-15 (flat steps count only >= 1 kJ/mol below the TS; end-minimum
         # test on 40 consecutive frames as the safeguard); sides started before that used irc_stop_index
-        hit = irc_stop_prod(self.rx, fr, [np.asarray(g) for g in self.irc_gradients])
+        # J. Picione, 2026-11-16: a side with a minimum named in reaction.toml [irc_end_min] counts flat steps only
+        # within 0.5 kJ/mol of that minimum's energy (steps.irc_stop_prod (c))
+        e_min = getattr(self, "e_min_eh", None)
+        hit = irc_stop_prod(self.rx, fr, [np.asarray(g) for g in self.irc_gradients], e_min_eh=e_min)
         if hit is not None:
             self.converged = True
             self.own_stop = {"direction": self.cur_direction, "last_event_frame": hit["last_event_frame"],
-                             "stop_frame": int(hit["stop_frame"]), "by": hit["by"], "rule": "2026-11-15"}
+                             "stop_frame": int(hit["stop_frame"]), "by": hit["by"],
+                             "rule": "2026-11-16" if e_min is not None else "2026-11-15"}
             return f"own stopping rule met ({hit['by']}; stop at frame {hit['stop_frame']})"
         return ""
 

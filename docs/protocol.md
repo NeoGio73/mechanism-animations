@@ -398,6 +398,24 @@ references stay on record with the comparison (`02_irc/true_irc/end_check_decisi
 the energy zero, end points, cards and tables (`pipeline.path_angles._minima`); the official ones carry
 `official_end: true`.
 
+**Every path, every side (J. Picione, 2026-11-16, later the same day):** the minimum a path reaches is the official
+end structure for all six paths, the finished ones included, so all are treated alike.
+- Every side is optimized from its last frame (`end_check.ALWAYS_OPTIMIZE`), not only a side ending more than
+  0.5 kJ/mol above its minimum. Sides of finished paths not yet optimized were done on 2026-11-16
+  (`02_irc/true_irc/end_check_all/`, `pipeline/run_end_check_all.sh`): SN2 both sides, Diels–Alder both sides,
+  cyanide product side. Already optimized: E2 both sides, cyanide reactant side, tertiary bridged side.
+- An optimization that reaches the same minimum (criteria above) changes nothing. One that reaches a different
+  form with the same bonds makes that form the official end structure (`pipeline/path_minimum.py`: new entry
+  `<name>_irc`, reference `superseded_by`, `02_irc/endpoints.json` rewritten), and every quantity measured from it
+  is redone and listed, free energies included.
+- **Safeguard:** if the optimized structure has different bonds from the expected end (bonded at ≤ 1.25 × the sum
+  of covalent radii, every atom pair), nothing is switched; the side is reported as "STOP: different bonds" and a
+  line goes to `docs/END_BONDS_STOP` for J. Picione.
+- A side with a minimum named in `reaction.toml [irc_end_min]` is compared with that minimum. For the tertiary shift
+  (mirror path) the reference is first renumbered to match the path (`pipeline/atom_map.py`: relabelling of the
+  heavy atoms that keeps the bond graph, hydrogens matched within their heavy atom), as done by hand for its open
+  side on 2026-11-15 (same numbers: heavy-atom RMSD 0.485 Å at the end, 0.002 Å after the optimization).
+
 ### Single points along the path (J. Picione, 2026-11-13; replaces the sampling of 2026-11-09)
 
 All six reactions, on the working-level production path:
@@ -600,6 +618,24 @@ Two follow-ups were asked for:
 - whether a C2–C3 rotation transition state connects this minimum to the tertiary cation.
 
 ### IRC stopping rule (decided by J. Picione, 2026-11-09)
+
+**Amended again by J. Picione, 2026-11-16** (`steps.irc_stop_prod` (c); `reaction.toml [irc_end_min]`):
+- **Flat steps count only near the end minimum:** on a side whose end minimum is named, a step counts toward the
+  20 flat steps only if both its frames lie within **0.5 kJ/mol (0.12 kcal/mol) of that minimum's energy**,
+  instead of 1 kJ/mol below the TS. The end-minimum test on 40 frames and the 3000-step backstop are unchanged.
+- **Why:** the secondary shift's rerun backward side met the 1 kJ/mol rule 3.71 kJ/mol below its TS and stopped
+  12.15 kJ/mol (2.90 kcal/mol) above the secondary cation, on the slow rotation away from the flat TS (the energy
+  still fell about 0.035 kJ/mol per step); the tertiary shift's open side stopped 4.1 kJ/mol above the open cation.
+- **Applied to:** the secondary shift's backward side (to `secondary_eclip`), rerun from the TS in a clean folder at
+  the start of its join (marker `02_irc/true_irc/rerun_backward.json`, `true_irc_prod._rerun_marked_sides`); then
+  the tertiary shift's open (backward) side (to `open_cation`), the same way; both joins redone
+  (`02_irc/after_join.json` withdraws the tertiary join once the secondary join has finished, so the restart guard
+  continues the chain with it). The tertiary half-step check covers only the region near the TS and stays valid.
+- **Every other finished side:** how far its last frame lies above its official end minimum is listed in the
+  2026-11-16 17:00 report. If all are within 0.5 kJ/mol, this rule becomes the rule for every path and nothing else
+  is rerun; any side further off is put to J. Picione before any rerun.
+- Tested (`tests/test_stopping_rule.py`, part 3): neither side that stopped short stops within its computed points
+  under the new rule; a side resting 0.3 kJ/mol above its minimum stops after 20 flat steps, 0.6 kJ/mol above does not.
 
 **Amended by J. Picione, 2026-11-15** (production paths started from 15:00 that day; `pipeline/steps.irc_stop_prod`):
 - **Flat steps count only below the TS:** a step counts toward the 20 flat steps only if both its frames lie at
