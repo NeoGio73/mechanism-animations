@@ -82,6 +82,12 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
     working level 75.47 → 74.88 kJ/mol. Electronic barriers from the complex: working 67.40 → 67.36, M06-2X/TZVP
     70.28 → 70.44, DLPNO 75.92 → 75.31, B3LYP 54.43 → 53.79 kJ/mol. Barriers from separated reactants and reaction
     energies unchanged.
+  - Diels–Alder, reactant complex (2026-11-16): the reached form (Opt, then TightOpt after an imaginary mode) has the
+    C4···C5 contact 0.185 Å longer, heavy-atom RMSD 0.250 Å, same bonds; E −0.297 kJ/mol, G +2.245 kJ/mol relative to
+    the reference (lowest frequency 37.8 cm⁻¹). Electronic barrier from the complex 75.34 → 75.63 kJ/mol, ΔG‡ from the
+    complex 98.40 → 96.16 kJ/mol, ΔG complex to complex −158.04 → −160.28 kJ/mol (working level). No Diels–Alder
+    after-path numbers existed yet; its single points start on the new structure. Product complex: same minimum.
+  - Cyanide product side: (pending at 08:30).
   - E2, both complexes: entry 3.
 - **Free energies** (checked 2026-11-16): every free energy uses ORCA's quasi-RRHO vibrational entropy (Grimme 2012,
   ω₀ = 100 cm⁻¹), recomputed independently for all 21 stationary points (`pipeline/thermo.py`, within 0.03 kJ/mol);
