@@ -388,6 +388,16 @@ First case, cyanide + acetone, reactant side:
 - It passes the refined criteria. J. Picione accepted it as the same reactant complex (2026-11-14), and
   the card states the numbers.
 
+E2, both sides (J. Picione, 2026-11-16): each optimization from the path end reached a slightly different,
+slightly lower form of the same complex. The covalent key distances agree within 0.001 Å; one non-covalent
+contact differs (0.065 Å reactant side, 0.101 Å product side); E is 0.27 and 0.28 kJ/mol lower; heavy-atom RMSD
+to the reference 0.226 and 0.150 Å. Decision: accepted with a note, and **the minima the path actually reaches
+become the official end structures, because the path defines which minima the TS connects.** The hand-built
+references stay on record with the comparison (`02_irc/true_irc/end_check_decision.md`). In
+`docs/stationary_m062x.json` a replaced reference is marked `superseded_by` and left out of the minima used for
+the energy zero, end points, cards and tables (`pipeline.path_angles._minima`); the official ones carry
+`official_end: true`.
+
 ### Single points along the path (J. Picione, 2026-11-13; replaces the sampling of 2026-11-09)
 
 All six reactions, on the working-level production path:

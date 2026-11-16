@@ -111,7 +111,9 @@ def main(keys: list[str]) -> list[dict]:
             d = one(*t)
         except Exception as e:                                # one failure must not stop the others
             d = {"reaction": t[0], "name": t[1], "kind": t[2], "ok": False, "accepted": False, "error": str(e)}
-        res[f"{t[0]}/{t[1]}"] = d
+        keep = {k: v for k, v in res.get(f"{t[0]}/{t[1]}", {}).items()
+                if k in ("superseded_by", "official_end", "note")}   # decisions on record survive a rerun
+        res[f"{t[0]}/{t[1]}"] = {**d, **keep}
         out_p.write_text(json.dumps(res, indent=1), encoding="utf-8")
         print(json.dumps(d), flush=True)
         return d

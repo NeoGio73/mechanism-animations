@@ -45,3 +45,24 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
   `bridged_c2`, end check accepted; path 241 frames (121 computed, 120 mirror).
 - **Files:** withdrawn output in `reactions/hshift_2_3_dimethyl_2_butyl_m062x/02_irc/attempts/join_wrong_bridged_side_1213/`
   (WHY.txt); corrected output in `02_irc/` there.
+
+## 3. E2 end structures: the minima the path reaches replace the hand-built complexes (E2, ethoxide + 2-bromopropane)
+
+- **Found:** 2026-11-16, at the end check of the production path (join 03:39; M06-2X-D3(0)/ma-def2-SVP, SMD ethanol).
+- **What happened:** the reactant and product complexes had been optimized beforehand from the B3LYP-level IRC end
+  points (hand-built references). On each side, Opt Freq from the last frame of the M06-2X path reached a slightly
+  different form of the same complex: covalent key distances within 0.001 Å; one non-covalent contact different
+  (reactant side ethoxide O···Hβ 2.623 vs 2.688 Å; product side Cβ···H(ethanol) 2.544 vs 2.443 Å); heavy-atom RMSD
+  0.226 Å and 0.150 Å; E lower by 0.267 and 0.279 kJ/mol; no imaginary frequency.
+- **Decision (J. Picione, 2026-11-16):** the path is accepted with a note; the minima the path actually reaches are
+  the official end structures, because the path defines which minima the TS connects. The references are kept on
+  record with the comparison.
+- **Effect:** the energy zero and every quantity measured from the complexes use the new structures. Electronic
+  barrier from the reactant complex 59.67 instead of 59.40 kJ/mol (+0.27); ΔG‡ from the reactant complex
+  48.40 instead of 51.06 kJ/mol (−2.66; the two forms differ in their softest vibrations, below 25 cm⁻¹); ΔG from
+  complex to complex −108.61 instead of −105.64 kJ/mol. None of the old values had been reported, carded or
+  tabulated. Barriers from separated reactants (comparison with experiment) are unaffected.
+- **Files:** `reactions/e2_ethoxide_2_bromopropane_m062x/02_irc/true_irc/end_check_decision.md`;
+  new structures `02_irc/true_irc/end_check/{backward,forward}/opt`; references `01_stationary/{reactant,product}_complex`;
+  `docs/stationary_m062x.json` (`superseded_by`, `official_end`); `02_irc/endpoints.json`.
+

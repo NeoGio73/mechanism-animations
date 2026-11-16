@@ -83,11 +83,15 @@ def _stats(v: list[float]) -> dict | None:
     return st
 
 
-def _minima(rx_root: Path) -> list[dict]:
+def _minima(rx_root: Path, include_superseded: bool = False) -> list[dict]:
+    """Optimized minima of the reaction. A minimum marked superseded_by (a hand-built reference replaced by the
+    minimum the path reaches, J. Picione 2026-11-16) is left out unless include_superseded."""
     js = json.loads((ROOT / "docs/stationary_m062x.json").read_text(encoding="utf-8"))
     out = []
     for v in js.values():
         owner = v.get("reaction_folder", v["folder"].split("/")[0])   # a reference kept in another folder names its reaction
+        if v.get("superseded_by") and not include_superseded:
+            continue
         if v.get("kind") == "min" and owner == rx_root.name and v.get("accepted"):
             f = ROOT / "reactions" / v["folder"] / f"{v['job']}.xyz"
             out.append({"name": v["name"], "E_eh": v["E_eh"], "xyz": _xyz_frames(f)[-1][1]})

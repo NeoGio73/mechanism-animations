@@ -1217,7 +1217,7 @@ def from_stationary(rx: Reaction) -> None:
                      "end_rmsd_to_minimum_A": rmsd(np.asarray(g.coords), near["xyz"]),
                      "bonds_A": {b["label"]: go.distance(*b["atoms"]) for b in rx.key_bonds(go.symbols)},
                      "d_nu_center_A": d_nu2, "d_center_lg_A": d_lg2,
-                     "source": "01_stationary minimum nearest to this path end (pipeline/stationary_m062x.py)"}
+                     "source": "optimized minimum nearest to this path end, superseded references left out (docs/stationary_m062x.json)"}
     if set(ep) != {"reactant_complex", "product_complex"}:
         raise orca.OrcaError(f"path ends do not give one reactant and one product side: {ep}")
     _write_json(wd / "endpoints.json", ep)
