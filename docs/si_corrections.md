@@ -200,3 +200,24 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
 - **SI wording (draft):** "For the degenerate tertiary shift the second half of the path is the mirror image of the
   first. Single points at M06-2X/ma-def2-TZVP were computed on every frame; mirror frames agreed with their partners
   to within [max] kJ/mol, so B3LYP and DLPNO-CCSD(T) energies of mirror frames were taken from their partners."
+
+## 8. SN2 experimental barrier: 95.0 → 94.9 kJ/mol from the original measurements (J. Picione, 2026-11-17)
+
+- **What:** the measured ΔG‡ for HO⁻ + CH₃Br in water was 95.0 kJ/mol (22.7 kcal/mol), from the rounded 298 K rate
+  constant in the critical review of Mabey and Mill (1978, Table 5.1, 1.41 × 10⁻⁴ M⁻¹ s⁻¹), which cites the 1959
+  summary. J. Picione checked it against the original measurements.
+- **Source now:** E. A. Moelwyn-Hughes, Proc. R. Soc. Lond. A 1949, 196, 540–553, doi:10.1098/rspa.1949.0044 (NaOH in
+  water; rates corrected for the competing reaction with water). Table 5, k₂ (10⁻⁴ L mol⁻¹ s⁻¹): 292.69 K, 0.708;
+  297.62 K, 1.37; 303.41 K, 2.87; 308.46 K, 5.33; 313.29 K, 9.31; 322.91 K, 29.1. Table 9: k₂(298.1 K) =
+  1.435 × 10⁻⁴ L mol⁻¹ s⁻¹, A = 1.04 × 10¹³ L mol⁻¹ s⁻¹, Ea = 96.2 ± 0.6 kJ/mol (23,000 ± 150 cal/mol). The same values
+  are summarized in Fells and Moelwyn-Hughes, J. Chem. Soc. 1959, 398 (Table 11, p. 408) and Bathgate and
+  Moelwyn-Hughes, J. Chem. Soc. 1959, 2642 (Table 12, p. 2646).
+- **Fit:** Eyring, least squares of ln(k₂/T) against 1/T over the six Table 5 points (`pipeline/eyring_fit.py`):
+  ΔH‡ = 93.7 ± 0.5 kJ/mol (22.4 kcal/mol), ΔS‡ = −4.1 ± 1.5 J mol⁻¹ K⁻¹, ΔG‡(298.15 K, 1 M) = 94.9 kJ/mol
+  (22.7 kcal/mol). 298 K lies inside the measured range, so no extrapolation is involved.
+- **Effect:** every computed − measured SN2 difference rises by 0.1 kJ/mol. Def2-SVP pilot card, DLPNO-CCSD(T)/ma-def2-TZVP:
+  +0.6 → +0.7 kJ/mol from the TS frame, +4.7 → +4.8 kJ/mol from the curve maximum. M06-2X sensitivity test:
+  +5.6 → +5.7 kJ/mol (B3LYP geometry), +5.3 → +5.4 kJ/mol (M06-2X geometry). No calculation changes.
+- **Files:** `reactions/sn2_hydroxide_bromomethane{,_masvp,_m062x}/00_inputs/card_notes.toml`,
+  `reactions/sn2_hydroxide_bromomethane/card.md`, `pipeline/level_test.py`, `docs/sensitivity_M06-2X.{json,md}`,
+  `docs/protocol.md`, `docs/references.md`. Reports written before 2026-11-17 keep 95.0 as written.

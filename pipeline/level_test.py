@@ -282,7 +282,7 @@ def methylbutyl() -> None:
 
 
 # ------------------------------------------------------------------ sensitivity test
-MEASURED = {"sn2_hydroxide_bromomethane": ("ΔG‡", 95.0, "water, 25 °C; Mabey and Mill 1978"),
+MEASURED = {"sn2_hydroxide_bromomethane": ("ΔG‡", 94.9, "water, 25 °C; Moelwyn-Hughes 1949, Eyring fit of Table 5"),
             "e2_ethoxide_2_bromopropane": ("ΔG‡", 105.1, "ethanol, 25 °C, k(E2) 2.37e-6 L/mol/s; Dhar, Hughes and Ingold 1948, Table II"),
             "nucadd_cyanide_acetone": ("ΔG‡", 69.6, "water, 25 °C; Schlesinger and Miller 1973"),
             "da_butadiene_ethylene": ("Ea (840 K, gas)", 115.1, "gas phase, 760–921 K; Rowley and Steiner 1951, refit of Table VI")}

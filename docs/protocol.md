@@ -216,7 +216,7 @@ the main video; M06-2X-D3(0)/ma-def2-TZVP is also computed along the path for co
 
 Why: in the SN2 pilot the def2-SVP working level (no diffuse functions) put the TS 10.9 kJ/mol
 (2.6 kcal/mol) below separated reactants. The barrier needed rescuing with coupled-cluster single
-points, which gave ΔG‡ = 95.6 kJ/mol (22.9 kcal/mol) against 95.0 kJ/mol (22.7 kcal/mol) measured.
+points, which gave ΔG‡ = 95.6 kJ/mol (22.9 kcal/mol) against 94.9 kJ/mol (22.7 kcal/mol) measured.
 The SN2 pilot below was computed at def2-SVP. It will be rerun at ma-def2-SVP so the whole set shares
 one working level (`docs/tasks.md`); the def2-SVP results stay until then.
 
@@ -578,8 +578,8 @@ differences from experiment. This is the IRCMax practice of D. K. Malick, G. A. 
 J. A. Montgomery Jr. (J. Chem. Phys. 1998, 108, 5704–5713). The card builder applies the rule
 automatically (pipeline/card.py). At present it applies to SN2 only: the DLPNO-CCSD(T)/ma-def2-TZVP
 maximum is IRC frame 18, 4.1 kJ/mol (1.0 kcal/mol) above the TS frame 17, so ΔG‡ is 95.6 kJ/mol
-(22.9 kcal/mol) from the TS frame and 99.7 kJ/mol (23.8 kcal/mol) from the maximum, +0.6 and
-+4.7 kJ/mol from experiment (95.0 kJ/mol); the offset is expected to shrink in the ma-def2-SVP
+(22.9 kcal/mol) from the TS frame and 99.7 kJ/mol (23.8 kcal/mol) from the maximum, +0.7 and
++4.8 kJ/mol from experiment (94.9 kJ/mol); the offset is expected to shrink in the ma-def2-SVP
 rerun. E2, Diels–Alder and cyanide + acetone have their maximum on the TS frame.
 
 A gas-phase measurement is compared with the gas-phase computed value; the solution value is
