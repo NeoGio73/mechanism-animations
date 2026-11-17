@@ -44,3 +44,27 @@
 ### 2026-11-16 16:20 guard replaced by Claude (planned, not a stop): end time moved from 2026-11-25 12:00 to 2026-11-27 12:00 (J. Picione 2026-11-16: cover the new timeline with at least two days of margin). Old guard pid 8060 stopped at 16:19:5x, new guard pid 77792 started 16:20:43 through pipeline/launch_hidden.py (no window); about one minute without a guard, lanes unchanged. Keep-awake replaced the same way (old pid 25552, new pid 83700, until 2026-11-27 12:00).
 
 ### 2026-11-16 19:07:33 production chain finished: every reaction has a join line. Guard no longer watches it.
+
+## Guard started 2026-11-17 06:56:43 (PowerShell pid 21992; until 2026-11-30 12:00; poll every 10 s)
+- Git Bash runtime: msys-2.0.dll 3.6.10-5a1665c8a0fb24930e55f1621441dfd98a798c15; git version 2.56.0.windows.1
+- production chain: 0 process(es) running
+- stall watchdog: 4 process(es) running
+- production chain, reactions not yet joined: 
+- planned pause (reserved window) now: no
+
+### 2026-11-17 06:56:54 production chain finished: every reaction has a join line. Guard no longer watches it.
+
+### 2026-11-17 06:57 guard and keep-awake replaced by Claude (planned, not a stop): end time moved from 2026-11-27 12:00 to 2026-11-30 12:00 (J. Picione 2026-11-16: cover the timeline with at least two days of margin; the measured estimate for the last single point now runs to Fri 2026-11-27 about 07:00). New guard pid 21992 and keep-awake pid 32372 started 06:56:43 through pipeline/launch_hidden.py (no window); old guard pid 77792 and keep-awake pid 83700 stopped 06:57, after the new ones were running (no gap). Lanes unchanged.
+
+
+## Guard started 2026-11-17 06:58:15 (PowerShell pid 44068; until 2026-12-02 12:00; poll every 10 s)
+- Git Bash runtime: msys-2.0.dll 3.6.10-5a1665c8a0fb24930e55f1621441dfd98a798c15; git version 2.56.0.windows.1
+- production chain: 0 process(es) running
+- stall watchdog: 4 process(es) running
+- production chain, reactions not yet joined: 
+- planned pause (reserved window) now: no
+
+### 2026-11-17 06:58:25 production chain finished: every reaction has a join line. Guard no longer watches it.
+
+### 2026-11-17 06:58 guard and keep-awake replaced again by Claude (planned, not a stop): end time 2026-12-02 12:00 instead of 2026-11-30 12:00. The late end of the measured estimate is Sat 2026-11-28 about 15:00, so 2026-11-30 12:00 left less than his two days of margin. New guard pid 44068 and keep-awake pid 36816 started 06:58:14 (launch_hidden.py, no window); the 06:56 copies (pids 21992, 32372) stopped after the new ones were running (no gap). Lanes unchanged.
+
