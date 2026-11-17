@@ -29,6 +29,6 @@ Diels–Alder rate at 840 K, k(TST)/k(exp): 0.29 on B3LYP geometries, 0.25 on M0
 Notes:
 - SN2: the B3LYP-geometry value is for the ma-def2-SVP rerun TS (TS frame, separated reactants), computed here because the rerun lane is held before its barrier steps; the def2-SVP pilot card gives 95.6 kJ/mol.
 - E2: the warning 'Cα–Br 2.26 Å outside the expected 2.3–2.6 Å' (reaction.toml [ts_expected]) is a range warning, not a rejection.
-- Sources of measured values: SN2: water, 25 °C; Moelwyn-Hughes 1949, Eyring fit of Table 5 (94.9 kJ/mol; 95.0 until 2026-11-17, from the rounded value in Mabey and Mill 1978); E2: ethanol, 25 °C, E2 share; Dhar, Hughes and Ingold 1948; Cyanide + acetone (water): water, 25 °C; Schlesinger and Miller 1973; Diels–Alder: gas phase, 760–921 K.
+- Sources of measured values: SN2: water, 25 °C; Moelwyn-Hughes 1949, Eyring fit of Table 5 (94.9 kJ/mol; 95.0 until 2026-11-17, from Mabey and Mill 1978, Table 5.1, a 298.0 K value treated as 298.15 K); E2: ethanol, 25 °C, E2 share; Dhar, Hughes and Ingold 1948; Cyanide + acetone (water): water, 25 °C; Schlesinger and Miller 1973; Diels–Alder: gas phase, 760–921 K.
 
 Data: docs/sensitivity_M06-2X.json (pipeline/level_test.py sens_report).

@@ -203,9 +203,13 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
 
 ## 8. SN2 experimental barrier: 95.0 → 94.9 kJ/mol from the original measurements (J. Picione, 2026-11-17)
 
-- **What:** the measured ΔG‡ for HO⁻ + CH₃Br in water was 95.0 kJ/mol (22.7 kcal/mol), from the rounded 298 K rate
-  constant in the critical review of Mabey and Mill (1978, Table 5.1, 1.41 × 10⁻⁴ M⁻¹ s⁻¹), which cites the 1959
-  summary. J. Picione checked it against the original measurements.
+- **What:** the measured ΔG‡ for HO⁻ + CH₃Br in water was 95.0 kJ/mol (22.7 kcal/mol), from
+  1.41 × 10⁻⁴ L mol⁻¹ s⁻¹ (Mabey and Mill 1978, Table 5.1), calculated from the 1959 Arrhenius parameters at 298.0 K;
+  our earlier records treated it as a 298.15 K value, giving 95.0 kJ/mol.
+  Check: A = 1.04 × 10¹³ L mol⁻¹ s⁻¹ and Ea = 23.0 kcal/mol give 1.4107 × 10⁻⁴ L mol⁻¹ s⁻¹ at 298.0 K; Eyring with
+  1.41 × 10⁻⁴ gives 95.00 kJ/mol taken at 298.15 K (94.95 kJ/mol at 298.0 K). Neither 1959 table prints a 298 K rate
+  constant (Fells and Moelwyn-Hughes Table 11: k₂ only at 373.16 K, 3.52 × 10⁻¹ L mol⁻¹ s⁻¹, with A and Ea;
+  Bathgate and Moelwyn-Hughes Table 12: log A = 13.0 and Ea only). J. Picione checked it against the original measurements.
 - **Source now:** E. A. Moelwyn-Hughes, Proc. R. Soc. Lond. A 1949, 196, 540–553, doi:10.1098/rspa.1949.0044 (NaOH in
   water; rates corrected for the competing reaction with water). Table 5, k₂ (10⁻⁴ L mol⁻¹ s⁻¹): 292.69 K, 0.708;
   297.62 K, 1.37; 303.41 K, 2.87; 308.46 K, 5.33; 313.29 K, 9.31; 322.91 K, 29.1. Table 9: k₂(298.1 K) =
