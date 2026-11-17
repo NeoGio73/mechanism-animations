@@ -129,7 +129,9 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
   the earlier side's 113 frames plus 151 continued frames (264 frames, s = 13.29 bohr·amu½), ending 1.47 kJ/mol
   (0.35 kcal/mol) above the open cation; the rerun's frames are kept as the test record
   (`02_irc/attempts/rerun_from_ts_test_1614/`, comparison in `02_irc/attempts/continuation_test/compare_backward.md`).
-  The secondary backward side is continued the same way from its last frame (started 2026-11-16 16:17).
+  The secondary backward side is continued the same way from its last frame (started 2026-11-16 16:17). It ended by
+  rule (c) at 19:01 (104 new frames, 189 in all), 0.0004 kJ/mol above the form of the secondary cation it reaches;
+  joined 19:07, end check ok.
 - **Angle check on the continued frames:** in the slow final approach the mass-weighted angle between step and
   gradient grows (frames past the earlier end: median 6.83°, 90th percentile 10.92°, 150 frames; earlier frames
   beyond |s| = 1: 4.41° / 7.81°). The rerun from the TS has the same frames, so this belongs to the region, not to the
@@ -145,26 +147,31 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
   | Diels–Alder | 0.33 kJ/mol | 0.01 kJ/mol |
   | Cyanide + acetone | 0.94 kJ/mol | −0.03 kJ/mol |
   | E2 | 1.17 kJ/mol | 5.01 kJ/mol |
-  | Tertiary hydride shift | open side: 1.47 kJ/mol (end check pending) | bridged side: at the bridged structure |
-  | Secondary hydride shift | pending (continued from 2026-11-16 16:17) | pending (forward side, join waits) |
+  | Tertiary hydride shift | open side: 1.47 kJ/mol (end check ok) | bridged side: at the bridged structure |
+  | Secondary hydride shift | secondary cation: 0.0004 kJ/mol | tertiary cation: 0.004 kJ/mol |
+
+  Both secondary-shift ends optimize to a slightly different form of the hand-built cation with the same bonds
+  (backward: E 0.10 kJ/mol lower, heavy-atom RMSD 0.055 Å; forward: E 0.18 kJ/mol higher, C3···H 0.091 Å shorter);
+  by the rule of entry 4 these are the official end structures (`secondary_eclip_irc`, `tertiary_irc`). Working-level
+  ΔG‡ from the secondary cation 12.59 → 13.00 kJ/mol (3.01 → 3.11 kcal/mol); ΔG_r −50.45 → −50.49 kJ/mol
+  (−12.06 → −12.07 kcal/mol). No after-path value existed for this reaction.
 
 ## 6. Angle check against gradient size (all six paths; for the SI figure)
 
 - **Requested:** J. Picione, 2026-11-16 evening, after the tertiary open side's angle check (entry 5). Existing data only,
   no new calculation: `pipeline/angle_vs_gradient.py`; figure `docs/si_figures/angle_vs_gradient.png`, per-frame values
   `docs/si_figures/angle_vs_gradient.json`.
-- **What is plotted:** for every computed frame of every production side (2108 frames; mirror frames of the tertiary
+- **What is plotted:** for every computed frame of every production side (2212 frames; mirror frames of the tertiary
   shift have no jobs and are left out), the mass-weighted angle between the path direction and the downhill gradient
   (the angle of the angle check) against the RMS Cartesian gradient at that frame (Eh/bohr, log scale). Frames are marked
   by zone: near the TS (|s| ≤ 1 bohr·amu½, as in the angle check); final approach (from the frame after which the RMS
   gradient stays below 5 × 10⁻⁴ Eh/bohr to the side's end, ten times the end-minimum test's 5 × 10⁻⁵); middle (the rest).
-  The secondary shift's backward side is still being extended; its first part (85 frames) is used, and the figure is
-  redrawn when the side ends.
-- **Result: the large angles occur only where the gradient is nearly zero.** All 59 frames with an angle above 15° have
+  Redrawn 2026-11-16 20:10 with the secondary shift's finished backward side (189 frames).
+- **Result: the large angles occur only where the gradient is nearly zero.** All 70 frames with an angle above 15° have
   an RMS gradient of at most 2.0 × 10⁻⁴ Eh/bohr: 30 lie near the TS of the two hydride shifts, whose TSs are very flat
-  (tertiary 21, secondary 9), and 29 in the slow final approach to a minimum (cyanide product side 18, Diels–Alder 5,
-  tertiary open side 3, SN2 2, secondary 1). None is in the middle of a side. Where the RMS gradient exceeds
-  5 × 10⁻⁴ Eh/bohr (1196 frames) the largest angle is 5.65° (median 0.09°), and above 1 × 10⁻³ Eh/bohr (927 frames)
+  (tertiary 21, secondary 9), and 40 in the slow final approach to a minimum (cyanide product side 18, secondary 12,
+  Diels–Alder 5, tertiary open side 3, SN2 2). None is in the middle of a side. Where the RMS gradient exceeds
+  5 × 10⁻⁴ Eh/bohr (1241 frames) the largest angle is 5.65° (median 0.10°), and above 1 × 10⁻³ Eh/bohr (927 frames)
   4.07° (median 0.04°). Near the TS of the four reactions with sharp TSs (SN2, cyanide, Diels–Alder, E2) the angles
   stay small (largest 5.65°). The largest angles (up to 117°) are on the cyanide product side, which ends at its
   minimum (−0.03 kJ/mol), where the gradient is about 1.5 × 10⁻⁵ Eh/bohr and its direction carries little information.

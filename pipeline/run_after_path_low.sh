@@ -7,7 +7,8 @@
 R="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$R" || exit 1
 rx="$1"; L="$R/docs/end_check_all.log"
-until grep -q "$rx [a-z,]*: exit" "$L"; do sleep 60; done
+# "nowait": the reaction's end check ran at its own join (E2, 2026-11-16 03:39; end_check_decision.md)
+[ "$2" = "nowait" ] || until grep -q "$rx [a-z,]*: exit" "$L"; do sleep 60; done
 if [ -f docs/END_BONDS_STOP ] && grep -q "$rx" docs/END_BONDS_STOP; then
   echo "$(date '+%Y-%m-%d %H:%M:%S') $rx: after-path single points not started (END_BONDS_STOP)" >> "$L"; exit 2
 fi

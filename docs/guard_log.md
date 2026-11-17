@@ -42,3 +42,5 @@
 - planned pause (reserved window) now: no
 
 ### 2026-11-16 16:20 guard replaced by Claude (planned, not a stop): end time moved from 2026-11-25 12:00 to 2026-11-27 12:00 (J. Picione 2026-11-16: cover the new timeline with at least two days of margin). Old guard pid 8060 stopped at 16:19:5x, new guard pid 77792 started 16:20:43 through pipeline/launch_hidden.py (no window); about one minute without a guard, lanes unchanged. Keep-awake replaced the same way (old pid 25552, new pid 83700, until 2026-11-27 12:00).
+
+### 2026-11-16 19:07:33 production chain finished: every reaction has a join line. Guard no longer watches it.
