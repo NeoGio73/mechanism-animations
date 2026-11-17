@@ -156,7 +156,18 @@ That is all. Restarting the computer has the same effect as steps 1–6.
 
 **Why.** At 05:36 on 2026-11-15, every lane running under Git Bash stopped at once. The cause is not found. Keep-awake, which runs under PowerShell only, kept running. The guard therefore runs under PowerShell only. Like the lanes, it is started through WMI. It runs until 2026-11-25, 12:00 (extended 2026-11-15 with the keep-awake; first end date 2026-11-20). Code: `pipeline/restart_guard.ps1`, with the resume script `pipeline/resume_true_irc_prod.sh`.
 
-**What it does.** Every 10 s it checks that the production chain and the stall watchdog each still have a process. When a lane has none:
+**End date:** extended with keep-awake to 2026-11-27 12:00 (2026-11-16) and to 2026-12-02 12:00 (2026-11-17), at
+least two days past the late end of the single-point estimate.
+
+**Single-point lanes (approved by J. Picione, 2026-11-17).** The five after-path single-point lanes
+(`pipeline/run_singlepoints.sh <reaction>`) are watched too, under the same conditions below. A stopped lane is
+restarted with the same script and settings; it reuses every finished job, and the job that was running is redone in a
+clean folder (the incomplete one is archived by `pipeline/orca.py`, never used). A lane is finished, and no longer
+watched, once its last path level is written (`02_irc/energies_DLPNO-CCSD(T)_ma-def2-TZVP.json`). Before Claude
+restarts a lane on purpose, the guard is stopped and started again afterwards, so a planned restart is never counted
+as a stop. Dry run 2026-11-17 07:53: all five lanes found, busy check and restart commands correct.
+
+**What it does.** Every 10 s it checks that the production chain, the stall watchdog and each single-point lane still have a process. When a lane has none:
 1. **Log the stop** in `docs/guard_log.md`:
    - the time it was found and the time the lane was last seen running;
    - the lane's processes;
@@ -426,6 +437,19 @@ All six reactions, on the working-level production path:
   elsewhere (counted from the TS); both end frames always.
 - No interpolation: curves show only computed points, and no value between computed frames is
   reported or used.
+- **Tertiary hydride shift, mirror frames (J. Picione, 2026-11-17).** Frames 272–542 of this path are the C2 ⇄ C3
+  mirror images of computed frames (frame m is the image of frame 542 − m; see the next section), so their energies
+  equal their partners' at every level. M06-2X/ma-def2-TZVP, the first path level, computes every frame, mirror
+  frames included, as the check (`02_irc/path_sp/mirror_check.{json,md}`). If every mirror frame matches its
+  partner within the noise floor (0.034 kJ/mol), B3LYP/ma-def2-TZVP and DLPNO-CCSD(T)/ma-def2-TZVP copy the
+  partner's energy for each mirror frame whose partner they compute, instead of running it. Copied values are marked
+  in the data files: `computed` = 0 and `copied_from_frame` = the partner in `02_irc/energies_<level>.csv`, and
+  `copied_frames` / `n_copied` in `energies_<level>.json`; the run log and the profile legend say how many. If any
+  mirror frame differs, every frame is computed at every level and J. Picione is told (`docs/MIRROR_CHECK_FAILED`).
+  Code: `pipeline/steps.py` (`mirror_partners`, `mirror_check`, `path_singlepoints`); tested 2026-11-17 on a copy of
+  the path with an energy that depends only on the geometry (pairing exact to 2 × 10⁻⁷ kJ/mol; one perturbed frame
+  made the check fail and every frame was computed). The tertiary lane was restarted between jobs to load this code
+  (`pipeline/lane_restart.py`, 07:55; no job stopped).
 
 ### Tertiary hydride shift: computed half and mirror image (J. Picione, plan 2026-11-12, confirmed 2026-11-14)
 

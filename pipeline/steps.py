@@ -854,17 +854,73 @@ def path_sp_frames(rx: Reaction, n: int, its: int, label: str | None = None) -> 
     return keep
 
 
+MIRROR_TOL_KJ = 0.034     # kJ/mol: the noise floor (VeryTightSCF, 1.3e-5 Eh)
+
+
+def mirror_partners(rx: Reaction, n: int) -> dict[int, int]:
+    """Mirror-path reaction (tertiary hydride shift): {mirror frame: computed partner}. The path is the computed
+    half (frames 0 .. c-1, c = n_computed in 02_irc/mirror_path.json) followed by its mirror image in reverse order
+    without the bridged end point (pipeline/mirror_path.build), so frame m >= c is the C2 ⇄ C3 image of frame
+    2(c-1) - m. Empty for every other reaction."""
+    if not rx.cfg.get("mirror_path"):
+        return {}
+    c = _read_json(rx.root / "02_irc/mirror_path.json")["n_computed"]
+    if n != 2 * c - 1:
+        raise RuntimeError(f"mirror path: {n} frames, expected {2 * c - 1} from {c} computed")
+    return {m: 2 * (c - 1) - m for m in range(c, n)}
+
+
+def mirror_check(rx: Reaction, label: str, E: dict[int, float], mirror: dict[int, int]) -> dict:
+    """J. Picione, 2026-11-17: the first path level computes the mirror frames too, as the check; if every one
+    matches its partner within the noise floor, the other levels copy the partner's energy instead of computing the
+    mirror frames. Writes 02_irc/path_sp/mirror_check.{json,md}; docs/MIRROR_CHECK_FAILED if any frame differs."""
+    rows = [{"frame": m, "partner": p, "dE_kJ": kj(E[m] - E[p])} for m, p in sorted(mirror.items())]
+    worst = max(rows, key=lambda r: abs(r["dE_kJ"]))
+    bad = [r for r in rows if abs(r["dE_kJ"]) >= MIRROR_TOL_KJ]
+    out = {"level": label, "n_mirror_frames": len(rows), "tolerance_kJ": MIRROR_TOL_KJ, "pass": not bad,
+           "max_abs_dE_kJ": abs(worst["dE_kJ"]), "max_at_frame": worst["frame"],
+           "median_abs_dE_kJ": float(np.median([abs(r["dE_kJ"]) for r in rows])), "n_over_tolerance": len(bad),
+           "rule": "J. Picione 2026-11-17: pass -> the other path levels copy each mirror frame's energy from its "
+                   "partner (marked copied in energies_<level>.csv/json); fail -> every frame is computed at every level",
+           "rows": rows}
+    d = rx.d("02_irc/path_sp")
+    _write_json(d / "mirror_check.json", out)
+    (d / "mirror_check.md").write_text(
+        f"# Mirror-frame check at {label}\n\n{len(rows)} mirror frames (C2 ⇄ C3 images) against their computed "
+        f"partners. Largest |ΔE| {out['max_abs_dE_kJ']:.2e} kJ/mol (frame {worst['frame']} vs {worst['partner']}), "
+        f"median {out['median_abs_dE_kJ']:.2e} kJ/mol; tolerance {MIRROR_TOL_KJ} kJ/mol (noise floor).\n\n"
+        f"**{'PASS' if out['pass'] else 'FAIL'}**: "
+        + ("the other path levels copy the partner's energy for the mirror frames (J. Picione, 2026-11-17).\n"
+           if out["pass"] else f"{len(bad)} frames differ; every frame is computed at every level and "
+                               "J. Picione is told.\n"), encoding="utf-8")
+    if bad:
+        (rx.root.parent.parent / "docs/MIRROR_CHECK_FAILED").write_text(
+            f"{rx.root.name} {label}: {len(bad)} of {len(rows)} mirror frames differ from their partner by "
+            f">= {MIRROR_TOL_KJ} kJ/mol (largest {out['max_abs_dE_kJ']:.3f} kJ/mol, frame {worst['frame']}); "
+            "every frame is computed at every level. Tell J. Picione.\n", encoding="utf-8")
+    rx.log.note(f"`02_irc/path_sp/mirror_check.md`: mirror frames at {label}: largest |ΔE| to the partner "
+                f"{out['max_abs_dE_kJ']:.2e} kJ/mol over {len(rows)} frames -> "
+                f"{'PASS: the other path levels copy the partner energies' if out['pass'] else 'FAIL: every frame is computed'}"
+                " (J. Picione 2026-11-17).")
+    return out
+
+
 def path_singlepoints(rx: Reaction) -> None:
     """Energy along the IRC at the levels named in `path_levels` (labels from
     [[diagnostic_levels]]), on the working-level geometries. Relative to separated reactants
     at the same level. Writes 02_irc/energies_<label>.csv. Two frames run at a time.
     With `path_sp_sampling` only some frames are computed; the others are filled by a cubic
-    spline in s through the computed values, and the `computed` column marks which is which."""
+    spline in s through the computed values, and the `computed` column marks which is which.
+    Mirror path (J. Picione, 2026-11-17): the first level computes every frame and checks the mirror frames against
+    their partners (mirror_check); if all agree within the noise floor, later levels copy the partner's energy for
+    each mirror frame whose partner they compute (`copied_from_frame` column), else they compute every frame."""
     from concurrent.futures import ThreadPoolExecutor
     from .geometry import read_xyz_frames
 
     levels = {lv["label"]: lv for lv in rx.cfg.get("diagnostic_levels", [])}
     frames = read_xyz_frames(rx.root / "02_irc" / "irc_full_trj.xyz")
+    mirror = mirror_partners(rx, len(frames))
+    mcheck = None
     frag = _read_json(rx.root / "01_ts/fragments.json")
     reac = [n for n, v in frag.items() if v["role"] == "reactants"]
     prod = [n for n, v in frag.items() if v["role"] == "products"]
@@ -897,34 +953,54 @@ def path_singlepoints(rx: Reaction) -> None:
         meta = _read_json(rx.root / "02_irc/irc_meta.json")
         sparse = label in rx.cfg.get("sparse_path_levels", [])
         todo = path_sp_frames(rx, len(frames), meta["ts_frame"], label)
+        # mirror path (J. Picione, 2026-11-17): copy only after the first level's check passed, only where the
+        # partner is computed at this level; the first level, or a failed check, computes every frame
+        copy = {}
+        if mirror and mcheck is not None and mcheck["pass"]:
+            copy = {m: p for m, p in mirror.items() if m in todo and p in todo}
+        run = [k for k in todo if k not in copy]
         with ThreadPoolExecutor(max_workers=2) as ex:
-            res = list(ex.map(job, todo))
-        Ec = [r.energy_eh for r in res]
+            res = list(ex.map(job, run))
+        Emap = {k: r.energy_eh for k, r in zip(run, res)}
+        for m, p in copy.items():
+            Emap[m] = Emap[p]
+        Ec = [Emap[k] for k in todo]
         total = sum(r.wall_s for r in res if r.wall_s == r.wall_s)
+        if mirror and mcheck is None:
+            if any(m not in Emap or p not in Emap for m, p in mirror.items()):
+                raise RuntimeError(f"mirror check needs every frame at the first path level ({label})")
+            mcheck = mirror_check(rx, label, Emap, mirror)
+        head = "frame,E_eh,E_kJ_per_mol,E_kcal_per_mol,computed" + (",copied_from_frame" if mirror else "")
+        tail = (lambda k: f",{copy[k]}" if k in copy else ",") if mirror else (lambda k: "")
+        cnote = (f"; {len(copy)} mirror frames copied from their computed partners (mirror check passed at "
+                 f"{mcheck['level']}, J. Picione 2026-11-17)" if copy else "")
+        cinfo = ({"copied_frames": {str(m): p for m, p in sorted(copy.items())}, "n_copied": len(copy),
+                  "copied_rule": "mirror frame (C2 ⇄ C3 image) takes its computed partner's energy; check: "
+                                 "02_irc/path_sp/mirror_check.json (J. Picione, 2026-11-17)"} if mirror else {})
         if sparse:
             # no interpolation (J. Picione, 2026-11-13): frames not computed get no value
-            E = [Ec[todo.index(k)] if k in todo else None for k in range(len(frames))]
-            rows = ["frame,E_eh,E_kJ_per_mol,E_kcal_per_mol,computed"]
+            E = [Emap[k] if k in todo else None for k in range(len(frames))]
+            rows = [head]
             for k, e in enumerate(E):
                 if e is None:
-                    rows.append(f"{k},,,,0")
+                    rows.append(f"{k},,,,0" + tail(k))
                 else:
                     rel = kj(e - e_reac)
-                    rows.append(f"{k},{e:.10f},{rel:.3f},{rel / 4.184:.3f},1")
+                    rows.append(f"{k},{e:.10f},{rel:.3f},{rel / 4.184:.3f},{0 if k in copy else 1}" + tail(k))
             (rx.root / "02_irc" / f"energies_{label}.csv").write_text("\n".join(rows) + "\n")
             kmax = max(todo, key=lambda k: E[k])
             _write_json(rx.root / "02_irc" / f"energies_{label}.json",
                         {"label": label, "method": lv["method"], "E_separated_products_kJ": kj(e_prod - e_reac),
-                         "max_frame": kmax, "E_max_kJ": kj(E[kmax] - e_reac), "computed_frames": todo,
-                         "n_computed": len(todo), "n_frames": len(frames), "interpolation": None,
+                         "max_frame": kmax, "E_max_kJ": kj(E[kmax] - e_reac), "computed_frames": run,
+                         "n_computed": len(run), "n_frames": len(frames), "interpolation": None,
                          "sampling": "every frame in the bond-changing region and within |s| <= 1 bohr*amu^0.5, "
-                                     "every 2nd frame elsewhere, both ends (J. Picione, 2026-11-13)"})
-            rx.log.note(f"Single points at {len(todo)} of {len(frames)} IRC frames at {label} (every frame in "
+                                     "every 2nd frame elsewhere, both ends (J. Picione, 2026-11-13)", **cinfo})
+            rx.log.note(f"Single points at {len(run)} of {len(frames)} IRC frames at {label} (every frame in "
                         f"the bond-changing region and within |s| ≤ 1, every 2nd elsewhere; no interpolation; "
-                        f"`02_irc/path_sp/{label}/`): {total:.0f} s of job time; highest computed frame {kmax}, "
+                        f"`02_irc/path_sp/{label}/`){cnote}: {total:.0f} s of job time; highest frame {kmax}, "
                         f"{kj(E[kmax] - e_reac):.1f} kJ/mol above separated reactants.")
-            print(f"{label}: {len(todo)} of {len(frames)} frames; max at frame {kmax}, "
-                  f"{fmt_kj(kj(E[kmax] - e_reac))} above separated reactants")
+            print(f"{label}: {len(run)} of {len(frames)} frames computed{f', {len(copy)} copied' if copy else ''}; "
+                  f"max at frame {kmax}, {fmt_kj(kj(E[kmax] - e_reac))} above separated reactants")
             continue
         if len(todo) < len(frames):
             from scipy.interpolate import CubicSpline
@@ -934,22 +1010,22 @@ def path_singlepoints(rx: Reaction) -> None:
             E = [Ec[todo.index(k)] if k in todo else float(spline(s[k])) for k in range(len(frames))]
         else:
             E = Ec
-        rows = ["frame,E_eh,E_kJ_per_mol,E_kcal_per_mol,computed"]
+        rows = [head]
         for k, e in enumerate(E):
             rel = kj(e - e_reac)
-            rows.append(f"{k},{e:.10f},{rel:.3f},{rel / 4.184:.3f},{1 if k in todo else 0}")
+            rows.append(f"{k},{e:.10f},{rel:.3f},{rel / 4.184:.3f},{1 if k in run else 0}" + tail(k))
         (rx.root / "02_irc" / f"energies_{label}.csv").write_text("\n".join(rows) + "\n")
         _write_json(rx.root / "02_irc" / f"energies_{label}.json",
                     {"label": label, "method": lv["method"], "E_separated_products_kJ": kj(e_prod - e_reac),
                      "max_frame": int(np.argmax(E)), "E_max_kJ": kj(max(E) - e_reac),
-                     "computed_frames": todo, "n_computed": len(todo), "n_frames": len(frames),
+                     "computed_frames": run, "n_computed": len(run), "n_frames": len(frames),
                      "interpolation": None if len(todo) == len(frames) else
-                     "cubic spline in s through the computed values"})
+                     "cubic spline in s through the computed values", **cinfo})
         what = (f"all {len(frames)}" if len(todo) == len(frames) else
                 f"{len(todo)} of {len(frames)} (path_sp_sampling {rx.cfg['path_sp_sampling']}; "
                 f"others by cubic spline in s)")
         rx.log.note(f"Single points at {what} IRC frames at {label} "
-                    f"(`02_irc/path_sp/{label}/`, log `02_irc/path_sp/run_log_path_sp.md`): "
+                    f"(`02_irc/path_sp/{label}/`, log `02_irc/path_sp/run_log_path_sp.md`){cnote}: "
                     f"{total:.0f} s of job time; highest frame {int(np.argmax(E))}, "
                     f"{kj(max(E) - e_reac):.1f} kJ/mol above separated reactants.")
         print(f"{label}: max at frame {int(np.argmax(E))}, {fmt_kj(kj(max(E) - e_reac))} "
@@ -1148,8 +1224,11 @@ def profile_levels(rx: Reaction) -> None:
         if csv.exists():
             lines = [r.split(",") for r in csv.read_text().splitlines()[1:]]
             E = [float(r[2]) if r[2] else float("nan") for r in lines]
-            done = [k for k, r in enumerate(lines) if len(r) < 5 or r[4] == "1"]
+            # a copied mirror frame (J. Picione 2026-11-17) is a computed value, taken from its partner
+            done = [k for k, r in enumerate(lines) if len(r) < 5 or r[4] == "1" or (len(r) > 5 and r[5])]
             lab = label.replace("_", "/") + " single points"
+            if any(len(r) > 5 and r[5] for r in lines):
+                lab += f" ({sum(1 for r in lines if len(r) > 5 and r[5])} mirror frames copied from their partners)"
             if len(done) < len(lines):
                 lab += (f" ({len(done)} computed frames, ●; no interpolation)" if any(not r[2] for r in lines)
                         else f" ({len(done)} computed, ● ; spline between)")

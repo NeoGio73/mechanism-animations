@@ -9,13 +9,17 @@
 # Planned pause (J. Picione, 2026-11-15): from the start of a reserved window's reservation (window.json) until it
 # is released, a stop is logged but not restarted and not counted toward the two-stops-per-hour limit; when the
 # window is released, every lane without a process is restarted (busy check as always), again not counted.
+# Single-point lanes (J. Picione approved 2026-11-17): the five after-path single-point lanes
+# (pipeline/run_singlepoints.sh <reaction>) are watched under the same conditions; a lane is finished, and no longer
+# watched, once its last path level is written (02_irc/energies_DLPNO-CCSD(T)_ma-def2-TZVP.json). A restarted lane
+# reuses every finished job (one job per clean folder; an incomplete one is archived by pipeline/orca.py).
 #  5. it never changes a setting, never deletes anything, never reports by itself. Killed sides (incomplete, not
 #     results) are moved to 02_irc/attempts/killed_<time>/ with WHY.txt, because a side starts only in a clean folder.
 # Usage (PowerShell): & ([scriptblock]::Create((Get-Content -Raw pipeline\restart_guard.ps1))) [-DryRun] [-Root <dir>]
 param([switch]$DryRun, [string]$Root = 'C:\Users\giova\Mechanism Animations', [switch]$SelfTest)
 $ErrorActionPreference = 'Continue'
 $Log = "$Root\docs\guard_log.md"; $Prod = "$Root\docs\production_true_irc.log"; $Hold = "$Root\docs\GUARD_HOLD"
-$Until = Get-Date '2026-11-27 12:00'; $Poll = 10
+$Until = Get-Date '2026-12-02 12:00'; $Poll = 10
 $Win = "$Root\docs\level_test_queue\window.json"
 $Bash = 'C:\Program Files\Git\usr\bin\bash.exe'
 $PyW = 'C:\Users\giova\AppData\Local\Python\pythoncore-3.15-64\pythonw.exe'
@@ -26,6 +30,9 @@ $Chain = @('hshift_2_3_dimethyl_2_butyl_m062x', 'e2_ethoxide_2_bromopropane_m062
 $Lanes = @(
   @{ key = 'chain'; name = 'production chain'; match = 'run_true_irc_prod\.sh|resume_true_irc_prod\.sh|pipeline\.true_irc_prod' },
   @{ key = 'watchdog'; name = 'stall watchdog'; match = 'pipeline\.stall_watchdog' })
+$SP = @('nucadd_cyanide_acetone_m062x', 'da_butadiene_ethylene_m062x', 'e2_ethoxide_2_bromopropane_m062x', 'hshift_2_3_dimethyl_2_butyl_m062x', 'hshift_3_methyl_2_butyl_m062x')
+$Lanes += @($SP | ForEach-Object { @{ key = "sp:$_"; rx = $_; name = "single points $_"; match = "run_singlepoints\.sh'? $_|-m pipeline reactions/$_ " } })
+function SpDone([string]$rx) { Test-Path -LiteralPath "$Root\reactions\$rx\02_irc\energies_DLPNO-CCSD(T)_ma-def2-TZVP.json" }
 # Self-test (-SelfTest -Root <scratch folder>): one dummy lane (a Git Bash 'sleep'), 2 s polls, 3 minutes
 if ($SelfTest) { $Lanes = @(@{ key = 'test'; name = 'self-test lane'; match = 'guard_selftest_marker' }); $Poll = 2; $Until = (Get-Date).AddMinutes(3) }
 
@@ -61,6 +68,7 @@ function Archive([string]$rx, [string]$stamp) {
   $moved }
 function Start-Lane($lane) {
   if ($lane.key -eq 'chain') { $c = "`"$Bash`" -c `"$Pre bash pipeline/resume_true_irc_prod.sh $((Remaining) -join ' ') >> docs/console_production_chain_guard.txt 2>&1`"" }
+  elseif ($lane.rx) { $c = "`"$Bash`" -c `"export PATH=/usr/bin:/bin:`$PATH; bash '/c/Users/giova/Mechanism Animations/pipeline/run_singlepoints.sh' $($lane.rx)`"" }
   elseif ($lane.key -eq 'test') { $c = "`"$Bash`" -c `"export PATH=/usr/bin:/bin:`$PATH; sleep 600; echo guard_selftest_marker`"" }
   else { $c = "`"$Bash`" -c `"$Pre .venv/Scripts/python.exe -X utf8 -m pipeline.stall_watchdog >> docs/console_stall_watchdog.txt 2>&1`"" }
   if ($DryRun) { return "would start: $c" }
@@ -76,7 +84,7 @@ W "- Git Bash runtime: $(Runtime)"
 foreach ($l in $Lanes) { $n = @(LaneProcs $prev $l).Count; $alive[$l.key] = $n -gt 0; $stops[$l.key] = @(); W "- $($l.name): $n process(es) running" }
 W "- production chain, reactions not yet joined: $((Remaining) -join ', ')"
 W "- planned pause (reserved window) now: $(if ($wasPause) { 'yes' } else { 'no' })"
-if ($DryRun) { foreach ($rx in Remaining) { "busy check ${rx}: $((Busy $prev $rx) -join '; ')"; "archive check ${rx}: $((Archive $rx 'dryrun') -join ', ')" }; foreach ($l in $Lanes) { Start-Lane $l }; return }
+if ($DryRun) { foreach ($l in $Lanes) { if ($l.rx) { "busy check $($l.rx): $((Busy $prev $l.rx) -join '; '); finished: $(SpDone $l.rx)" } }; foreach ($rx in Remaining) { "busy check ${rx}: $((Busy $prev $rx) -join '; ')"; "archive check ${rx}: $((Archive $rx 'dryrun') -join ', ')" }; foreach ($l in $Lanes) { Start-Lane $l }; return }
 
 while ((Get-Date) -lt $Until) {
   Start-Sleep -Seconds $Poll
@@ -90,6 +98,7 @@ while ((Get-Date) -lt $Until) {
     $k = $l.key
     if ($held[$k] -or $done[$k]) { continue }
     if ($k -eq 'chain' -and @(Remaining).Count -eq 0) { $done[$k] = 1; W "`n### $t production chain finished: every reaction has a join line. Guard no longer watches it."; continue }
+    if ($l.rx -and (SpDone $l.rx)) { $done[$k] = 1; W "`n### $t $($l.name) finished: last path level written. Guard no longer watches it."; continue }
     if (@(LaneProcs $cur $l).Count -gt 0) { $alive[$k] = $true; continue }
     # the chain ended normally after its last join (last log line a join exit) while reactions remain: continue, not a stop
     if ($alive[$k] -and $k -eq 'chain' -and -not $pause -and "$(Get-Content $Prod -Tail 1)" -match 'join exit') {
@@ -115,7 +124,7 @@ while ((Get-Date) -lt $Until) {
       $pend[$k] = Get-Date }
     if ($pend[$k] -and $pause) { continue }
     if ($pend[$k]) {
-      $rx = if ($k -eq 'chain') { @(Remaining)[0] } else { '' }
+      $rx = if ($k -eq 'chain') { @(Remaining)[0] } elseif ($l.rx) { $l.rx } else { '' }
       $b = @(Busy $cur $rx)
       if ($b.Count) {
         if (((Get-Date) - $pend[$k]).TotalMinutes -gt 15) { $held[$k] = 1; $m = "$t $($l.name) not restarted: jobs of the stopped lane still active after 15 min ($($b -join '; ')). Waiting for J. Picione."; Add-Content $Hold $m -Encoding UTF8; W "- HOLD: $m" }

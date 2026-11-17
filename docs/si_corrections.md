@@ -139,6 +139,10 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
   < 15°); kept as computed, both parts stated (J. Picione, 2026-11-16 evening). All 151 continued frames are kept
   (every frame computed by the time of the comparison, not only the 54 that overlap the rerun; J. Picione, same
   evening); cutting at the overlap would have ended the side about 3.1 kJ/mol (0.75 kcal/mol) above the open cation.
+- **Angle check, secondary hydride shift:** within |s| ≤ 1 bohr·amu½ it fails on both sides (backward median 7.63°,
+  90th percentile 25.37°; forward 10.55° / 25.37°; rule < 5° / < 15°); beyond it, it passes (backward 2.37° / 6.17°,
+  forward 0.98° / 7.50°). Same pattern as the tertiary path: near the TS the gradient is nearly zero (entry 6). Kept
+  as computed, both parts stated, no rerun (J. Picione, 2026-11-17).
 - **Side ends** (last frame above the official end minimum, working level; filled in as sides finish):
 
   | Path | Reactant side | Product side |
@@ -179,3 +183,20 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
   flat TS, or the last approach to a minimum along soft modes), not a path that leaves the valley: wherever the gradient
   is appreciable, path and gradient agree within a few degrees. The angle-check results are kept as computed (J. Picione,
   2026-11-15 and 2026-11-16).
+
+## 7. Tertiary hydride shift: mirror frames take their partner's energy at B3LYP and DLPNO-CCSD(T) (J. Picione, 2026-11-17)
+
+- **What:** frames 272–542 of the tertiary path (2,3-dimethyl-2-butyl cation) are the C2 ⇄ C3 mirror images of the
+  computed frames 270 … 0 (frame m is the image of frame 542 − m). Their energies equal their partners' at every level
+  by symmetry.
+- **Check:** M06-2X/ma-def2-TZVP, the first path level, computes all 543 frames, mirror frames included, and each
+  mirror frame is compared with its partner (`02_irc/path_sp/mirror_check.{json,md}`). Tolerance: the SCF noise floor,
+  0.034 kJ/mol. Result: filled in when that level finishes (expected about 20:00 on 2026-11-17).
+- **If every mirror frame agrees:** B3LYP/ma-def2-TZVP and DLPNO-CCSD(T)/ma-def2-TZVP copy the partner's energy for
+  each mirror frame (about 271 and 244 frames) instead of computing it. Copied values are marked in the data files
+  (`computed` = 0, `copied_from_frame` in `02_irc/energies_<level>.csv`; `copied_frames` in `energies_<level>.json`).
+  This saves about 270 B3LYP and 245 DLPNO-CCSD(T) jobs.
+- **If any differs:** every frame is computed at every level, and J. Picione is told.
+- **SI wording (draft):** "For the degenerate tertiary shift the second half of the path is the mirror image of the
+  first. Single points at M06-2X/ma-def2-TZVP were computed on every frame; mirror frames agreed with their partners
+  to within [max] kJ/mol, so B3LYP and DLPNO-CCSD(T) energies of mirror frames were taken from their partners."
