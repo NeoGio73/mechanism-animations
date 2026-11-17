@@ -50,6 +50,14 @@ def make_input(keywords: str, geom: Geometry, charge: int, mult: int,
             f"* xyz {charge} {mult}\n{geom.xyz_block()}\n*\n")
 
 
+_PAL = re.compile(r"%pal\s+nprocs\s+\d+\s+end\s*\n", re.I)
+
+
+def _same_input(a: str, b: str) -> bool:
+    """Same job, whatever its parallel core count (%pal nprocs changes speed, not the result)."""
+    return _PAL.sub("", a) == _PAL.sub("", b)
+
+
 def run(workdir: Path, name: str, inp: str, log: "RunLog", note: str = "",
         reuse: bool = True, watch=None, poll_s: float = 30.0, front: bool = False) -> OrcaResult:
     """Run one ORCA job in workdir/name.inp. Reuses a finished job unless reuse=False.
@@ -62,7 +70,7 @@ def run(workdir: Path, name: str, inp: str, log: "RunLog", note: str = "",
     workdir.mkdir(parents=True, exist_ok=True)
     inp_path, out_path = workdir / f"{name}.inp", workdir / f"{name}.out"
     stop_path = workdir / f"{name}.stopped.txt"
-    if reuse and out_path.exists() and inp_path.exists() and inp_path.read_text() == inp:
+    if reuse and out_path.exists() and inp_path.exists() and _same_input(inp_path.read_text(), inp):
         if "ORCA TERMINATED NORMALLY" in out_path.read_text(errors="replace"):
             res = parse(workdir, name, wall_s=float("nan"))
             print(f"[reuse] {workdir.name}/{name}: finished earlier")
@@ -83,7 +91,12 @@ def run(workdir: Path, name: str, inp: str, log: "RunLog", note: str = "",
     except ValueError:
         what = workdir.name
     while True:
+        asked = cores.request(inp)[0]
         rid = cores.acquire(*cores.request(inp), what=f"{what}/{name}", folder=str(workdir.resolve()), front=front)
+        n_run = cores.granted(rid) or asked
+        if n_run != asked and _PAL.search(inp):     # fit mode (CORES_FIT=1): same job on the cores granted
+            inp_path.write_text(_PAL.sub(f"%pal nprocs {n_run} end\n", inp, count=1))
+            note = f"{note}; on {n_run} cores (asked {asked})" if note else f"on {n_run} cores (asked {asked})"
         print(f"[run] {workdir.name}/{name} ...", flush=True)
         t0 = time.time()
         reason = _run_orca(workdir, inp_path, out_path, env, rid, watch, poll_s)

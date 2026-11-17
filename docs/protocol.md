@@ -694,6 +694,17 @@ Two follow-ups were asked for:
 - **Single points on final paths at low priority (J. Picione, 2026-11-16):** a lane started with `CORES_LOW=1` takes
   cores only when no request is waiting and cores stay free for every path lane between two of its jobs
   (`pipeline/cores._acquire_low`); it never enters the waiting list. First use: Diels–Alder after-path steps.
+- **Single points at normal priority on all 8 cores (J. Picione, 2026-11-16 evening, once no path was running):**
+  lanes run `pipeline/run_singlepoints.sh` with `CORES_FIT=1`: first come first served in the core queue, and each
+  job runs on the cores free for it (`pipeline/cores._grant`): what it asked for, or fewer (at least 2) when that is
+  all that is free, or every free core (up to 8) when no other job waits; one-core jobs stay on one core; memory
+  stays per core (%maxcore unchanged), total within 28 GB. Only ORCA's `%pal nprocs` changes, never method, basis,
+  grid or convergence, so results are the same; each run-log row states the cores used when they differ from the
+  request. A finished job is reused whatever its core count (`pipeline/orca._same_input`). The five running lanes
+  were switched by `pipeline/sp_switch.py` (2026-11-16 20:18) without stopping any ORCA job: lanes between jobs
+  restarted at once, running ones right after their job ended. Correction: the reports of 2026-11-16 said low
+  priority meant 1 core per job; it meant only "start when cores are free and nothing waits", jobs used their usual
+  core counts (4, or 1 for fragment optimizations).
 
 **Amended by J. Picione, 2026-11-15** (production paths started from 15:00 that day; `pipeline/steps.irc_stop_prod`):
 - **Flat steps count only below the TS:** a step counts toward the 20 flat steps only if both its frames lie at

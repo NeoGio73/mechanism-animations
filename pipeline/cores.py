@@ -166,6 +166,28 @@ def request(inp: str) -> tuple[int, int]:
 
 
 LOW_LANE_CORES = 4      # cores kept free for each IRC lane between two of its gradient jobs
+FIT_MIN = 2             # fit mode: a multi-core job never starts on fewer cores than this
+
+
+def _grant(req: int, mem_mb: int, c: int, m: int, others_ready: int) -> int:
+    """Fit mode (CORES_FIT=1; J. Picione 2026-11-16 evening: "let them use all 8 cores at normal priority, within the
+    memory limit"): how many cores a job may start on now, 0 = not yet. Only the parallel core count changes (ORCA
+    %pal nprocs); method, basis, grid and %maxcore per core stay, so the results do not change. A one-core job stays
+    on one core. A multi-core job takes what it asked for, or fewer (at least FIT_MIN) when that is all that is free;
+    when no other job is waiting it takes every free core, up to all 8."""
+    per = mem_mb / req
+    free = min(CORES - c, int((MEM_MB - m) // per))
+    if req == 1:
+        return 1 if free >= 1 else 0
+    n = free if others_ready == 0 else min(req, free)
+    return n if n >= FIT_MIN else 0
+
+
+def granted(rid: str) -> int | None:
+    """Cores held under request rid (fit mode may grant fewer or more than asked)."""
+    with _locked():
+        h = next((x for x in _read()["held"] if x["id"] == rid), None)
+    return h["cores"] if h else None
 
 
 def _lane_reserve(s: dict) -> int:
@@ -230,6 +252,7 @@ def acquire(cores: int, mem_mb: int, what: str, pid: int | None = None, lane: st
     if os.environ.get("CORES_LOW") == "1" and not front:
         return _acquire_low(cores, mem_mb, what, pid, lane, folder)
     rid = f"{pid}-{time.time_ns()}"
+    fit = os.environ.get("CORES_FIT") == "1" and not front
     with _locked():
         s = _read()
         if pid not in _lane_logged and not any(h["pid"] == pid for h in s["held"]):
@@ -264,7 +287,27 @@ def acquire(cores: int, mem_mb: int, what: str, pid: int | None = None, lane: st
                     ready = [w for w in s["waiting"] if w.get("folder") not in busy
                              and now - w.get("beat", now) <= SKIP_S]
                     first = bool(ready) and ready[0]["id"] == rid
-                    if first and c + cores <= CORES and m + mem_mb <= MEM_MB:
+                    if fit:
+                        n = 0
+                        if first:
+                            n = _grant(cores, mem_mb, c, m, len(ready) - 1)
+                        elif cores == 1 and ready and not any(w.get("front") for w in s["waiting"]):
+                            # a one-core job may use a single idle core that the first job cannot start on
+                            h0 = ready[0]
+                            if h0["id"] != rid and _grant(h0["cores"], h0["mem_mb"], c, m, len(ready) - 1) == 0:
+                                n = _grant(1, mem_mb, c, m, 1)
+                        if n:
+                            s["waiting"] = [w for w in s["waiting"] if w["id"] != rid]
+                            me["since"] = time.strftime("%H:%M:%S")
+                            me["asked"] = cores
+                            me["mem_mb"] = int(mem_mb / cores * n)
+                            me["cores"] = n
+                            s["held"].append(me)
+                            _write(s)
+                            _log(f"start  {lane}: {what}  {n} cores (asked {cores}), {me['mem_mb']} MB (fit) -> "
+                                 f"{_summary(s)}")
+                            return rid
+                    elif first and c + cores <= CORES and m + mem_mb <= MEM_MB:
                         s["waiting"] = [w for w in s["waiting"] if w["id"] != rid]
                         me["since"] = time.strftime("%H:%M:%S")
                         s["held"].append(me)
