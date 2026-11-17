@@ -705,6 +705,11 @@ Two follow-ups were asked for:
   restarted at once, running ones right after their job ended. Correction: the reports of 2026-11-16 said low
   priority meant 1 core per job; it meant only "start when cores are free and nothing waits", jobs used their usual
   core counts (4, or 1 for fragment optimizations).
+  **Measured (J. Picione's check, 2026-11-16 20:27–20:32):** two finished SN2 TS single points rerun with the identical
+  input except `%pal nprocs` 4 → 2, each in a clean folder (`reactions/sn2_hydroxide_bromomethane_m062x/01_ts/
+  nprocs_check/`, `pipeline/nprocs_check.py`): M06-2X/ma-def2-TZVP ΔE = −4.1 × 10⁻¹² Eh (−1.1 × 10⁻⁸ kJ/mol);
+  DLPNO-CCSD(T)/ma-def2-TZVP ΔE = +3.6 × 10⁻¹² Eh (+9.6 × 10⁻⁹ kJ/mol). Both are about six orders of magnitude below
+  the SCF noise floor (0.034 kJ/mol): the core count has no effect on the energies at the precision reported.
 
 **Amended by J. Picione, 2026-11-15** (production paths started from 15:00 that day; `pipeline/steps.irc_stop_prod`):
 - **Flat steps count only below the TS:** a step counts toward the 20 flat steps only if both its frames lie at
