@@ -1,2 +1,8 @@
 ﻿- 2026-11-15 14:14  watchdog restarted with the planned pause for reserved windows (J. Picione, 2026-11-15)
 - 2026-11-15 14:57  watchdog relaunched with no visible window (it ran as a Windows Terminal tab; J. Picione 2026-11-15)
+- 2026-11-18 02:42  planned pause (reserved window): no stall alarm until the window is released
+- 2026-11-18 06:01  planned pause over (window released): stall check active again, 10-minute limit counted from the release
+- 2026-11-18 09:06  STALL: 9 job(s) queued, 4 of 8 cores free, no ORCA job started since 08:55 (11 min). Head of queue: __main__ reactions/hshift_3_methyl_2_butyl_m062x from_stationary: hshift_3_methyl_2_butyl_m062x/02_irc/path_sp/B3LYP_ma-def2-TZVP/f289/f
+- 2026-11-18 09:07  cleared: jobs starting again
+- 2026-11-18 12:50  STALL: 9 job(s) queued, 4 of 8 cores free, no ORCA job started since 12:40 (10 min). Head of queue: __main__ reactions/e2_ethoxide_2_bromopropane_m062x from_stationary: e2_ethoxide_2_bromopropane_m062x/02_irc/path_sp/B3LYP_ma-def2-TZVP/f164/f
+- 2026-11-18 12:51  cleared: jobs starting again

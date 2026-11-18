@@ -40,8 +40,11 @@ def last_queue_start() -> float:
             tail = fh.read().decode("utf-8", "replace").splitlines()
     except OSError:
         return 0.0
+    # 'end' counts too (fix 2026-11-18): the idle time runs from the moment cores came free, not from the last
+    # start. Before, a long job on all 8 cores followed by a few seconds' gap between one job's end and the next
+    # start read as a stall (false alarms 09:06 and 12:50 on 2026-11-18).
     for ln in reversed(tail):
-        m = re.match(r"(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d)  start ", ln)
+        m = re.match(r"(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d)  (start|end) ", ln)
         if m:
             return datetime.strptime(m[1], "%Y-%m-%d %H:%M:%S").timestamp()
     return 0.0

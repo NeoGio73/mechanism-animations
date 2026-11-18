@@ -100,3 +100,23 @@
 - planned pause (reserved window) now: no
 
 ### 2026-11-17 20:59:12 production chain finished: every reaction has a join line. Guard no longer watches it.
+
+### 2026-11-18 02:42:27 planned pause (reserved window) begins: stops are logged, not restarted, not counted
+
+### 2026-11-18 06:00:47 planned pause over (window released): lanes without a process are restarted now, not counted
+
+### 2026-11-18 16:52:57 guard stopped by Claude (planned, not a stop): the stall watchdog is restarted to load a fix (idle time now counted from the last job end as well as the last start; the 09:06 and 12:50 alarms on 2026-11-18 were false, each in the few seconds between one job ending and the next starting), then the guard is started again unchanged.
+
+## Guard started 2026-11-18 16:53:14 (PowerShell pid 28336; until 2026-12-02 12:00; poll every 10 s)
+- Git Bash runtime: msys-2.0.dll 3.6.10-5a1665c8a0fb24930e55f1621441dfd98a798c15; git version 2.56.0.windows.1
+- production chain: 0 process(es) running
+- stall watchdog: 4 process(es) running
+- single points nucadd_cyanide_acetone_m062x: 3 process(es) running
+- single points da_butadiene_ethylene_m062x: 3 process(es) running
+- single points e2_ethoxide_2_bromopropane_m062x: 3 process(es) running
+- single points hshift_2_3_dimethyl_2_butyl_m062x: 3 process(es) running
+- single points hshift_3_methyl_2_butyl_m062x: 3 process(es) running
+- production chain, reactions not yet joined: 
+- planned pause (reserved window) now: no
+
+### 2026-11-18 16:53:25 production chain finished: every reaction has a join line. Guard no longer watches it.
