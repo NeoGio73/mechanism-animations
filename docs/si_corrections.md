@@ -227,3 +227,20 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
 - **Files:** `reactions/sn2_hydroxide_bromomethane{,_masvp,_m062x}/00_inputs/card_notes.toml`,
   `reactions/sn2_hydroxide_bromomethane/card.md`, `pipeline/level_test.py`, `docs/sensitivity_M06-2X.{json,md}`,
   `docs/protocol.md`, `docs/references.md`. Reports written before 2026-11-17 keep 95.0 as written.
+
+## 9. Reference conformers: lowest free energy for every separated species (J. Picione, 2026-11-17)
+
+- **What:** every separated reactant and product now uses its lowest-energy conformer (working-level free energy) as
+  the reference; the path and the animation keep the form the path reaches. Before, the Diels–Alder zero was gauche
+  butadiene (C=C–C=C 32°, the form the path reaches) + ethylene.
+- **Diels–Alder:** s-trans butadiene is 9.48 kJ/mol (2.27 kcal/mol) lower in G, so it is now the zero. Barriers from
+  separated reactants rise by that gap; M06-2X/ma-def2-TZVP ΔG‡(298 K, 1 M) 121.88 → 131.89 kJ/mol (29.13 →
+  31.52 kcal/mol), DLPNO-CCSD(T)/ma-def2-TZVP 134.18 → 144.36 kJ/mol (32.07 → 34.50 kcal/mol). Path profiles move up
+  by the electronic gap at each level (M06-2X 12.23, B3LYP 14.27, DLPNO-CCSD(T) 12.40 kJ/mol). Barriers from the
+  reactant complex and the gas-phase comparison with experiment (already s-trans) are unchanged.
+- **E2:** trans ethanol computed; 0.90 kJ/mol (0.22 kcal/mol) above gauche in G, so gauche stays; nothing changes.
+- **Others:** single conformers, already compliant (details in `docs/protocol.md`).
+- **Files:** `pipeline/steps.py` (`reference_names`), `reactions/{da_butadiene_ethylene,e2_ethoxide_2_bromopropane}_m062x/
+  00_inputs/reaction.toml`, `00_inputs/ethanol_trans_start.xyz`; rewritten from existing jobs: `01_ts/diagnostics.json`,
+  `02_irc/barriers.json`, `02_irc/energies*.csv/json` of both reactions. Reports before 2026-11-17 21:00 give the
+  Diels–Alder values from gauche butadiene.

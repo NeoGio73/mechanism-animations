@@ -137,6 +137,29 @@ def _read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def reference_names(rx: "Reaction", frag: dict) -> tuple[list[str], list[str]]:
+    """Separated reactants and products that define the energy zero (rule of J. Picione, 2026-11-17): each species
+    is represented by its lowest-energy conformer by free energy at the working level, chosen among the species itself
+    and every `[[references]]` entry with `conformer_of = "<that species>"`. The path, its end structures and the
+    animation keep the form the path reaches; only the reference energies change."""
+    alts: dict[str, list[str]] = {}
+    for role, s in rx.species():
+        if role == "references" and s.get("conformer_of"):
+            alts.setdefault(s["conformer_of"], []).append(s["name"])
+
+    def pick(n: str) -> str:
+        cands = [n] + alts.get(n, [])
+        missing = [c for c in cands if c not in frag or frag[c].get("G_eh") is None]
+        if missing:
+            raise RuntimeError(f"reference conformers {missing} of {n} have no working-level free energy yet; "
+                               "run the fragments step first")
+        return min(cands, key=lambda c: frag[c]["G_eh"])
+
+    reac = [pick(n) for n, v in frag.items() if v["role"] == "reactants"]
+    prod = [pick(n) for n, v in frag.items() if v["role"] == "products"]
+    return reac, prod
+
+
 # ---------------------------------------------------------------- separated species
 def fragments(rx: Reaction) -> None:
     """Optimize each separated reactant and product (Opt Freq), working level."""
@@ -168,6 +191,7 @@ def fragments(rx: Reaction) -> None:
             if not r.ok or r.opt_converged is False:
                 raise orca.OrcaError(f"{name} failed; see {r.out}")
         res[s["name"]] = {"role": role, "smiles": s["smiles"], "charge": q,
+                          **({"conformer_of": s["conformer_of"]} if s.get("conformer_of") else {}),
                           "E_eh": r.energy_eh, "G_eh": r.gibbs_eh,
                           "imaginary_cm": r.imaginary, "job": name}
         if len(g.symbols) == 1 and r.gibbs_eh is None:
@@ -692,8 +716,7 @@ def barriers(rx: Reaction) -> dict:
     tsj = _read_json(rx.root / "01_ts/ts.json")
     ep = _read_json(rx.root / "02_irc/endpoints.json")
     sp = _read_json(rx.root / "01_ts/sp_tzvp.json")
-    reac = [n for n, v in frag.items() if v["role"] == "reactants"]
-    prod = [n for n, v in frag.items() if v["role"] == "products"]
+    reac, prod = reference_names(rx, frag)
 
     def table(E: dict) -> dict:
         r0 = sum(E[n] for n in reac)
@@ -712,6 +735,8 @@ def barriers(rx: Reaction) -> dict:
     E_svp.update(ts=tsj["E_eh"], reactant_complex=ep["reactant_complex"]["E_eh"],
                  product_complex=ep["product_complex"]["E_eh"])
     out = {"units": "kJ/mol, electronic energies relative to separated reactants",
+           "reference_species": {"reactants": reac, "products": prod,
+                                 "rule": "lowest-energy conformer by working-level free energy (J. Picione 2026-11-17)"},
            "labels": {"working": rx.level(), "sp": rx.level(sp=True)},
            "working": table(E_svp), "sp": table(sp)}
     G = {n: v["G_eh"] for n, v in frag.items()}
@@ -756,8 +781,7 @@ def diagnostics(rx: Reaction) -> None:
     frag = _read_json(rx.root / "01_ts/fragments.json")
     tsj = _read_json(rx.root / "01_ts/ts.json")
     ep = _read_json(rx.root / "02_irc/endpoints.json")
-    reac = [n for n, v in frag.items() if v["role"] == "reactants"]
-    prod = [n for n, v in frag.items() if v["role"] == "products"]
+    reac, prod = reference_names(rx, frag)
     gcorr = {n: v["G_eh"] - v["E_eh"] for n, v in frag.items() if v["G_eh"] is not None}
     gcorr["ts"] = tsj["G_eh"] - tsj["E_eh"]
     for k in ("reactant_complex", "product_complex"):
@@ -807,6 +831,7 @@ def diagnostics(rx: Reaction) -> None:
                      "dG_reaction_1M_kJ": dG_rxn})
     _write_json(rx.root / "01_ts" / "diagnostics.json",
                 {"units": "kJ/mol", "rows": rows,
+                 "reference_species": {"reactants": reac, "products": prod},
                  "energies_eh": {lv["label"]: lv["E"] for lv in levels[2:]}})
     md = [f"| Level (SMD {rx.cfg['solvent']}, {rx.basis()} geometries) | TS − separated reactants, ΔE | "
           "TS − reactant complex, ΔE | Reaction energy, ΔE | ΔG‡ from separated reactants (298 K, 1 M) | "
@@ -922,8 +947,7 @@ def path_singlepoints(rx: Reaction) -> None:
     mirror = mirror_partners(rx, len(frames))
     mcheck = None
     frag = _read_json(rx.root / "01_ts/fragments.json")
-    reac = [n for n, v in frag.items() if v["role"] == "reactants"]
-    prod = [n for n, v in frag.items() if v["role"] == "products"]
+    reac, prod = reference_names(rx, frag)
     flog = orca.RunLog(rx.d("02_irc/path_sp") / "run_log_path_sp.md")
     if not rx.cfg.get("path_levels"):
         print("WARNING no top-level path_levels in reaction.toml; nothing to do")
@@ -1085,8 +1109,9 @@ def profile(rx: Reaction) -> None:
     s -= s[its]
 
     frag = _read_json(rx.root / "01_ts/fragments.json")
-    e_reac = sum(v["E_eh"] for v in frag.values() if v["role"] == "reactants")
-    e_prod = sum(v["E_eh"] for v in frag.values() if v["role"] == "products")
+    reac_ref, prod_ref = reference_names(rx, frag)
+    e_reac = sum(frag[n]["E_eh"] for n in reac_ref)
+    e_prod = sum(frag[n]["E_eh"] for n in prod_ref)
     # A side with one molecule: zero is the lowest structure found for it, the separately
     # optimized molecule or the optimized IRC end, which can be a lower conformer.
     ref = {"reactants": "optimized molecule", "products": "optimized molecule"}

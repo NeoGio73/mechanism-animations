@@ -588,6 +588,44 @@ A gas-phase measurement is compared with the gas-phase computed value; the solut
 given for reference only (Diels–Alder: Ea 119.8 kJ/mol (28.6 kcal/mol) in the gas phase, +4.8 kJ/mol
 from experiment; 118.1 kJ/mol (28.2 kcal/mol) in SMD toluene, for reference).
 
+### Reference conformers of separated reactants and products (J. Picione, 2026-11-17)
+
+Every separated reactant and product uses its lowest-energy conformer as the reference, chosen by free energy at
+the working level (M06-2X-D3(0)/ma-def2-SVP, SMD, qRRHO, 298.15 K). The path, its end structures and the animation
+keep the form the path reaches; only the energy zero (separated reactants) and the separated-product energy change.
+Barriers measured from the reactant complex are not affected.
+
+How: other conformers of a species are listed in `reaction.toml` as `[[references]]` with
+`conformer_of = "<species>"`, optimized (Opt Freq) and run at every single-point level like the species itself;
+`pipeline/steps.reference_names` picks the lowest by working-level G for `barriers`, `diagnostics`, the working-level
+profile and the path single points, and `barriers.json` / `diagnostics.json` record which conformers were used
+(`reference_species`). A listed conformer without a free energy stops the step; it is never skipped silently.
+
+Status, 2026-11-17:
+- **Diels–Alder:** the path reaches gauche butadiene (C=C–C=C 32°, the `butadiene_s-cis` fragment); s-trans (180°) is
+  lower by 9.48 kJ/mol (2.27 kcal/mol) in G at the working level (11.71 kJ/mol in E), so **s-trans butadiene + ethylene
+  is now the zero**. Separated-reactant barriers rise by the gap: at M06-2X/ma-def2-TZVP ΔE‡ 71.98 → 84.21 kJ/mol
+  (17.20 → 20.13 kcal/mol), ΔG‡(298 K, 1 M) 121.88 → 131.89 kJ/mol (29.13 → 31.52 kcal/mol); at
+  DLPNO-CCSD(T)/ma-def2-TZVP ΔE‡ 84.28 → 96.68 kJ/mol (20.14 → 23.11 kcal/mol), ΔG‡ 134.18 → 144.36 kJ/mol
+  (32.07 → 34.50 kcal/mol). Reaction free energy at M06-2X/ma-def2-TZVP −141.78 → −131.77 kJ/mol (−33.89 →
+  −31.49 kcal/mol). The gas-phase comparison with Rowley and Steiner already used s-trans.
+- **E2:** the ethanol product optimized from SMILES is gauche (H–O–C–C 61°). Trans ethanol (179.5°, no imaginary
+  frequency) was computed: 0.08 kJ/mol lower in E but 0.90 kJ/mol (0.22 kcal/mol) higher in G at the working level
+  (single points, trans − gauche ΔE: M06-2X/ma-def2-TZVP −0.06, B3LYP/ma-def2-TZVP +0.46, DLPNO-CCSD(T)/ma-def2-TZVP
+  +0.18 kJ/mol). **Gauche stays the reference; no E2 value changes.**
+- **SN2** (hydroxide, bromomethane, methanol, bromide), **cyanide + acetone** (cyanide, acetone, the cyanohydrin
+  alkoxide) and the remaining E2 species (ethoxide, 2-bromopropane, propene, bromide) have a single conformer
+  (acetone: the first optimization stopped on a methyl-rotation saddle point, −92 cm⁻¹, and was reoptimized to the
+  minimum, which is the reference); cyclohexene has one (half-chair). Already compliant.
+- **Hydride shifts:** unimolecular, no separated species. The tertiary cation reference (`dimethylbutyl_cation`) is
+  the lowest in G of the three forms computed for it (open cation +1.19 kJ/mol, bridged +1.38 kJ/mol); no further
+  rotamer search was made. The secondary shift is measured from the minima its path reaches, each the lower of the
+  two forms computed (0.41 and 0.46 kJ/mol below the hand-built references in G).
+
+The Diels–Alder and E2 single-point lanes were restarted between jobs at 20:58 to load the rule
+(`pipeline/lane_restart.py`; restart guard stopped and restarted around it; no job stopped). The finished M06-2X
+path energies of the Diels–Alder were rewritten with the new zero from the existing jobs, no recalculation.
+
 ### Free energy of a single atom (J. Picione, 2026-11-14)
 
 A single atom or atomic ion (bromide) has no frequency job, because ORCA's frequency module needs at

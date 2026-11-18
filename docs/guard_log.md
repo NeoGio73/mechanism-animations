@@ -84,3 +84,19 @@
 - planned pause (reserved window) now: no
 
 ### 2026-11-17 07:55:59 production chain finished: every reaction has a join line. Guard no longer watches it.
+
+### 2026-11-17 20:58:38 guard stopped by Claude (planned, not a stop): the Diels-Alder and E2 single-point lanes are restarted between jobs to load the reference-conformer rule (J. Picione 2026-11-17: every separated reactant and product uses its lowest-energy conformer by working-level free energy; trans ethanol added for E2), then the guard is started again unchanged.
+
+## Guard started 2026-11-17 20:59:01 (PowerShell pid 83020; until 2026-12-02 12:00; poll every 10 s)
+- Git Bash runtime: msys-2.0.dll 3.6.10-5a1665c8a0fb24930e55f1621441dfd98a798c15; git version 2.56.0.windows.1
+- production chain: 0 process(es) running
+- stall watchdog: 4 process(es) running
+- single points nucadd_cyanide_acetone_m062x: 3 process(es) running
+- single points da_butadiene_ethylene_m062x: 3 process(es) running
+- single points e2_ethoxide_2_bromopropane_m062x: 3 process(es) running
+- single points hshift_2_3_dimethyl_2_butyl_m062x: 3 process(es) running
+- single points hshift_3_methyl_2_butyl_m062x: 3 process(es) running
+- production chain, reactions not yet joined: 
+- planned pause (reserved window) now: no
+
+### 2026-11-17 20:59:12 production chain finished: every reaction has a join line. Guard no longer watches it.
