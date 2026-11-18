@@ -449,7 +449,9 @@ All six reactions, on the working-level production path:
   Code: `pipeline/steps.py` (`mirror_partners`, `mirror_check`, `path_singlepoints`); tested 2026-11-17 on a copy of
   the path with an energy that depends only on the geometry (pairing exact to 2 × 10⁻⁷ kJ/mol; one perturbed frame
   made the check fail and every frame was computed). The tertiary lane was restarted between jobs to load this code
-  (`pipeline/lane_restart.py`, 07:55; no job stopped).
+  (`pipeline/lane_restart.py`, 07:55; no job stopped). Result (2026-11-17 20:52): pass; largest |ΔE| between a mirror frame and its partner
+  1.40 × 10⁻³ kJ/mol (3.3 × 10⁻⁴ kcal/mol; frame 460 against 82), median 3.2 × 10⁻⁵ kJ/mol, none over 0.034 kJ/mol, so
+  B3LYP/ma-def2-TZVP and DLPNO-CCSD(T)/ma-def2-TZVP copy the mirror frames' energies.
 
 ### Tertiary hydride shift: computed half and mirror image (J. Picione, plan 2026-11-12, confirmed 2026-11-14)
 

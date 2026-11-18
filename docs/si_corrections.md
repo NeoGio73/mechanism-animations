@@ -191,7 +191,9 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
   by symmetry.
 - **Check:** M06-2X/ma-def2-TZVP, the first path level, computes all 543 frames, mirror frames included, and each
   mirror frame is compared with its partner (`02_irc/path_sp/mirror_check.{json,md}`). Tolerance: the SCF noise floor,
-  0.034 kJ/mol. Result: filled in when that level finishes (expected about 20:00 on 2026-11-17).
+  0.034 kJ/mol. Result (2026-11-17 20:52): **pass**. All 271 mirror frames agree with their partners; the largest
+  |ΔE| is 1.40 × 10⁻³ kJ/mol (3.3 × 10⁻⁴ kcal/mol), at frame 460 against frame 82, and the median is
+  3.2 × 10⁻⁵ kJ/mol (7.7 × 10⁻⁶ kcal/mol); no frame is over the tolerance.
 - **If every mirror frame agrees:** B3LYP/ma-def2-TZVP and DLPNO-CCSD(T)/ma-def2-TZVP copy the partner's energy for
   each mirror frame (about 271 and 244 frames) instead of computing it. Copied values are marked in the data files
   (`computed` = 0, `copied_from_frame` in `02_irc/energies_<level>.csv`; `copied_frames` in `energies_<level>.json`).
