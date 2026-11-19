@@ -177,11 +177,14 @@ def main(rxname: str, out: str) -> None:
       f"(from s = {s[0]:.2f} at the reactant end to s = {s[-1]:.2f} at the product end; TS at s = 0); "
       f"{arc:.2f} Å as the summed all-atom Cartesian displacement between frames (not mass-weighted).")
     lo, hi = reg[0], reg[-1]
+    frac = 100 * (dcc[0] - dcc[its]) / (dcc[0] - dcc[-1])
     w(f"- **Where the C–C bond forms:** the bond-changing region (C–C distance between 5 % and 95 % of its total change, "
       f"the definition of `pipeline/path_quality.py`) runs from frame {lo} (s = {s[lo]:.2f}, {dcc[lo]:.2f} Å) to frame "
       f"{hi} (s = {s[hi]:.2f}, {dcc[hi]:.2f} Å). At the TS the C–C distance is {dcc[its]:.3f} Å, "
-      f"{100 * (dcc[0] - dcc[its]) / (dcc[0] - dcc[-1]):.0f} % of the way from the reactant end ({dcc[0]:.3f} Å) to the "
-      f"product end ({dcc[-1]:.3f} Å). Most of the shortening happens after the TS.")
+      f"{frac:.0f} % of the way from the reactant end ({dcc[0]:.3f} Å) to the "
+      f"product end ({dcc[-1]:.3f} Å): {'most' if frac > 50 else 'less than half'} of the shortening has happened by the "
+      f"TS, and the remaining {100 - frac:.0f} % ({dcc[its] - dcc[-1]:.2f} Å) comes after it, over the product side "
+      f"(s = 0 to {s[-1]:.2f}).")
     w("")
     w("| Point | Frame | s (bohr·amu½) | C–C (Å) | C–O (Å) | E, M06-2X/ma-def2-SVP, zero = separated reactants |")
     w("|---|---|---|---|---|---|")
@@ -271,6 +274,15 @@ def main(rxname: str, out: str) -> None:
         q = Q[lv]
         w(f"| {nm} | {t(q['dE_cx'])} | {t(q['dH_cx'])} | {t(q['dG_cx'])} |")
     w("")
+    for i, (nm1, lv1, _) in enumerate(LEVELS):
+        for nm2, lv2, _ in LEVELS[i + 1:]:
+            a, b = Q[lv1], Q[lv2]
+            if all(round(a[k], 1) == round(b[k], 1) for k in ("dE_cx", "dH_cx", "dG_cx")):
+                w(f"{nm1} and {nm2} give the same rounded barriers from the complex by coincidence, not by copying: "
+                  f"ΔE‡ {a['dE_cx']:.2f} and {b['dE_cx']:.2f} kJ/mol, ΔG‡ {a['dG_cx']:.2f} and {b['dG_cx']:.2f} kJ/mol "
+                  f"(their barriers from separated reactants differ by {abs(a['dE_sep'] - b['dE_sep']):.1f} kJ/mol, and so "
+                  f"do their complex binding energies).")
+                w("")
     w("**Reaction, zero = separated reactants; product = separated alkoxide, 298.15 K, ΔG at 1 M:**")
     w("")
     w("| Level | ΔrE | ΔrH | ΔrG | Reactant complex, ΔE / ΔG | Reverse barrier from the alkoxide, ΔE‡ / ΔG‡ |")
