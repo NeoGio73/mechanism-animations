@@ -961,6 +961,9 @@ def path_singlepoints(rx: Reaction) -> None:
             ref[n] = r.energy_eh
         e_reac = sum(ref[n] for n in reac)
         e_prod = sum(ref[n] for n in prod)
+        if not frag and rx.cfg.get("zero_conformers"):      # one molecule: lowest-G conformer (J. Picione 2026-11-19)
+            from .unimolecular_zero import zero as uzero
+            e_reac = e_prod = uzero(rx)["E_eh"][label]
 
         def job(k):
             wd = rx.d(f"02_irc/path_sp/{label}/f{k:03d}")
@@ -1134,6 +1137,9 @@ def profile(rx: Reaction) -> None:
                     e_reac = e_end
                 else:
                     e_prod = e_end
+    if not frag and rx.cfg.get("zero_conformers") and epj.exists():   # one molecule (J. Picione 2026-11-19)
+        from .unimolecular_zero import zero as uzero
+        e_reac = uzero(rx)["E_eh"][None]
     rel = np.array([kj(e - e_reac) for e in E])
 
     kb = rx.key_bonds(frames[0].symbols)

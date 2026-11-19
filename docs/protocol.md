@@ -621,6 +621,15 @@ Status, 2026-11-17:
   the lowest in G of the three forms computed for it (open cation +1.19 kJ/mol, bridged +1.38 kJ/mol); no further
   rotamer search was made. The secondary shift is measured from the minima its path reaches, each the lower of the
   two forms computed (0.41 and 0.46 kJ/mol below the hand-built references in G).
+- **Secondary hydride shift, zero (J. Picione, 2026-11-19):** the zero is the lowest-free-energy conformer of the
+  secondary cation, not automatically frame 0. Frame 0 is the eclip form (`secondary_eclip_irc`, C1–C2–C3–H −161.9°);
+  the anti minimum (the gas-phase minimum of the section on the 3-methyl-2-butyl cation, C2–C3–CH₃ 71.3° there),
+  reoptimized at the working level (`01_stationary/secondary_anti`, C1–C2–C3–H −1.2°, C2–C3–CH₃ 71.1°, H still on C3,
+  no imaginary frequency), is lower by 2.77 kJ/mol (0.66 kcal/mol) in G and is the zero. Frame 0 lies above it in E by
+  3.06 kJ/mol (0.73 kcal/mol) at M06-2X/ma-def2-SVP, 2.41 (0.58) at M06-2X/ma-def2-TZVP, 2.32 (0.55) at
+  B3LYP/ma-def2-TZVP and 3.16 (0.76) at DLPNO-CCSD(T)/ma-def2-TZVP. Candidates are listed in `reaction.toml`
+  (`[[zero_conformers]]`); `pipeline/unimolecular_zero.py` picks the lowest by G, writes `02_irc/zero.json` and rewrites
+  the kJ/mol columns of the path energy files from their E_eh values. Nothing on the path is rerun.
 
 The Diels–Alder and E2 single-point lanes were restarted between jobs at 20:58 to load the rule
 (`pipeline/lane_restart.py`; restart guard stopped and restarted around it; no job stopped). The finished M06-2X

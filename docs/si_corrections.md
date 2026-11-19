@@ -239,6 +239,12 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
   by the electronic gap at each level (M06-2X 12.23, B3LYP 14.27, DLPNO-CCSD(T) 12.40 kJ/mol). Barriers from the
   reactant complex and the gas-phase comparison with experiment (already s-trans) are unchanged.
 - **E2:** trans ethanol computed; 0.90 kJ/mol (0.22 kcal/mol) above gauche in G, so gauche stays; nothing changes.
+- **Secondary hydride shift (J. Picione, 2026-11-19):** the same rule for the one-molecule reaction: the zero is the
+  secondary-cation conformer lowest in G, not automatically frame 0. Frame 0 is the eclip form; the anti minimum,
+  reoptimized at the working level (`01_stationary/secondary_anti`), is 2.77 kJ/mol (0.66 kcal/mol) lower in G and is the
+  zero. Frame 0 lies above it in E by 3.06 / 2.41 / 2.32 / 3.16 kJ/mol (0.73 / 0.58 / 0.55 / 0.76 kcal/mol) at
+  M06-2X/ma-def2-SVP / M06-2X/ma-def2-TZVP / B3LYP/ma-def2-TZVP / DLPNO-CCSD(T)/ma-def2-TZVP; path profiles move up by
+  that much at each level. Barriers from the form the path reaches are unchanged and are kept. No path rerun.
 - **Others:** single conformers, already compliant (details in `docs/protocol.md`).
 - **Files:** `pipeline/steps.py` (`reference_names`), `reactions/{da_butadiene_ethylene,e2_ethoxide_2_bromopropane}_m062x/
   00_inputs/reaction.toml`, `00_inputs/ethanol_trans_start.xyz`; rewritten from existing jobs: `01_ts/diagnostics.json`,

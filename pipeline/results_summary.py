@@ -123,8 +123,12 @@ def main(rxname: str, out: str) -> None:
 
     # ---------------------------------------------------------------- species, energies, thermal corrections
     uni = not frag
-    if uni:                                    # one molecule throughout: zero = reactant-end minimum
-        react, prods = ["reactant_complex"], ["product_complex"]
+    zc = {}                                    # one molecule: other conformers of the reactant (pipeline/unimolecular_zero.py)
+    if uni:                                    # one molecule throughout: zero = lowest-G conformer of the reactant
+        from .unimolecular_zero import zero as uzero
+        uz = uzero(rx)
+        zc = {k: v for k, v in uz["candidates"].items() if k != "reactant_complex"}
+        react, prods = [uz["name"]], ["product_complex"]
     else:
         react, prods = reference_names(rx, frag)
     refs_other = [k for k in frag if k not in react + prods]      # conformers kept on record, not the zero
@@ -133,10 +137,12 @@ def main(rxname: str, out: str) -> None:
         outs[k] = (R / ends[k]["xyz"]).with_suffix(".out")
     for k in frag:
         outs[k] = R / "01_ts/fragments" / k / f"{frag[k]['job']}.out"
+    for k, v in zc.items():
+        outs[k] = R / f"{v['job']}.out"
     Ework = {"ts": tsj["E_eh"], **{k: ends[k]["E_eh"] for k in ("reactant_complex", "product_complex")},
-             **{k: v["E_eh"] for k, v in frag.items()}}
+             **{k: v["E_eh"] for k, v in frag.items()}, **{k: v["E_eh"] for k, v in zc.items()}}
     Gwork = {"ts": tsj["G_eh"], **{k: ends[k]["G_eh"] for k in ("reactant_complex", "product_complex")},
-             **{k: v["G_eh"] for k, v in frag.items()}}
+             **{k: v["G_eh"] for k, v in frag.items()}, **{k: v["G_eh"] for k, v in zc.items()}}
     th = {}
     for k, p in outs.items():
         tx = p.read_text(errors="replace")
@@ -153,7 +159,9 @@ def main(rxname: str, out: str) -> None:
             a = atom(sym[0], 1)
             assert abs(a["G_minus_E_kJ"] - gk) < 0.01, (k, a["G_minus_E_kJ"], gk)
             th[k] = {"H_minus_E_kJ": a["H_minus_E_kJ"], "G_minus_E_kJ": gk}
-    E = {None: Ework, **{lv: diag["energies_eh"][lv] for _, lv, _ in LEVELS[1:]}}
+    E = {None: Ework, **{lv: {**diag["energies_eh"][lv], **{k: v["sp"][lv] for k, v in zc.items()}}
+                         for _, lv, _ in LEVELS[1:]}}
+    zoff = uni and react[0] != "reactant_complex"      # the zero is not the form the path reaches
 
     def quantities(lv):
         e = E[lv]
@@ -179,7 +187,7 @@ def main(rxname: str, out: str) -> None:
     for (nm, lv, _), first in zip(LEVELS, [True, False, False, False]):
         row = diag["rows"][0] if first else next(r for r in diag["rows"] if r["level"] == lv)
         pairs = [("dE_cx", "dE_TS_vs_complex_kJ"), ("dG_cx", "dG_TS_vs_complex_kJ")]
-        if not uni:
+        if not uni:                                # (one molecule: only the values from the path end are in the table)
             pairs += [("dE_sep", "dE_TS_vs_separated_kJ"), ("dE_sep", "dE_TS_vs_separated_kJ"), ("dEr", "dE_reaction_kJ"),
                       ("dG_sep", "dG_TS_vs_separated_1M_kJ"), ("dGr", "dG_reaction_1M_kJ")]
         for a, b in pairs:
@@ -236,8 +244,10 @@ def main(rxname: str, out: str) -> None:
     ets = path_E[None][its]
     rnm = snotes.get("reactant_name", "reactant-end minimum")      # e.g. "secondary cation" for a one-molecule reaction
     pnm = snotes.get("product_name", "product-end minimum")
-    zero_name = (f"the {rnm} (reactant-end minimum, `{ends['reactant_complex']['minimum']}`)" if uni
+    zero_name = (f"the {rnm} (reactant-end minimum, `{ends['reactant_complex']['minimum']}`)" if uni and not zoff
+                 else f"the {rnm}, lowest-free-energy conformer (`{react[0]}`)" if uni
                  else "separated reactants (" + " + ".join(react) + ")")
+    path_form = f"the {rnm} as the path reaches it (`{ends['reactant_complex']['minimum']}`, frame 0)"
 
     # ================================================================ write
     w(f"# Results summary: {rx.cfg['title']}")
@@ -245,7 +255,16 @@ def main(rxname: str, out: str) -> None:
     w(f"`{rx.cfg['equation']}`, in {solvent} (SMD), 298.15 K. Reaction folder `reactions/{rxname}`. "
       f"Written {time.strftime('%Y-%m-%d %H:%M')} by `pipeline/results_summary.py` from the finished jobs; no new calculation.")
     w("")
-    if uni:
+    if uni and zoff:
+        zl = {None: "M06-2X/ma-def2-SVP", **{lv: nm.split(" (")[0] for nm, lv, _ in LEVELS[1:]}}
+        offs = "; ".join(f"{zl[lv]} {t(Q[lv]['dE_cx_sep'], 2, True)} kJ/mol" for _, lv, _ in LEVELS)
+        zt = (f"The reaction has one molecule throughout, so there are no separated reactants, and every step keeps the "
+              f"number of molecules, so no standard-state term applies. The zero is the lowest-free-energy conformer of "
+              f"the {rnm} (`{react[0]}`, working-level G; rule of J. Picione, 2026-11-19, the same as for separated "
+              f"species), not the form the path reaches. The path starts from {path_form}, which lies above the zero by "
+              f"{t(Q[None]['dG_cx_sep'], 2, True)} kJ/mol in G (working level) and, in E, by {offs}. Barriers from {path_form} "
+              "are given as well.")
+    elif uni:
         zt = (f"The zero is the {rnm} at the reactant end of the path (`{ends['reactant_complex']['minimum']}`): the reaction has one molecule "
               "throughout, so there are no separated reactants, and every step keeps the number of molecules, so no "
               "standard-state term applies.")
@@ -299,7 +318,7 @@ def main(rxname: str, out: str) -> None:
         w(f"| {lab} | {ro} | {d[0]:.3f} | {d[its]:.3f} | {d[-1]:.3f} | {sh} |")
     w("")
     w("| Point | Frame | s (bohr·amu½) | " + " | ".join(f"{lab} (Å)" for lab, *_ in kb) +
-      f" | E, M06-2X/ma-def2-SVP, zero = {rnm if uni else 'separated reactants'} |")
+      f" | E, M06-2X/ma-def2-SVP, zero = {((rnm + f' (`{react[0]}`)') if zoff else rnm) if uni else 'separated reactants'} |")
     w("|---|---|---|" + "---|" * len(kb) + "---|")
     picks = [("reactant end", 0)]
     for target in (-10, -6, -4, -2, -1, -0.5):
@@ -330,7 +349,7 @@ def main(rxname: str, out: str) -> None:
          if tog is not None else "")) + f". {', '.join(geo)}.")
     w("- **References** (structures the barriers and reaction energies are measured from):")
     w("")
-    ztab = rnm if uni else "separated reactants"
+    ztab = (f"{rnm} (`{react[0]}`)" if zoff else rnm) if uni else "separated reactants"
     w(f"| Structure | Role | Key distances | Imaginary frequencies | E, zero = {ztab} | G (298.15 K, 1 M), zero = {ztab} |")
     w("|---|---|---|---|---|---|")
     e0 = sum(Ework[x] for x in react)
@@ -340,16 +359,20 @@ def main(rxname: str, out: str) -> None:
         de = (Ework[k] - e0) * EH
         dg = (Gwork[k] - g0) * EH - (len(react) - nmol) * CONV_1M
         return de, dg
+    kd = lambda b: ", ".join(f"{lab} {v:.3f} Å" for lab, v in b.items())
     if not uni:
         for k in react:
             g = geom(outs[k])
             w(f"| {k} (`{frag[k]['smiles']}`, job `{frag[k]['job']}`) | separated reactant | {bond_types(g)} | none | — | — |")
-    kd = lambda b: ", ".join(f"{lab} {v:.3f} Å" for lab, v in b.items())
+    elif zoff:
+        g = geom(outs[react[0]])
+        bz = {lab: float(np.linalg.norm(g.coords[a] - g.coords[b])) for lab, _, (a, b), _ in kb}
+        w(f"| {rnm}, `{react[0]}` (job `{zc[react[0]]['job']}`) | lowest-free-energy conformer; the zero | {kd(bz)} | none | 0 | 0 |")
     for k, role in (("reactant_complex", "reactant end of the path"), ("ts", ""), ("product_complex", "product end of the path")):
         b = tsj["bonds_A"] if k == "ts" else ends[k]["bonds_A"]
         nim = len(tsj["imaginary_cm"]) if k == "ts" else (len(ends[k]["imaginary_cm"]) or "none")
         rname = ({"reactant_complex": rnm, "product_complex": pnm}.get(k, nice(k)) if uni else nice(k)) +             ("" if k == "ts" or ends[k]["minimum"] == k else f" (`{ends[k]['minimum']}`)")
-        if uni and k == "reactant_complex":
+        if uni and k == "reactant_complex" and not zoff:
             w(f"| {rname} | {role}; the zero | {kd(b)} | {nim} | 0 | 0 |")
             continue
         de, dg = EGrel(k, 1)
@@ -365,7 +388,11 @@ def main(rxname: str, out: str) -> None:
         if len(prods) > 1:
             w(f"| {' + '.join(prods)} | separated products | | | {t(Q[None]['dEr'], 1, True)} | {t(Q[None]['dGr'], 1, True)} |")
     w("")
-    if uni:
+    if uni and zoff:
+        w(f"The reaction has one molecule throughout. The zero is the {rnm} conformer lowest in free energy (`{react[0]}`); "
+          f"the path starts from another conformer, {path_form}, {t(Q[None]['dE_cx_sep'], 2, True)} kJ/mol above it in E and "
+          f"{t(Q[None]['dG_cx_sep'], 2, True)} kJ/mol in G. The product is the {pnm} at the product end.")
+    elif uni:
         w(f"The reaction has one molecule throughout: the zero is the {rnm} at the reactant end of the path, and the "
           f"product is the {pnm} at the product end.")
     elif len(prods) == 1:
@@ -417,8 +444,8 @@ def main(rxname: str, out: str) -> None:
         q = Q[lv]
         w(f"| {nm} | {t(q['dE_sep'])} | {t(q['dH_sep'])} | {t(q['dG_sep'])} |")
     w("")
-    if not uni:
-        w("**Barriers, zero = reactant complex, 298.15 K:**")
+    if not uni or zoff:
+        w(f"**Barriers, zero = {path_form if uni else 'reactant complex'}, 298.15 K:**")
         w("")
         w("| Level | ΔE‡ | ΔH‡ | ΔG‡ |")
         w("|---|---|---|---|")
@@ -443,13 +470,15 @@ def main(rxname: str, out: str) -> None:
         w(f"**Reaction, zero = separated reactants; product{'s' if len(prods) > 1 else ''} = {pn}, 298.15 K, ΔG at 1 M:**")
     w("")
     revn = (prods[0] if len(prods) == 1 else "the product complex") if not uni else f"the {pnm}"
-    head = "| Level | ΔrE | ΔrH | ΔrG |" + ("" if uni else " Reactant complex, ΔE / ΔG |") + f" Reverse barrier from {revn}, ΔE‡ / ΔG‡ |"
+    cxc = not uni or zoff
+    cxh = " Reactant complex, ΔE / ΔG |" if not uni else f" {rnm[0].upper() + rnm[1:]} as the path reaches it, ΔE / ΔG |"
+    head = "| Level | ΔrE | ΔrH | ΔrG |" + (cxh if cxc else "") + f" Reverse barrier from {revn}, ΔE‡ / ΔG‡ |"
     w(head)
-    w("|---|---|---|---|" + ("" if uni else "---|") + "---|")
+    w("|---|---|---|---|" + ("---|" if cxc else "") + "---|")
     for nm, lv, _ in LEVELS:
         q = Q[lv]
         w(f"| {nm} | {t(q['dEr'], 1, True)} | {t(q['dHr'], 1, True)} | {t(q['dGr'], 1, True)} | " +
-          ("" if uni else f"{t(q['dE_cx_sep'], 1, True)} / {t(q['dG_cx_sep'], 1, True)} | ") +
+          (f"{t(q['dE_cx_sep'], 2 if uni else 1, True)} / {t(q['dG_cx_sep'], 2 if uni else 1, True)} | " if cxc else "") +
           f"{t(q['dE_rev'])} / {t(q['dG_rev'])} |")
     w("")
     w("ΔrH was not asked for; it is given because it costs nothing.")
