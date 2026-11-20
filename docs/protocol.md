@@ -655,6 +655,34 @@ Check: the same Sackur–Tetrode term for hydroxide gives T·S_trans = 42.9592 k
 
 SMD represents water as a continuum, with no explicit water molecules. It therefore misses the specific hydrogen bonds that water donates to a localized anion, and it under-stabilizes an alkoxide product. A computed step that forms an alkoxide (cyanide + acetone) is therefore likely too endergonic. The error comes from the solvent model, not the electronic-structure level: for cyanide + acetone the alkoxide lies +34.4 kJ/mol (+8.2 kcal/mol) above separated reactants in free energy at the working level and +36.3 kJ/mol (+8.7 kcal/mol) at DLPNO-CCSD(T)/ma-def2-TZVP (298 K, 1 M). No explicit water molecules are added; the card states the limitation.
 
+### Per-species solvation check, SN2 (J. Picione, 2026-11-19)
+
+Purpose: find where the error in the SN2 reaction free energy comes from (DLPNO-CCSD(T)/ma-def2-TZVP −85.3 kJ/mol
+against −100.8 kJ/mol measured). Small jobs; no path rerun.
+
+- **Gas-phase jobs.** The same keywords and settings as the SMD water jobs of `01_ts/fragments`, without the
+  solvent (no `CPCM(water)`, no `%cpcm` block): Opt Freq for hydroxide, bromomethane and methanol, started from the
+  solution geometry; a single point for bromide (its G − E from the single-atom formulas, as in solution). Then gas
+  single points at M06-2X/ma-def2-TZVP, B3LYP/ma-def2-TZVP and DLPNO-CCSD(T)/ma-def2-TZVP on those geometries.
+  Script `00_inputs/solvation_check.py`; output `03_solvation/gas.json`.
+- **Solvation free energy**, per species and level: ΔG*solv = G(SMD water, solution geometry) − G(gas, gas
+  geometry), with G(level) = E(level) + [G − E] from the working-level frequencies of the same phase and geometry.
+- **Standard state: 1 M (gas) → 1 M (solution), 298.15 K.** ORCA's G is for an ideal gas at 1 atm in both phases,
+  so the 1 atm → 1 M term (RT ln 24.46 = 7.92 kJ/mol) cancels in the difference. The measured values are on the same
+  standard state.
+- **Measured values** (`00_inputs/hydration_measured.toml`, with table and page): neutrals from FreeSolv v0.52
+  (methanol −5.10, bromomethane −0.82 kcal/mol); ions from Kelly, Cramer and Truhlar, J. Phys. Chem. B 2006, 110,
+  16066, Table 8 (OH⁻ −104.7, Br⁻ −68.3 kcal/mol, absolute scale with ΔG*solv(H⁺) = −265.9 kcal/mol).
+- **Error split**, exact: error = [ΔrG(gas, computed) − ΔrG(gas, measured)] + Σ ν·[ΔG*solv(computed) −
+  ΔG*solv(measured)], ν = −1 for reactants, +1 for products; ΔrG(gas, measured) = ΔrG(solution, measured) − Σ ν·ΔG*solv(measured).
+  The proton value cancels in the sum of the two ion terms (one anion in, one out), not in each term alone.
+  Script `00_inputs/solvation_analysis.py`; output `03_solvation/solvation.md`, copied into section 9 of
+  `docs/results/sn2_hydroxide_bromomethane.md`.
+- **Result (DLPNO-CCSD(T)/ma-def2-TZVP):** total +15.5 kJ/mol = gas-phase ΔrG −8.5 + bromide +62.8 + hydroxide −44.3
+  + bromomethane +3.6 + methanol +1.8. Bromide's solvation carries most of the error: SMD solvates it by −222.9
+  kJ/mol against −285.8 measured, at every level within 2 kJ/mol. The two ions together (proton-independent) give
+  +18.5 kJ/mol: SMD's bromide − hydroxide difference is +170.8 against +152.3 measured.
+
 ### Result: the 3-methyl-2-butyl cation has no classical secondary minimum to shift from (accepted by J. Picione, 2026-11-10)
 
 The first choice for the carbocation 1,2-hydride shift was 3-methyl-2-butyl → 2-methyl-2-butyl. The rule set beforehand was that the secondary cation must be a true minimum (all real frequencies, not hydrogen-bridged) with a barrier to the shift; otherwise switch to the degenerate shift in the 2,3-dimethyl-2-butyl cation.

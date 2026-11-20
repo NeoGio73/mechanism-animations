@@ -44,7 +44,8 @@ def main():
            "species": {}}
     for sp in SPECIES:
         q = formal_charge(smiles[sp])
-        g0 = read_xyz(RX / f"01_ts/fragments/{sp}/{frag[sp]['job']}.xyz")
+        fd = RX / f"01_ts/fragments/{sp}"     # a one-atom single point writes no .xyz; its start.xyz is the geometry
+        g0 = read_xyz(fd / f"{frag[sp]['job']}.xyz" if (fd / f"{frag[sp]['job']}.xyz").exists() else fd / "start.xyz")
         wd = rx.d(f"03_solvation/gas/{sp}")
         one = len(g0.symbols) == 1
         job = "" if one else "Opt Freq"
