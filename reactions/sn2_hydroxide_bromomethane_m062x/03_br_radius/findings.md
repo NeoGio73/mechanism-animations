@@ -1,0 +1,7 @@
+**Findings.**
+
+- **Barrier.** With the SMD18 radius every barrier drops by 7.3–8.0 kJ/mol (1.7–1.9 kcal/mol). The TS gains about 30 % of what free bromide gains (−9.6 against −32.2 kJ/mol at DLPNO-CCSD(T)), while bromomethane and the reactant complex gain only 2.3 kJ/mol. DLPNO-CCSD(T)/ma-def2-TZVP ΔG‡ from separated reactants goes from 100.4 to 93.1 kJ/mol, against 94.9 measured: from 5.5 kJ/mol above to 1.8 kJ/mol below.
+- **Reaction free energy.** ΔrG drops by 28.6–30.5 kJ/mol (6.8–7.3 kcal/mol), almost all of it from bromide. At DLPNO-CCSD(T) it goes from −85.3 to −115.2 kJ/mol, against −100.8 measured: the error changes from +15.5 to −14.4 kJ/mol. It is about as large as before, with the opposite sign.
+- **Why the reaction energy does not improve (with section 9).** Bromide's computed solvation becomes −255.1 kJ/mol at DLPNO-CCSD(T) (was −222.9), still 30.7 kJ/mol short of the measured −285.8. Before, that shortfall was offset by hydroxide's over-solvation (−44.3 kJ/mol in the error split); with the smaller radius the offset is too large. Bromomethane's computed solvation also moves away from experiment (−9.4 against −3.4 measured, was −7.0).
+- **With E2.** The same radius lowers the E2 barrier by 5.8 kJ/mol at DLPNO-CCSD(T) and moves it away from experiment (99.6 → 93.8 kJ/mol against 105.1 measured), so it does not improve both reactions at once.
+- **Geometries** are the standard-SMD ones; no structure was reoptimized with the new radius.

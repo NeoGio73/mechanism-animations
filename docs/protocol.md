@@ -703,6 +703,29 @@ against −100.8 kJ/mol measured). Small jobs; no path rerun.
   kJ/mol against −285.8 measured, at every level within 2 kJ/mol. The two ions together (proton-independent) give
   +18.5 kJ/mol: SMD's bromide − hydroxide difference is +170.8 against +152.3 measured.
 
+### Sensitivity check: SMD18 bromine radius, SN2 and E2 (J. Picione, 2026-11-20)
+
+A sensitivity check only: production numbers stay on standard SMD (Br radius 3.06 Å). SMD18 (Engelage, Mohamed and
+Huber, Chem. Eur. J. 2018, doi:10.1002/chem.201803652) changed the SMD Coulomb radius of Br from 3.06 to 2.60 Å.
+
+- **Jobs.** Single points on the existing M06-2X/ma-def2-SVP geometries of every bromine-containing structure of
+  the energetics (TS, reactant and product complexes, the bromoalkane, bromide), at the working level and at
+  M06-2X/ma-def2-TZVP, B3LYP/ma-def2-TZVP and DLPNO-CCSD(T)/ma-def2-TZVP. Input = production input plus
+  `radius[35] 2.60` in the `%cpcm` block, nothing else changed. At the working level a standard-SMD single point
+  on the same geometry as well, so that both radii are single points. Working-level thermal corrections. Script
+  `pipeline/br_radius_check.py`; jobs and results in `<reaction>/03_br_radius/`.
+- **Radius check.** Every new output must print "Radius for Br used is 4.9133 Bohr (= 2.6000 Ang.)" (ORCA 6.1.1),
+  or the script stops. The SMD-CDS term does not change: ORCA uses this radius only for the electrostatic cavity.
+- **Result, SN2 (DLPNO-CCSD(T)/ma-def2-TZVP):** ΔG‡ from separated reactants 100.4 → 93.1 kJ/mol (measured 94.9);
+  ΔrG −85.3 → −115.2 kJ/mol (measured −100.8). The barrier moves closer to experiment. The reaction free energy
+  error changes sign (+15.5 → −14.4 kJ/mol) without becoming smaller: bromide is still under-solvated by 30.7 kJ/mol,
+  and hydroxide's over-solvation no longer offsets it. Section 10 of `docs/results/sn2_hydroxide_bromomethane.md`.
+- **Result, E2 (DLPNO-CCSD(T)/ma-def2-TZVP):** ΔG‡ from separated reactants 99.6 → 93.8 kJ/mol (measured 105.1);
+  ΔrG −108.3 → −137.2 kJ/mol (no measured value). The barrier moves away from experiment (−5.5 → −11.3 kJ/mol).
+  The radius lowers both barriers by similar amounts (SN2 7.3, E2 5.8 kJ/mol at DLPNO-CCSD(T)), so it cannot bring
+  both closer to experiment. Production numbers stay on standard SMD. `reactions/e2_ethoxide_2_bromopropane_m062x/03_br_radius/br_radius.md`;
+  it enters the E2 results summary when that summary is built.
+
 ### Result: the 3-methyl-2-butyl cation has no classical secondary minimum to shift from (accepted by J. Picione, 2026-11-10)
 
 The first choice for the carbocation 1,2-hydride shift was 3-methyl-2-butyl → 2-methyl-2-butyl. The rule set beforehand was that the secondary cation must be a true minimum (all real frequencies, not hydrogen-bridged) with a barrier to the shift; otherwise switch to the degenerate shift in the 2,3-dimethyl-2-butyl cation.
