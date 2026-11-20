@@ -726,6 +726,40 @@ Huber, Chem. Eur. J. 2018, doi:10.1002/chem.201803652) changed the SMD Coulomb r
   both closer to experiment. Production numbers stay on standard SMD. `reactions/e2_ethoxide_2_bromopropane_m062x/03_br_radius/br_radius.md`;
   it enters the E2 results summary when that summary is built.
 
+### Sensitivity test: explicit waters on cyanide + acetone, cluster-continuum (J. Picione, 2026-11-20)
+
+Purpose: test whether the errors in the cyanide reaction free energy (+25.9 kJ/mol) and barrier (+9.7 kJ/mol;
+DLPNO-CCSD(T)/ma-def2-TZVP against 69.6 and +10.5 kJ/mol measured) come from SMD under-solvating the alkoxide oxygen.
+Stationary points only; production numbers stay as they are.
+
+- **Model.** n = 1, 2, 3 explicit waters, the same n on both sides, everything also in SMD water:
+  CN⁻·(H₂O)n + acetone (separated; acetone bare, its production structure) → TS·(H₂O)n → alkoxide·(H₂O)n.
+- **Starting arrangements** (`pipeline/explicit_water.py build`, `04_explicit_water/starts/`), each water donating one
+  hydrogen bond (H···O 1.79, H···N 1.99, H···C 2.19 Å at the start), several waters on one atom spread in a cone around
+  its lone-pair direction:
+  - cyanide: n = 1 N, C; n = 2 NN, CC, NC; n = 3 NNN, NNC, NCC, CCC;
+  - TS and alkoxide: n = 1 O, N; n = 2 OO, NN, ON; n = 3 OOO, OON, ONN (O = the carbonyl/alkoxide oxygen, N = the nitrile N).
+  25 starts in all.
+- **Optimizations**, working level M06-2X-D3(0)/ma-def2-SVP, SMD water: Opt Freq for minima (a minimum that stops on a
+  saddle point is pushed 0.1 Å along the mode and reoptimized once, as for the fragments); OptTS Freq for the TS with
+  the production TS settings (Calc_Hess, Recalc_Hess 5). MaxIter raised (200 / 150) for the loose waters; this does
+  not change a converged result. A cluster TS is accepted only with one imaginary frequency whose motion on the solute
+  atoms overlaps the bare TS mode by ≥ 0.8 (after aligning the solute), forming C–C while C–O lengthens.
+- **Kept structure:** the lowest in G (working level, 298.15 K) of each species and n among the accepted ones.
+- **Single points** on the kept structures at M06-2X/ma-def2-TZVP, B3LYP/ma-def2-TZVP and DLPNO-CCSD(T)/ma-def2-TZVP;
+  G(level) = E(level) + (G − E) at the working level; 1 atm → 1 M per species as in production
+  (ΔG‡ and ΔrG from separated reactants each carry −7.92 kJ/mol).
+- **Reported:** ΔG‡ and ΔrG from separated reactants at each n and level next to n = 0 and the measured 69.6 and
+  +10.5 kJ/mol, and the hydrogen-bond distances (H···X and O(water)···X) of each kept structure.
+- **Schedule (his order):** behind the path single points so that E2 is not delayed. The run (started hidden
+  2026-11-20 09:41) waits until every path single-point lane has finished, then runs one test optimization
+  (alkoxide·(H₂O)₃, three waters on O, the largest minimum) and estimates the job time of the whole test from it
+  (optimizations scaled by atom count^2.5, a TS optimization 2.5× a minimum; single points from the bare TS single
+  points by atom count^3). Over 36 h → it stops and writes `04_explicit_water/STOP_ESTIMATE.md`, nothing more runs
+  until he decides. Pre-estimate from the production job times (before the test): about 20 h of job time
+  (14.6 h optimizations, 5.5 h single points).
+- **Result:** pending. It goes into the cyanide results summary as a sensitivity section when it is done.
+
 ### Result: the 3-methyl-2-butyl cation has no classical secondary minimum to shift from (accepted by J. Picione, 2026-11-10)
 
 The first choice for the carbocation 1,2-hydride shift was 3-methyl-2-butyl → 2-methyl-2-butyl. The rule set beforehand was that the secondary cation must be a true minimum (all real frequencies, not hydrogen-bridged) with a barrier to the shift; otherwise switch to the degenerate shift in the 2,3-dimethyl-2-butyl cation.
