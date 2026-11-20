@@ -66,9 +66,10 @@ def main(folder: str) -> None:
     z = zero(rx)
     ep = z["candidates"]["reactant_complex"]
     first = lambda p: next(csv.DictReader(io.StringIO(p.read_text(encoding="utf-8"))))
+    nm = lambda k: ep["minimum"] if k == "reactant_complex" else k   # in zero.json the path end is named by its minimum
     rep = {"rule": "zero = lowest-free-energy conformer of the reactant, working-level G (J. Picione, 2026-11-19)",
-           "zero": z["name"], "zero_minimum": z["minimum"], "zero_job": z["job"],
-           "candidates_G_kJ_vs_zero": {k: kj(v["G_eh"] - z["G_eh"]) for k, v in z["candidates"].items()},
+           "zero": nm(z["name"]), "zero_minimum": z["minimum"], "zero_job": z["job"],
+           "candidates_G_kJ_vs_zero": {nm(k): kj(v["G_eh"] - z["G_eh"]) for k, v in z["candidates"].items()},
            "path_end_minimum": ep["minimum"], "levels": {}}
     files = {None: R / "02_irc/energies.csv",
              **{lb: R / f"02_irc/energies_{lb}.csv" for lb in z["E_eh"] if lb is not None}}

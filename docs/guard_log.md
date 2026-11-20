@@ -120,3 +120,27 @@
 - planned pause (reserved window) now: no
 
 ### 2026-11-18 16:53:25 production chain finished: every reaction has a join line. Guard no longer watches it.
+
+### 2026-11-18 21:13:57 single points nucadd_cyanide_acetone_m062x finished: last path level written. Guard no longer watches it.
+
+### 2026-11-19 03:00:02 planned pause (reserved window) begins: stops are logged, not restarted, not counted
+
+### 2026-11-19 06:43:05 planned pause over (window released): lanes without a process are restarted now, not counted
+
+### 2026-11-19 19:50:06 guard stopped by Claude (planned, not a stop): the tertiary hydride-shift single-point lane is restarted between jobs to load its two new C2–C3 rotamers (zero check, J. Picione 2026-11-19), then the guard is started again unchanged.
+
+## Guard started 2026-11-19 19:54:23 (PowerShell pid 53460; until 2026-12-02 12:00; poll every 10 s)
+- Git Bash runtime: msys-2.0.dll 3.6.10-5a1665c8a0fb24930e55f1621441dfd98a798c15; git version 2.56.0.windows.1
+- production chain: 0 process(es) running
+- stall watchdog: 4 process(es) running
+- single points nucadd_cyanide_acetone_m062x: 0 process(es) running
+- single points da_butadiene_ethylene_m062x: 3 process(es) running
+- single points e2_ethoxide_2_bromopropane_m062x: 3 process(es) running
+- single points hshift_2_3_dimethyl_2_butyl_m062x: 3 process(es) running
+- single points hshift_3_methyl_2_butyl_m062x: 3 process(es) running
+- production chain, reactions not yet joined: 
+- planned pause (reserved window) now: no
+
+### 2026-11-19 19:54:34 production chain finished: every reaction has a join line. Guard no longer watches it.
+
+### 2026-11-19 19:54:34 single points nucadd_cyanide_acetone_m062x finished: last path level written. Guard no longer watches it.

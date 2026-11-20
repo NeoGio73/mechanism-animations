@@ -140,12 +140,15 @@ def _read_json(path: Path) -> dict:
 def reference_names(rx: "Reaction", frag: dict) -> tuple[list[str], list[str]]:
     """Separated reactants and products that define the energy zero (rule of J. Picione, 2026-11-17): each species
     is represented by its lowest-energy conformer by free energy at the working level, chosen among the species itself
-    and every `[[references]]` entry with `conformer_of = "<that species>"`. The path, its end structures and the
-    animation keep the form the path reaches; only the reference energies change."""
+    and every `[[references]]` entry with `conformer_of = "<that species>"` (or a list of species, when a reactant and a
+    product are the same molecule, as in a degenerate reaction). The path, its end structures and the animation keep
+    the form the path reaches; only the reference energies change."""
     alts: dict[str, list[str]] = {}
     for role, s in rx.species():
         if role == "references" and s.get("conformer_of"):
-            alts.setdefault(s["conformer_of"], []).append(s["name"])
+            of = s["conformer_of"]
+            for sp in ([of] if isinstance(of, str) else of):
+                alts.setdefault(sp, []).append(s["name"])
 
     def pick(n: str) -> str:
         cands = [n] + alts.get(n, [])
@@ -1115,24 +1118,27 @@ def profile(rx: Reaction) -> None:
     reac_ref, prod_ref = reference_names(rx, frag)
     e_reac = sum(frag[n]["E_eh"] for n in reac_ref)
     e_prod = sum(frag[n]["E_eh"] for n in prod_ref)
-    # A side with one molecule: zero is the lowest structure found for it, the separately
-    # optimized molecule or the optimized IRC end, which can be a lower conformer.
+    # A side with one molecule: zero is the lowest structure found for it by working-level free energy (the rule of
+    # J. Picione 2026-11-17/19, as in reference_names and the path single points), the reference conformer or the
+    # optimized IRC end. (Until 2026-11-19 this compared electronic energies, which could pick a different structure
+    # than the path levels; only the tertiary hydride shift was affected, by 0.20 kJ/mol.)
     ref = {"reactants": "optimized molecule", "products": "optimized molecule"}
     epj = wd / "endpoints.json"
     if epj.exists():
         ep = _read_json(epj)
         for role, key in (("reactants", "reactant_complex"), ("products", "product_complex")):
             one = sum(1 for v in frag.values() if v["role"] == role) == 1
-            e_end = ep.get(key, {}).get("E_eh")
-            if not one or e_end is None or ep[key].get("imaginary_cm"):
+            e_end, g_end = ep.get(key, {}).get("E_eh"), ep.get(key, {}).get("G_eh")
+            if not one or e_end is None or g_end is None or ep[key].get("imaginary_cm"):
                 if not one:
                     ref[role] = "separated molecules"
                 continue
             e_frag = e_reac if role == "reactants" else e_prod
-            if e_end < e_frag - 1e-6:
-                print(f"NOTE optimized IRC end ({key}) lies {kj(e_frag - e_end):.2f} kJ/mol below the "
-                      f"separately optimized {role[:-1]}: a lower conformer; it is the zero/reference")
-                ref[role] = f"optimized IRC end, {kj(e_frag - e_end):.1f} kJ/mol below the separately optimized molecule"
+            g_frag = frag[(reac_ref if role == "reactants" else prod_ref)[0]]["G_eh"]
+            if g_end < g_frag - 1e-9:
+                print(f"NOTE optimized IRC end ({key}) lies {kj(g_frag - g_end):.2f} kJ/mol below the "
+                      f"reference {role[:-1]} in G: a lower conformer; it is the zero/reference")
+                ref[role] = f"optimized IRC end, {kj(g_frag - g_end):.1f} kJ/mol below the reference conformer in G"
                 if role == "reactants":
                     e_reac = e_end
                 else:

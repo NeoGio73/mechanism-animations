@@ -417,7 +417,10 @@ def main(rxname: str, out: str) -> None:
           f"The reactant is one molecule. The reactant complex is the form the path reaches, the separated reactant the "
           f"same molecule optimized on its own; here they are different conformers, {dre:+.2f} kJ/mol apart in E.")
     for k in refs_other:
-        partner = frag[k].get("conformer_of") or next((x for x in frag if frag[x].get("conformer_of") == k), None)
+        of = frag[k].get("conformer_of")
+        of = of[0] if isinstance(of, list) else of
+        partner = of or next((x for x in frag if k in ([frag[x].get("conformer_of")] if isinstance(
+            frag[x].get("conformer_of"), str) else frag[x].get("conformer_of") or [])), None)
         if partner in frag:
             w(f"Conformer kept on record, not the zero: {k} (`{frag[k]['smiles']}`) lies "
               f"{(Ework[k] - Ework[partner]) * EH:+.2f} kJ/mol in E and {(Gwork[k] - Gwork[partner]) * EH:+.2f} kJ/mol in G "
@@ -682,6 +685,13 @@ def main(rxname: str, out: str) -> None:
     if sides:
         w("- **Path (IRC) gradient jobs, working level:** " + "; ".join(sides) + ". The Hessian jobs and the TS and end-"
           "minimum optimizations are not counted.")
+        w("")
+    # ---- 9+. extra sections (summary_notes.toml: extra_sections = [{title, file}], file relative to the reaction
+    # folder, written by that check's own script; copied in verbatim)
+    for n, xs in enumerate(snotes.get("extra_sections", []), start=9):
+        w(f"## {n}. {xs['title']}")
+        w("")
+        w((R / xs["file"]).read_text(encoding="utf-8").strip())
         w("")
     Path(out).parent.mkdir(parents=True, exist_ok=True)
     Path(out).write_text("\n".join(L), encoding="utf-8")
