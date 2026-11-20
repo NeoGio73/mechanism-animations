@@ -270,3 +270,29 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
   00_inputs/reaction.toml`, `00_inputs/ethanol_trans_start.xyz`; rewritten from existing jobs: `01_ts/diagnostics.json`,
   `02_irc/barriers.json`, `02_irc/energies*.csv/json` of both reactions. Reports before 2026-11-17 21:00 give the
   Diels–Alder values from gauche butadiene.
+
+## 10. E2 experimental rate constant: 2.88 × 10⁻⁶ (uncorrected) → 2.37 × 10⁻⁶ L mol⁻¹ s⁻¹ (J. Picione, 2026-11-13; rechecked 2026-11-20)
+
+- **What:** from 2026-11-09 to 2026-11-13 the E2 records used k₂ = 2.88 × 10⁻⁶ L mol⁻¹ s⁻¹ as the overall
+  second-order rate constant of 2-bromopropane + NaOEt in ethanol at 25 °C ("mean of 19 points, 2.76–2.96 × 10⁻⁶",
+  read at first from a later reproduction of the tables). That is Table VII's 10⁶k₂ = 2.88, the uncorrected mean of a
+  single run. With 80.3 % olefin it gave k(E2) ≈ 2.31 × 10⁻⁶ L mol⁻¹ s⁻¹ and ΔG‡(E2) ≈ 105.2 kJ/mol (25.1 kcal/mol),
+  ΔG‡(SN2) ≈ 108.7 kJ/mol.
+- **Source now:** M. L. Dhar, E. D. Hughes and C. K. Ingold, J. Chem. Soc. 1948, 2058–2065, doi:10.1039/JR9480002058;
+  2-bromopropane + 1 N NaOEt in dry ethanol at 25.0 °C. Table I: 10⁵k₂ = 0.295 L mol⁻¹ s⁻¹ (corrected for solvent
+  expansion), 80.3 % olefin (82.7, 78.0). Table II: 10⁵k(E2) = 0.237 L mol⁻¹ s⁻¹. Eyring (298.15 K, 1 M):
+  k(E2) = 2.37 × 10⁻⁶ L mol⁻¹ s⁻¹ gives ΔG‡(E2) = 105.1 kJ/mol (25.1 kcal/mol); the SN2 share
+  (0.58 × 10⁻⁶ L mol⁻¹ s⁻¹) gives ΔG‡(SN2) = 108.6 kJ/mol (26.0 kcal/mol). Checked against the original paper by
+  J. Picione on 2026-11-13 and again, with the table details, on 2026-11-20.
+- **Caveats stated in the paper:** first-order (solvolysis) processes contribute up to 2–3 % of the rate; olefin
+  proportions are good to within 3 %, with a correction for loss of the volatile propene. A 3 % change in k(E2) moves
+  ΔG‡ by 0.08 kJ/mol (0.02 kcal/mol).
+- **Effect:** the measured E2 ΔG‡ falls by 0.1 kJ/mol (105.2 → 105.1); every computed − measured E2 difference rises
+  by 0.1 kJ/mol. M06-2X sensitivity test (B3LYP geometries, M06-2X geometries): +2.0 → +2.1 and −5.4 → −5.3 kJ/mol.
+  No calculation changes. Corrected on 2026-11-13 (commit `be06378`), before any production E2 number was compared.
+- **Files that carried 2.88 × 10⁻⁶ or 105.2 kJ/mol:** `reactions/e2_ethoxide_2_bromopropane/00_inputs/card_notes.toml`,
+  `reactions/e2_ethoxide_2_bromopropane/card.md`, `docs/references.md`, `pipeline/level_test.py`,
+  `docs/sensitivity_M06-2X.{json,md}`. All now use 2.37 × 10⁻⁶ and 105.1 kJ/mol, as do
+  `reactions/e2_ethoxide_2_bromopropane_m062x/00_inputs/card_notes.toml` and `summary_notes.toml` (from which the E2
+  results summary takes its measured row). Reports written before 2026-11-13 keep the old value as written.
+
