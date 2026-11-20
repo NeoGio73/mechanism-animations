@@ -245,6 +245,26 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
   zero. Frame 0 lies above it in E by 3.06 / 2.41 / 2.32 / 3.16 kJ/mol (0.73 / 0.58 / 0.55 / 0.76 kcal/mol) at
   M06-2X/ma-def2-SVP / M06-2X/ma-def2-TZVP / B3LYP/ma-def2-TZVP / DLPNO-CCSD(T)/ma-def2-TZVP; path profiles move up by
   that much at each level. Barriers from the form the path reaches are unchanged and are kept. No path rerun.
+- **Tertiary hydride shift, zero (J. Picione, 2026-11-19):** the same rule as for the secondary shift. The other
+  C2–C3 rotamers of the tertiary cation were optimized at the working level (Opt Freq, `01_ts/fragments/rotamer_h_perp`,
+  `rotamer_h_plane`) from two starts turned about C2–C3: C3–H along the empty p orbital (Me–C2–C3–H 90°) and C3–H in
+  the cation plane (180°). Both relaxed, with no imaginary frequency, to the rotamer already computed
+  (`dimethylbutyl_cation`: one C3 methyl 14° from the p axis, C3–H 62° from it; all-atom RMSD 0.018 and 0.012 Å, heavy
+  atoms 0.005 Å). At this level the cation has one C2–C3 rotamer. The four optimizations of it differ in G by up to
+  1.19 kJ/mol (0.28 kcal/mol) at 298.15 K and 0.94 kJ/mol (0.22 kcal/mol) at 135 K, from the lowest frequencies
+  (48–72 cm⁻¹) of the same flat minimum, not from different conformers. The lowest in G is `dimethylbutyl_cation` at
+  both 298.15 K and 135 K (the temperature of the Saunders–Kates measurement), so the zero is unchanged. Frame 0 lies
+  above it in E by 1.27 kJ/mol (0.30 kcal/mol) at M06-2X/ma-def2-SVP, 1.86 (0.44) at M06-2X/ma-def2-TZVP, 1.67 (0.40)
+  at B3LYP/ma-def2-TZVP and 2.22 (0.53) at DLPNO-CCSD(T)/ma-def2-TZVP. ΔG‡ from it, same order: 14.1 / 18.0 / 27.3 /
+  17.0 kJ/mol at 298.15 K and 13.2 / 17.1 / 26.4 / 16.1 kJ/mol (3.2 / 4.1 / 6.3 / 3.8 kcal/mol) at 135 K; measured
+  13.0 ± 0.4 kJ/mol (3.1 ± 0.1 kcal/mol) at 135 K. Script `00_inputs/rotamer_zero.py`, output `01_ts/rotamer_zero.md`.
+  No path rerun.
+- **Working-level zero chosen by G (fix, 2026-11-19):** since 2026-11-17 the other levels chose the zero of the path
+  profile by working-level G, but the working-level profile (`pipeline/steps.profile`) still compared E. For the
+  tertiary shift alone this made the working-level zero the path-end form (0.20 kJ/mol lower in E than
+  `dimethylbutyl_cation`, 1.19 kJ/mol higher in G). Now G at every level. The working-level tertiary profile moved
+  by −0.195 kJ/mol (TS frame 15.5 → 15.3 kJ/mol, 3.7 kcal/mol); Diels–Alder and cyanide zeros unchanged. Earlier
+  reports that quote the working-level tertiary TS frame (15.5 kJ/mol) used the path-end form as zero.
 - **Others:** single conformers, already compliant (details in `docs/protocol.md`).
 - **Files:** `pipeline/steps.py` (`reference_names`), `reactions/{da_butadiene_ethylene,e2_ethoxide_2_bromopropane}_m062x/
   00_inputs/reaction.toml`, `00_inputs/ethanol_trans_start.xyz`; rewritten from existing jobs: `01_ts/diagnostics.json`,

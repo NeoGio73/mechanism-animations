@@ -618,8 +618,8 @@ Status, 2026-11-17:
   (acetone: the first optimization stopped on a methyl-rotation saddle point, −92 cm⁻¹, and was reoptimized to the
   minimum, which is the reference); cyclohexene has one (half-chair). Already compliant.
 - **Hydride shifts:** unimolecular, no separated species. The tertiary cation reference (`dimethylbutyl_cation`) is
-  the lowest in G of the three forms computed for it (open cation +1.19 kJ/mol, bridged +1.38 kJ/mol); no further
-  rotamer search was made. The secondary shift is measured from the minima its path reaches, each the lower of the
+  the lowest in G of the three forms computed for it (open cation +1.19 kJ/mol, bridged +1.38 kJ/mol); the rotamer
+  search of 2026-11-19 (below) found no other C2–C3 rotamer. The secondary shift is measured from the minima its path reaches, each the lower of the
   two forms computed (0.41 and 0.46 kJ/mol below the hand-built references in G).
 - **Secondary hydride shift, zero (J. Picione, 2026-11-19):** the zero is the lowest-free-energy conformer of the
   secondary cation, not automatically frame 0. Frame 0 is the eclip form (`secondary_eclip_irc`, C1–C2–C3–H −161.9°);
@@ -630,6 +630,26 @@ Status, 2026-11-17:
   B3LYP/ma-def2-TZVP and 3.16 (0.76) at DLPNO-CCSD(T)/ma-def2-TZVP. Candidates are listed in `reaction.toml`
   (`[[zero_conformers]]`); `pipeline/unimolecular_zero.py` picks the lowest by G, writes `02_irc/zero.json` and rewrites
   the kJ/mol columns of the path energy files from their E_eh values. Nothing on the path is rerun.
+- **Tertiary hydride shift, zero (J. Picione, 2026-11-19):** the same rule as for the secondary shift. The other
+  C2–C3 rotamers of the tertiary cation were optimized at the working level (Opt Freq, `01_ts/fragments/rotamer_h_perp`,
+  `rotamer_h_plane`) from two starts turned about C2–C3: C3–H along the empty p orbital (Me–C2–C3–H 90°) and C3–H in
+  the cation plane (180°). Both relaxed, with no imaginary frequency, to the rotamer already computed
+  (`dimethylbutyl_cation`: one C3 methyl 14° from the p axis, C3–H 62° from it; all-atom RMSD 0.018 and 0.012 Å, heavy
+  atoms 0.005 Å). At this level the cation has one C2–C3 rotamer. The four optimizations of it differ in G by up to
+  1.19 kJ/mol (0.28 kcal/mol) at 298.15 K and 0.94 kJ/mol (0.22 kcal/mol) at 135 K, from the lowest frequencies
+  (48–72 cm⁻¹) of the same flat minimum, not from different conformers. The lowest in G is `dimethylbutyl_cation` at
+  both 298.15 K and 135 K (the temperature of the Saunders–Kates measurement), so the zero is unchanged. Frame 0 lies
+  above it in E by 1.27 kJ/mol (0.30 kcal/mol) at M06-2X/ma-def2-SVP, 1.86 (0.44) at M06-2X/ma-def2-TZVP, 1.67 (0.40)
+  at B3LYP/ma-def2-TZVP and 2.22 (0.53) at DLPNO-CCSD(T)/ma-def2-TZVP. ΔG‡ from it, same order: 14.1 / 18.0 / 27.3 /
+  17.0 kJ/mol at 298.15 K and 13.2 / 17.1 / 26.4 / 16.1 kJ/mol (3.2 / 4.1 / 6.3 / 3.8 kcal/mol) at 135 K; measured
+  13.0 ± 0.4 kJ/mol (3.1 ± 0.1 kcal/mol) at 135 K. Script `00_inputs/rotamer_zero.py`, output `01_ts/rotamer_zero.md`.
+  No path rerun.
+- **Working-level zero chosen by G (fix, 2026-11-19):** since 2026-11-17 the other levels chose the zero of the path
+  profile by working-level G, but the working-level profile (`pipeline/steps.profile`) still compared E. For the
+  tertiary shift alone this made the working-level zero the path-end form (0.20 kJ/mol lower in E than
+  `dimethylbutyl_cation`, 1.19 kJ/mol higher in G). Now G at every level. The working-level tertiary profile moved
+  by −0.195 kJ/mol (TS frame 15.5 → 15.3 kJ/mol, 3.7 kcal/mol); Diels–Alder and cyanide zeros unchanged. Earlier
+  reports that quote the working-level tertiary TS frame (15.5 kJ/mol) used the path-end form as zero.
 
 The Diels–Alder and E2 single-point lanes were restarted between jobs at 20:58 to load the rule
 (`pipeline/lane_restart.py`; restart guard stopped and restarted around it; no job stopped). The finished M06-2X
