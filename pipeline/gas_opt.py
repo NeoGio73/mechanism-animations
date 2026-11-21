@@ -332,6 +332,9 @@ def write_md(rx: Reaction, out: dict) -> None:
     fnd = rx.root / SUB / "findings.md"
     if fnd.exists():
         L += ["", fnd.read_text(encoding="utf-8").strip()]
+    conf_md = rx.root / SUB / "conformers.md"          # butadiene conformer ensemble (pipeline/gas_conf.py)
+    if conf_md.exists():
+        L += ["", conf_md.read_text(encoding="utf-8").strip()]
     (rx.root / SUB / "gas_phase.md").write_text("\n".join(L) + "\n", encoding="utf-8")
     print("\n".join(L))
 
