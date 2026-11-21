@@ -296,3 +296,27 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
   `reactions/e2_ethoxide_2_bromopropane_m062x/00_inputs/card_notes.toml` and `summary_notes.toml` (from which the E2
   results summary takes its measured row). Reports written before 2026-11-13 keep the old value as written.
 
+
+## 11. Diels–Alder gas-phase comparison: equilibrium butadiene conformer mixture as the reactant (J. Picione, 2026-11-21)
+
+- **What:** the gas-phase comparison with Rowley and Steiner (760–921 K) of 2026-11-20 took s-trans butadiene alone
+  as the reactant and gave Ea = ΔH‡ + 2RT at 840 K. At these temperatures about 30 % of the butadiene is in the two
+  mirror-image gauche (s-cis) forms, and the measured value refers to that equilibrium mixture. The summary and card
+  also said the measured value refers to butadiene that is "almost all s-trans", true at room temperature only.
+- **Now:** gauche butadiene single points at the three single-point levels (05:06–05:09); conformer-weighted
+  butadiene free energy G = −RT ln[exp(−G(s-trans)/RT) + 2 exp(−G(gauche)/RT)] (s-trans C2h σ = 2; gauche C2, σ = 2
+  per enantiomer, × 2 for the two enantiomers); k(TST) at 760, 800, 840, 880 and 921 K and an ln k against 1/T fit,
+  as in the experiment (`pipeline/gas_conf.py`, `reactions/da_butadiene_ethylene_m062x/03_gas_phase/conformers.json`).
+- **Effect (DLPNO-CCSD(T)/ma-def2-TZVP):** Ea − measured +4.2 kJ/mol (s-trans, 840 K point value; +3.5 from the same
+  fit) → −0.2 kJ/mol (−0.05 kcal/mol) with the mixture; A / measured A 0.45 → 0.17; k(840 K) / measured k
+  0.25 → 0.17. M06-2X/ma-def2-TZVP: Ea −8.6 → −13.0 kJ/mol, k ratio 1.57 → 1.08. Gauche fraction 1.8 % at 298 K,
+  30.4 % at 840 K.
+- **Conclusion changed:** the coupled-cluster activation energy now agrees with experiment within the fit error; the
+  remaining disagreement is the pre-exponential factor (0.17 times the measured one, beyond the factor of about 1.6
+  that the ±3.4 kJ/mol Ea error allows), i.e. the entropy of activation. M06-2X still matches the rate only through
+  cancellation of a low Ea against a low A.
+- **Files:** `reactions/da_butadiene_ethylene_m062x/00_inputs/card_notes.toml` (experimental text and gas-phase
+  limitation), `reactions/da_butadiene_ethylene_m062x/03_gas_phase/gas_phase.md` (conformer section appended),
+  `docs/results/da_butadiene_ethylene.md` (section 9). The 2026-11-20 s-trans-only numbers stay in the gas-phase
+  section as the s-trans rows. The earlier B3LYP-geometry folder (`reactions/da_butadiene_ethylene`) keeps its old
+  wording; it is superseded.

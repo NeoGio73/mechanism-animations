@@ -1,6 +1,6 @@
 # Results summary: Diels–Alder, butadiene + ethylene
 
-`CH₂=CH–CH=CH₂ + CH₂=CH₂ → cyclohexene`, in toluene (SMD), 298.15 K. Reaction folder `reactions/da_butadiene_ethylene_m062x`. Written 2026-11-20 20:54 by `pipeline/results_summary.py` from the finished jobs; no new calculation.
+`CH₂=CH–CH=CH₂ + CH₂=CH₂ → cyclohexene`, in toluene (SMD), 298.15 K. Reaction folder `reactions/da_butadiene_ethylene_m062x`. Written 2026-11-21 05:11 by `pipeline/results_summary.py` from the finished jobs; no new calculation.
 
 **Units and zeros.** Energies in kJ/mol with kcal/mol in brackets. Every number names its zero. "Separated reactants" means butadiene_s-trans + ethylene, each optimized on its own (each the conformer lowest in free energy (SI entry 9)). Steps that change the number of molecules use the 1 M standard state (RT ln 24.47 = 7.93 kJ/mol per mole of solute: subtracted for each molecule lost, added for each gained); steps from the reactant complex involve no change in the number of molecules, so no standard-state term applies. ΔE is electronic. ΔH and ΔG add the M06-2X/ma-def2-SVP thermal correction (quasi-RRHO, Grimme 2012, 100 cm⁻¹) to the electronic energy of the level named. ΔH needs no standard-state term.
 
@@ -138,12 +138,12 @@ A highest frame after the TS frame means the level puts the top of the barrier l
 
 ## 7. Experiment
 
-Experiment (gas phase): C₂H₄ + 1,3-butadiene → cyclohexene, second order, 760–921 K: k = 3.0 × 10¹⁰ exp(−27,500 cal mol⁻¹/RT) cm³ mol⁻¹ s⁻¹ (eq. 5), i.e. A = 3.0 × 10⁷ L mol⁻¹ s⁻¹ (4.98 × 10⁻¹⁴ cm³ molecule⁻¹ s⁻¹); a refit of the 13 runs in Table VI gives Ea = 115.1 ± 3.4 kJ/mol (27.5 ± 0.8 kcal/mol). Source: D. Rowley and H. Steiner, Discuss. Faraday Soc. 1951, 10, 198–213, doi:10.1039/DF9511000198; confirmed from the original paper by J. Picione (2026-11-13). Cross-check: NIST Chemical Kinetics Database, squib 1951ROW/STE198-213 (same A and Ea). The measured activation energy refers to equilibrium butadiene (almost all s-trans) in the gas phase; this calculation is in SMD toluene and starts from s-cis butadiene, so the s-trans → s-cis energy is reported separately; the comparison with this measurement uses separate gas-phase calculations from s-trans butadiene + ethylene. Concerted, synchronous transition state: K. N. Houk, Y.-T. Lin and F. K. Brown, J. Am. Chem. Soc. 1986, 108, 554–556, doi:10.1021/ja00263a059; E. Goldstein, B. Beno and K. N. Houk, J. Am. Chem. Soc. 1996, 118, 6036–6043, doi:10.1021/ja9601494.
+Experiment (gas phase): C₂H₄ + 1,3-butadiene → cyclohexene, second order, 760–921 K: k = 3.0 × 10¹⁰ exp(−27,500 cal mol⁻¹/RT) cm³ mol⁻¹ s⁻¹ (eq. 5), i.e. A = 3.0 × 10⁷ L mol⁻¹ s⁻¹ (4.98 × 10⁻¹⁴ cm³ molecule⁻¹ s⁻¹); a refit of the 13 runs in Table VI gives Ea = 115.1 ± 3.4 kJ/mol (27.5 ± 0.8 kcal/mol). Source: D. Rowley and H. Steiner, Discuss. Faraday Soc. 1951, 10, 198–213, doi:10.1039/DF9511000198; confirmed from the original paper by J. Picione (2026-11-13). Cross-check: NIST Chemical Kinetics Database, squib 1951ROW/STE198-213 (same A and Ea). The measured activation energy refers to equilibrium butadiene in the gas phase at 760–921 K. That is almost all s-trans at room temperature (about 2 % gauche s-cis) but not at the temperatures of the measurement: about 27 % gauche at 760 K and 34 % at 921 K (DLPNO-CCSD(T)/ma-def2-TZVP, gas phase; corrected 2026-11-21, J. Picione). This calculation is in SMD toluene and starts from s-cis butadiene, so the s-trans → s-cis energy is reported separately; the comparison with this measurement uses separate gas-phase calculations, from s-trans butadiene alone and from the equilibrium conformer mixture, each with ethylene. Concerted, synchronous transition state: K. N. Houk, Y.-T. Lin and F. K. Brown, J. Am. Chem. Soc. 1986, 108, 554–556, doi:10.1021/ja00263a059; E. Goldstein, B. Beno and K. N. Houk, J. Am. Chem. Soc. 1996, 118, 6036–6043, doi:10.1021/ja9601494.
 
 Limitations recorded for this comparison (card notes, `00_inputs/card_notes.toml`):
 
 - The path ends at the boat form of cyclohexene (mirror-symmetric, the new CH₂–CH₂ bond eclipsed): a synchronous path keeps the mirror plane of the TS. Optimized from the IRC end it stays in the boat form (lowest vibration 47 cm⁻¹, a very flat ring motion), 23.0 kJ/mol (5.5 kcal/mol) above the half-chair in E (M06-2X/ma-def2-SVP; numbers rechecked for this folder 2026-11-20), the ground-state conformer. Reaction energies use half-chair cyclohexene; the boat is the end of the path shown in the viewer and video.
-- Gas-phase comparison with Rowley and Steiner (760–921 K), computed 2026-11-20 on gas-phase geometries and frequencies (gas-phase section of the card and of the results summary): at 840 K DLPNO-CCSD(T)/ma-def2-TZVP puts Ea 4.2 kJ/mol (1.0 kcal/mol) above the measured 115.1 ± 3.4 kJ/mol and M06-2X/ma-def2-TZVP 8.6 kJ/mol (2.1 kcal/mol) below; the computed pre-exponential factor, 1.36 × 10⁷ L mol⁻¹ s⁻¹, is 0.45 times the measured one at every level. M06-2X matches the rate better than coupled cluster (k/k(exp) 1.57 against 0.25) only because its low Ea cancels the low A. These replace the numbers from the earlier B3LYP-geometry folder (−8.8 and +4.7 kJ/mol, A ratio 0.57).
+- Gas-phase comparison with Rowley and Steiner (760–921 K), on gas-phase geometries and frequencies (gas-phase section of the card and of the results summary). With the equilibrium butadiene conformer mixture as the reactant (s-trans plus both gauche forms, about 30 % gauche at 840 K; computed 2026-11-21) and an ln k against 1/T fit over 760–921 K as in the experiment, DLPNO-CCSD(T)/ma-def2-TZVP gives Ea = 114.9 kJ/mol (27.5 kcal/mol), 0.2 kJ/mol (0.05 kcal/mol) below the measured 115.1 ± 3.4 kJ/mol, and M06-2X/ma-def2-TZVP 13.0 kJ/mol (3.1 kcal/mol) below. The computed pre-exponential factor, 5.1 × 10⁶ L mol⁻¹ s⁻¹, is 0.17 times the measured one (0.17–0.19 at every level), so DLPNO-CCSD(T) gives 0.17 times the measured rate at 840 K; M06-2X/ma-def2-TZVP gives 1.08 times only because its low Ea cancels the low A. From s-trans butadiene alone (2026-11-20, 840 K point values) the numbers were +4.2 kJ/mol (DLPNO-CCSD(T)), −8.6 kJ/mol (M06-2X/ma-def2-TZVP) and A 0.45 times the measured one; the earlier B3LYP-geometry folder gave −8.8 and +4.7 kJ/mol and an A ratio of 0.57. SI corrections entry 11.
 - The product side of the path ended at the minimum (0.011 kJ/mol above the optimized cyclohexene, RMS gradient 1.0 × 10⁻⁶ Eh/bohr) on the old energy-rise stop, before the 20 flat steps of the stopping rule; not rerun (accepted by J. Picione, 2026-11-14).
 
 ## 8. Job times
@@ -158,7 +158,7 @@ ORCA job time (TOTAL RUN TIME in each output), 4 cores per job; several jobs ran
 
 - **Path (IRC) gradient jobs, working level:** reactant side (backward): 432 gradient jobs, 7.0 h job time (folders `backward`); product side (forward): 324 gradient jobs, 5.4 h job time (folders `forward`). The Hessian jobs and the TS and end-minimum optimizations are not counted.
 
-## 9. Gas-phase comparison with Rowley and Steiner (840 K)
+## 9. Gas-phase comparison with Rowley and Steiner (840 K and the 760–921 K fit)
 
 Gas-phase comparison with Rowley and Steiner (J. Picione, 2026-11-20). Gas phase, no solvent model, gas-phase geometries and frequencies at M06-2X-D3(0)/ma-def2-SVP; barrier from s-trans butadiene + ethylene; T = 840 K (midpoint of the measured 760–921 K).
 
@@ -189,3 +189,37 @@ Method: ΔH‡(840 K) = ΔE‡ + Δ[H(840 K) − E]; Ea = ΔH‡ + 2RT; ΔG‡(8
 - **Gas phase against toluene** (same levels, s-trans butadiene + ethylene): the DLPNO-CCSD(T) ΔE‡ is 98.4 kJ/mol in the gas phase and 96.7 kJ/mol in SMD toluene; the forming C–C bonds are 2.265 Å and 2.263 Å.
 - **Checks.** Every job ended normally. The minima have no imaginary frequency. The TS has one (−514 cm⁻¹), synchronous, with overlap 1.00 with the toluene TS mode. The thermal terms reproduce ORCA's 298.15 K H and G within 0.001 kJ/mol. The largest DLPNO-CCSD(T) T1 is 0.0113.
 - **Job time:** 2092 s in total (4 optimizations 820 s, 9 single points 1272 s, 4 cores each), 20:24–20:52, ahead of the path single points.
+
+**Butadiene conformer ensemble (J. Picione, 2026-11-21).** At 760–921 K the reactant is the equilibrium mixture of s-trans butadiene and the two mirror-image gauche (s-cis) forms, as in the experiment. k(TST) was computed at 760, 800, 840, 880 and 921 K and ln k fitted against 1/T, as Rowley and Steiner did; Ea = −R × slope, A = exp(intercept), in L mol⁻¹ s⁻¹. The s-trans-only values below use the same fit, so they differ slightly from the 840 K point values (Ea = ΔH‡ + 2RT) in the table above.
+
+| Level | Reactant butadiene | Ea (fit, 760–921 K) | Ea − measured | A (L mol⁻¹ s⁻¹) | A / measured A | k(840 K) / measured k |
+|---|---|---|---|---|---|---|
+| M06-2X_ma-def2-SVP (working) | s-trans only | 100.2 kJ/mol (24.0 kcal/mol) | −14.9 kJ/mol (−3.6 kcal/mol) | 1.24 × 10⁷ | 0.41 | 3.48 |
+|  | conformer mixture | 96.5 kJ/mol (23.1 kcal/mol) | −18.6 kJ/mol (−4.4 kcal/mol) | 4.94 × 10⁶ | 0.16 | 2.34 |
+| M06-2X_ma-def2-TZVP | s-trans only | 105.8 kJ/mol (25.3 kcal/mol) | −9.3 kJ/mol (−2.2 kcal/mol) | 1.24 × 10⁷ | 0.41 | 1.57 |
+|  | conformer mixture | 102.1 kJ/mol (24.4 kcal/mol) | −13.0 kJ/mol (−3.1 kcal/mol) | 5.08 × 10⁶ | 0.17 | 1.08 |
+| B3LYP_ma-def2-TZVP | s-trans only | 101.5 kJ/mol (24.3 kcal/mol) | −13.6 kJ/mol (−3.2 kcal/mol) | 1.24 × 10⁷ | 0.41 | 2.88 |
+|  | conformer mixture | 98.1 kJ/mol (23.4 kcal/mol) | −17.0 kJ/mol (−4.1 kcal/mol) | 5.68 × 10⁶ | 0.19 | 2.16 |
+| DLPNO-CCSD(T)_ma-def2-TZVP | s-trans only | 118.6 kJ/mol (28.3 kcal/mol) | +3.5 kJ/mol (+0.8 kcal/mol) | 1.24 × 10⁷ | 0.41 | 0.25 |
+|  | conformer mixture | 114.9 kJ/mol (27.5 kcal/mol) | −0.2 kJ/mol (−0.05 kcal/mol) | 5.13 × 10⁶ | 0.17 | 0.17 |
+| Measured (Rowley and Steiner 1951) | equilibrium mixture | 115.1 ± 3.4 kJ/mol (27.5 ± 0.8 kcal/mol) | | 3.00 × 10⁷ | 1 | 1 |
+
+**Gauche fraction of butadiene** (both enantiomers together; equilibrium in the gas phase):
+
+| Level | 298 K | 760 K | 840 K | 921 K | G(gauche, one enantiomer) − G(s-trans), 840 K |
+|---|---|---|---|---|---|
+| M06-2X_ma-def2-SVP (working) | 2.4 % | 28.9 % | 32.6 % | 35.8 % | 9.9 kJ/mol (2.4 kcal/mol) |
+| M06-2X_ma-def2-TZVP | 1.9 % | 27.2 % | 30.9 % | 34.2 % | 10.5 kJ/mol (2.5 kcal/mol) |
+| B3LYP_ma-def2-TZVP | 0.9 % | 21.2 % | 24.9 % | 28.4 % | 12.5 kJ/mol (3.0 kcal/mol) |
+| DLPNO-CCSD(T)_ma-def2-TZVP | 1.8 % | 26.6 % | 30.4 % | 33.7 % | 10.6 kJ/mol (2.5 kcal/mol) |
+
+**How the symmetry numbers and the two enantiomers are counted.** G(butadiene, mixture) = −RT ln[exp(−G(s-trans)/RT) + 2 exp(−G(gauche)/RT)]. s-trans butadiene is C2h, σ = 2. Gauche butadiene is C2 (CCCC dihedral 33.5°; the optimized structure matches its own 180° rotation within 0.0002 Å RMSD), so one enantiomer has σ = 2; the factor 2 in front of its term counts the two mirror-image forms, which are separate minima with equal energy. Together the pair therefore counts like one structure with σ = 1 (2/σ = 1). ORCA's point-group detection labelled the optimized gauche form C1 (σ = 1), so its own G (and the 9.2 kJ/mol gauche–s-trans ΔG quoted above) already equals the pair value; here σ = 2 is set explicitly and the factor 2 added. Ethylene σ = 4 (D2h), TS σ = 1 (Cs, achiral, one TS).
+
+**Findings, conformer ensemble (2026-11-21 05:09).**
+
+- **Activation energy.** With the equilibrium conformer mixture as the reactant, DLPNO-CCSD(T)/ma-def2-TZVP gives Ea = 114.9 kJ/mol (27.5 kcal/mol) from the 760–921 K fit, 0.2 kJ/mol (0.05 kcal/mol) below the measured 115.1 ± 3.4 kJ/mol. From s-trans butadiene alone the same fit gives 118.6 kJ/mol (28.3 kcal/mol), 3.5 kJ/mol above. Every level drops by 3.4–3.7 kJ/mol (0.8–0.9 kcal/mol): at these temperatures about 30 % of the butadiene is gauche, which lies 12.2 kJ/mol (2.9 kcal/mol) above s-trans in H at 840 K (DLPNO-CCSD(T)), so the average reactant enthalpy is higher. M06-2X/ma-def2-TZVP is now 13.0 kJ/mol (3.1 kcal/mol) below the measured value, B3LYP/ma-def2-TZVP 17.0 kJ/mol (4.1 kcal/mol) below.
+- **Pre-exponential factor.** A falls from 1.24 × 10⁷ (s-trans only, same fit) to 5.1 × 10⁶ L mol⁻¹ s⁻¹ at DLPNO-CCSD(T), 0.17 times the measured 3.0 × 10⁷ L mol⁻¹ s⁻¹ (0.17–0.19 at every level). Only the s-trans part reacts in this model, and its share falls with temperature, which lowers both the fitted Ea and A. The ±3.4 kJ/mol fit error in Ea corresponds to about a factor of 1.6 in A, so the computed A is low by clearly more than the measurement's uncertainty.
+- **Rate at 840 K.** The mixture lowers k(TST) to 0.70 of the s-trans-only value (the s-trans fraction). DLPNO-CCSD(T) gives 0.17 times the measured k, a free-energy gap of 12.4 kJ/mol (3.0 kcal/mol) at 840 K that now comes almost entirely from the entropy of activation (computed ΔS‡ more negative than measured by about R ln 6 ≈ 15 J mol⁻¹ K⁻¹). Likely contributors, not tested here: the harmonic (quasi-RRHO) treatment of the low-frequency modes of the TS and of the butadiene torsion at 840 K.
+- **What changes.** The earlier conclusion (s-trans butadiene only, 2026-11-20) was that DLPNO-CCSD(T) puts Ea 4.2 kJ/mol above experiment, just outside the error, with A 0.45 times the measured value. With the conformer mixture the coupled-cluster Ea agrees with experiment, and the remaining disagreement is in A (0.17 times). M06-2X/ma-def2-TZVP comes within 1.08 times the measured k only because its Ea, 13.0 kJ/mol too low, cancels the low A.
+- **Gauche fraction** (DLPNO-CCSD(T)): 1.8 % at 298 K, 26.6 % at 760 K, 30.4 % at 840 K, 33.7 % at 921 K. B3LYP gives fewer gauche (24.9 % at 840 K), because it puts gauche 2.0 kJ/mol higher.
+- **Checks.** The three gauche single points ended normally (largest DLPNO-CCSD(T) T1 0.0111). The ln k against 1/T fits are straight within 0.007 in ln k at every level. Job time: 3 single points, 05:06–05:09, right after J. Picione's machine block.

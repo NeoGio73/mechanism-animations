@@ -82,9 +82,10 @@ def run(rx: Reaction) -> None:
         (root / "HOLD_conformers.txt").write_text(
             f"{time.strftime('%Y-%m-%d %H:%M')}: gauche butadiene single points held until J. Picione's machine "
             "block is released (his request: run after the block ends).\n", encoding="utf-8")
-        while not rel.exists():
-            time.sleep(60)
-        time.sleep(120)
+        # pipeline/cores.py deletes window_release within about 10 s of the release, so also accept the window's
+        # own "released" status
+        while not rel.exists() and json.loads((Q / "window.json").read_text(encoding="utf-8")).get("status") != "released":
+            time.sleep(5)
         (root / "HOLD_conformers.txt").unlink(missing_ok=True)
         say("block released")
     opt = _read_json(root / "opt.json")
@@ -184,6 +185,9 @@ def analyse(rx: Reaction) -> dict:
 
 
 def _pm(v: float) -> str:
+    if abs(v) / 4.184 < 0.05:                          # keep the sign visible in kcal/mol: −0.2 kJ/mol (−0.05 kcal/mol)
+        s = f"{v:.1f} kJ/mol ({v / 4.184:.2f} kcal/mol)"
+        return ("+" + s.replace("(", "(+")) if v > 0 else s.replace("-", "−")
     s = fmt_kj(v)
     return ("+" + s.replace("(", "(+")) if v > 0 else s.replace("-", "−")
 
