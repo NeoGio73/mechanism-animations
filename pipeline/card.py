@@ -207,7 +207,10 @@ def card(rx: Reaction) -> None:
         cm["note"] = notes.get("curve_max_note")
         lines += _curve_max_section(cm, notes.get("curve_max_note"))
     gp_path = r / "01_ts/gas_phase.json"
-    if gp_path.exists():
+    gp_new = r / "03_gas_phase/gas_phase.md"      # gas-phase geometries (pipeline/gas_opt.py, 2026-11-20)
+    if gp_new.exists():
+        lines += ["## Comparison with the gas-phase experiment", "", gp_new.read_text(encoding="utf-8").strip(), ""]
+    elif gp_path.exists():
         lines += _gas_phase_section(rx, _read_json(gp_path))
     if notes.get("experimental"):
         lines += [notes["experimental"], ""]

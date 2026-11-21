@@ -1,0 +1,9 @@
+**Findings (2026-11-20 20:52).**
+
+- **Activation energy.** DLPNO-CCSD(T)/ma-def2-TZVP gives Ea = 119.3 kJ/mol (28.5 kcal/mol), 4.2 kJ/mol (1.0 kcal/mol) above the measured 115.1 ± 3.4 kJ/mol, just outside the fit error. M06-2X/ma-def2-TZVP is 8.6 kJ/mol (2.1 kcal/mol) below, B3LYP/ma-def2-TZVP 12.9 kJ/mol (3.1 kcal/mol) below, and the working level 14.2 kJ/mol (3.4 kcal/mol) below.
+- **Pre-exponential factor.** A = 1.36 × 10⁷ L mol⁻¹ s⁻¹ (1.36 × 10¹⁰ cm³ mol⁻¹ s⁻¹), 0.45 times the measured 3.0 × 10⁷ L mol⁻¹ s⁻¹, at every level (ΔS‡ = −168.8 J mol⁻¹ K⁻¹ at 840 K, 1 atm). A and Ea from one Arrhenius fit over 760–921 K are correlated: the ±3.4 kJ/mol in Ea corresponds to about a factor of 1.6 in A at 840 K, so the computed A is low by somewhat more than the fit uncertainty.
+- **Rate at 840 K.** DLPNO-CCSD(T) gives 0.25 times the measured k: 0.45 from A times 0.55 from the higher Ea. M06-2X/ma-def2-TZVP gives 1.57 times: 0.45 from A times 3.4 from its low Ea. As in the earlier folder, M06-2X matches the rate better only because its low Ea cancels the low A.
+- **Against the withdrawn numbers** from the earlier B3LYP-geometry folder (solution geometries and SMD frequencies, gas-phase single points): Ea difference −8.8 → −8.6 kJ/mol (M06-2X/ma-def2-TZVP), +4.7 → +4.2 kJ/mol (DLPNO-CCSD(T)); A ratio 0.57 → 0.45.
+- **Gas phase against toluene** (same levels, s-trans butadiene + ethylene): the DLPNO-CCSD(T) ΔE‡ is 98.4 kJ/mol in the gas phase and 96.7 kJ/mol in SMD toluene; the forming C–C bonds are 2.265 Å and 2.263 Å.
+- **Checks.** Every job ended normally. The minima have no imaginary frequency. The TS has one (−514 cm⁻¹), synchronous, with overlap 1.00 with the toluene TS mode. The thermal terms reproduce ORCA's 298.15 K H and G within 0.001 kJ/mol. The largest DLPNO-CCSD(T) T1 is 0.0113.
+- **Job time:** 2092 s in total (4 optimizations 820 s, 9 single points 1272 s, 4 cores each), 20:24–20:52, ahead of the path single points.
