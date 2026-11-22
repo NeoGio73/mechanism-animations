@@ -1,8 +1,9 @@
 """Secondary hydride shift: the C2–C3 rotation TSs from the anti minimum at the working level (J. Picione, 2026-11-22).
 
-Low-priority addition. Nothing in the production path folders changes; every job is in a new subfolder of
-01_stationary/ and goes through the core queue at low priority (pipeline/cores.py, CORES_LOW=1: a job takes cores only
-when nothing is waiting and they are free).
+Nothing in the production path folders changes; every job is in a new subfolder of 01_stationary/. Started after
+the tertiary shift's last path single point, in the ordinary core queue (J. Picione 2026-11-22: "a 1-1.5 h delay to E2
+is fine"); one job at a time. Order: the two torsion scans of step 2 first (whether anti and eclip interconvert at all
+decides how Section 3.6 reports the barrier), then step 1, then any anti-eclip TS search.
 
 1. ts_anti_rotation: OptTS Freq at the working level (method of reaction.toml, SMD dichloromethane, Calc_Hess true
    Recalc_Hess 5 MaxIter 100, the production TS settings), started from the gas-phase M06-2X anti TS
@@ -201,7 +202,8 @@ def scan_arm(rx, arm, target, refs):
     kmax = int(np.argmax(e)) if e and None not in e else None
     rec["max_point"] = pts[kmax]["point"] if kmax is not None else None
     rec["interior_max"] = kmax is not None and 0 < kmax < len(pts) - 1
-    rec["guess"] = str(wd / f"scan.{pts[kmax]['point']:03d}.xyz") if rec["interior_max"] and not shifted else None
+    rec["guess"] = (str(wd / f"scan.{pts[kmax]['point']:03d}.xyz")
+                  if r.ok and rec["interior_max"] and not shifted else None)
     return rec
 
 
@@ -274,18 +276,27 @@ def gate(mode):
 
 
 def run(mode):
-    os.environ["CORES_LOW"] = "1"                            # low priority in this process only
+    # after_e2: low priority (takes only free cores). after_tertiary (J. Picione 2026-11-22 later: "a 1-1.5 h delay to
+    # E2 is fine"): the ordinary first-come queue, so the jobs take turns with E2 instead of waiting for a gap.
+    if mode == "after_e2":
+        os.environ["CORES_LOW"] = "1"                        # in this process only
     gate(mode)
     rx = Reaction.load(RX)
     refs = references(rx)
-    res = {"request": "J. Picione 2026-11-22: rotation TSs from the anti minimum (low priority)", "ts": {}, "scans": []}
-    res["ts"]["ts_anti_rotation"] = ts_branch(rx, "ts_anti_rotation", read_xyz(GAS_TS), refs,
-                                              ["secondary_anti", "tertiary_irc"], "gas-phase M06-2X anti TS")
-    write_report(res, refs)
+    res = {"request": f"J. Picione 2026-11-22: rotation TSs from the anti minimum ({mode})", "ts": {}, "scans": []}
+    # order (J. Picione 2026-11-22): the two torsion scans first, since whether anti and eclip interconvert at all
+    # decides how Section 3.6 reports the barrier; then the anti-side rotation TS; then any anti-eclip TS search
+    arms = []
     for arm, target in (("neg", ECLIP_DIH), ("pos", -ECLIP_DIH)):
         a = scan_arm(rx, arm, target, refs)
         res["scans"].append(a)
+        arms.append(a)
         write_report(res, refs)
+    res["ts"]["ts_anti_rotation"] = ts_branch(rx, "ts_anti_rotation", read_xyz(GAS_TS), refs,
+                                              ["secondary_anti", "tertiary_irc"], "gas-phase M06-2X anti TS")
+    write_report(res, refs)
+    for a in arms:
+        arm = a["arm"]
         if a["guess"]:
             res["ts"][f"ts_anti_eclip_{arm}"] = ts_branch(rx, f"ts_anti_eclip/ts_{arm}", read_xyz(Path(a["guess"])),
                                                           refs, ["secondary_anti", "secondary_eclip_irc"],
