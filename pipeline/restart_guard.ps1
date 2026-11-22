@@ -16,6 +16,8 @@
 #  5. it never changes a setting, never deletes anything, never reports by itself. Killed sides (incomplete, not
 #     results) are moved to 02_irc/attempts/killed_<time>/ with WHY.txt, because a side starts only in a clean folder.
 # Usage (PowerShell): & ([scriptblock]::Create((Get-Content -Raw pipeline\restart_guard.ps1))) [-DryRun] [-Root <dir>]
+# Start hidden through WMI with that short command (powershell.exe -NoProfile -Command "& ([scriptblock]::Create(...))"),
+# not as -EncodedCommand: by 2026-11-22 the encoded script was 37,710 characters, over Windows' 32,767 command-line limit.
 param([switch]$DryRun, [string]$Root = 'C:\Users\giova\Mechanism Animations', [switch]$SelfTest)
 $ErrorActionPreference = 'Continue'
 $Log = "$Root\docs\guard_log.md"; $Prod = "$Root\docs\production_true_irc.log"; $Hold = "$Root\docs\GUARD_HOLD"
