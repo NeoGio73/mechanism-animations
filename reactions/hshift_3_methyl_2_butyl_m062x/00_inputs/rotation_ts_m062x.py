@@ -84,7 +84,10 @@ def tors(g, i, j, k, l):
 def describe(g):
     return {"C3_H_A": round(d(g, C3, H), 3), "C2_H_A": round(d(g, C2, H), 3),
             "C1_C2_C3_H_deg": round(tors(g, C1, C2, C3, H), 1),
-            "H_on": "C3 (secondary)" if d(g, C3, H) < d(g, C2, H) else "C2 (tertiary)"}
+            "H_on": "C3 (secondary)" if d(g, C3, H) < d(g, C2, H) else "C2 (tertiary)",
+            # methyl positions (added 2026-11-23: the H-only check missed the methyl shift on scan_pos)
+            **{f"C{c}_Me{m}_A": round(d(g, a, m), 3) for m in ME for c, a in ((2, C2), (3, C3))},
+            "Me_moved_to_C2": [m for m in ME if d(g, C2, m) < d(g, C3, m)]}
 
 
 def core_rmsd(a, b):
@@ -96,6 +99,22 @@ def core_rmsd(a, b):
         u, _, vt = np.linalg.svd(x.T @ y)
         r = u @ vt                                           # no determinant correction: reflections allowed
         best = min(best, float(np.sqrt(((x @ r - y) ** 2).sum(1).mean())))
+    return best
+
+
+# C2/C3-swapped labelling (degenerate 1,2-methyl shift of methyl 4): the cation centre is then C3, carrying H9 and
+# methyl 5; C2 carries C1, H2 and methyl 4. Candidate atoms in the order of CORE of the unswapped cation:
+SWAP = [5, C3, H, C2, C1, 4, HC2]
+
+
+def swapped_rmsd(g, ref):
+    """Core RMSD of candidate g, relabelled as the C2/C3-swapped cation, to ref; mirror and methyl swap allowed."""
+    best = 1e9
+    for perm in (SWAP, SWAP[:4] + [SWAP[5], SWAP[4]] + SWAP[6:]):
+        x, y = ref.coords[CORE], g.coords[perm]
+        x, y = x - x.mean(0), y - y.mean(0)
+        u, _, vt = np.linalg.svd(x.T @ y)
+        best = min(best, float(np.sqrt(((x @ (u @ vt) - y) ** 2).sum(1).mean())))
     return best
 
 
@@ -117,15 +136,22 @@ def references(rx):
             "tertiary_irc": {"xyz": RX / ep["product_complex"]["xyz"], "E_eh": ep["product_complex"]["E_eh"]}}
     for v in refs.values():
         v["geom"] = read_xyz(v["xyz"])
+    refs["secondary_anti_swapped"] = {**refs["secondary_anti"], "swapped": True}
     return refs
 
 
 def classify(g, e_eh, refs):
     out = {"geometry": describe(g), "matches": {}}
     for n, r in refs.items():
-        out["matches"][n] = {"core_rmsd_A": round(core_rmsd(g, r["geom"]), 3),
+        rm = swapped_rmsd(g, r["geom"]) if r.get("swapped") else core_rmsd(g, r["geom"])
+        out["matches"][n] = {"core_rmsd_A": round(rm, 3),
                              "dE_kJ": round(kj(e_eh - r["E_eh"]), 2)}
-    hit = [n for n, m in out["matches"].items() if m["core_rmsd_A"] <= RMSD_OK and abs(m["dE_kJ"]) <= DE_OK]
+    moved = 4 in out["geometry"]["Me_moved_to_C2"]
+    # anti and its C2/C3-swapped copy are only ~0.07 Å apart (the anti methyl is nearly bridging): the side is decided
+    # by the carbon the methyl is bonded to, not by RMSD alone (2026-11-23)
+    ok = lambda n: (n != "secondary_anti_swapped" or moved) and (n != "secondary_anti" or not moved)
+    hit = [n for n, m in out["matches"].items()
+           if m["core_rmsd_A"] <= RMSD_OK and abs(m["dE_kJ"]) <= DE_OK and ok(n)]
     out["reached"] = hit[0] if hit else None
     return out
 
@@ -306,6 +332,21 @@ def run(mode):
     print(OUT_MD.read_text(encoding="utf-8"))
 
 
+def run_methyl():
+    """Methyl-shift TS (J. Picione 2026-11-23): OptTS from scan_pos point 2, where the bridging methyl crosses between
+    C3 and C2 (C2–CH₃ 1.763, C3–CH₃ 1.723 Å); sides must reach secondary_anti and its C2/C3-swapped copy. Ordinary
+    core queue (he accepted the delay to E2). Added to rotation_ts.json/.md."""
+    rx = Reaction.load(RX)
+    refs = references(rx)
+    res = json.loads(OUT_JSON.read_text(encoding="utf-8"))
+    res["ts"]["ts_methyl_shift"] = ts_branch(rx, "ts_methyl_shift", read_xyz(ST / "ts_anti_eclip/scan_pos/scan.002.xyz"),
+                                             refs, ["secondary_anti", "secondary_anti_swapped"],
+                                             "scan_pos point 2 (bridging methyl between C3 and C2)")
+    write_report(res, refs)
+    rx.log.note("Methyl-shift TS (J. Picione, 2026-11-23): done; see `01_stationary/rotation_ts.md`.")
+    print(OUT_MD.read_text(encoding="utf-8"))
+
+
 def check():
     rx = Reaction.load(RX)
     refs = references(rx)
@@ -329,6 +370,8 @@ if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "check"
     if cmd == "run":
         run(sys.argv[2] if len(sys.argv) > 2 else "after_e2")
+    elif cmd == "methyl":
+        run_methyl()
     elif cmd == "check":
         check()
     else:
