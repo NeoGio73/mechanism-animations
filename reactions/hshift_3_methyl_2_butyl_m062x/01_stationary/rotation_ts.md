@@ -18,6 +18,14 @@ Working level M06-2X-D3(0)/ma-def2-SVP, SMD dichloromethane; G at 298.15 K (ORCA
 - minus side: reached None; {'C3_H_A': 1.095, 'C2_H_A': 2.13, 'C1_C2_C3_H_deg': 92.0, 'H_on': 'C3 (secondary)'}; secondary_anti RMSD 0.738 Å, ΔE +1.48 kJ/mol; secondary_eclip_irc RMSD 1.102 Å, ΔE -1.58 kJ/mol; tertiary_irc RMSD 1.243 Å, ΔE +40.87 kJ/mol
 - Connects ['None', 'None']; wanted ['secondary_anti', 'secondary_eclip_irc']: **NOT confirmed**
 
+## ts_methyl_shift
+- Start: scan_pos point 2 (bridging methyl between C3 and C2)
+- TS job: {'ok': True, 'opt_converged': True, 'imaginary_cm': [-165.53667151450983]}
+- TS geometry: {'C3_H_A': 1.096, 'C2_H_A': 2.132, 'C1_C2_C3_H_deg': 8.4, 'H_on': 'C3 (secondary)', 'C2_Me4_A': 1.733, 'C3_Me4_A': 1.769, 'C2_Me5_A': 2.544, 'C3_Me5_A': 1.493, 'Me_moved_to_C2': [4]}; core RMSD to the production TS 0.817 Å
+- plus side: reached None; {'C3_H_A': 1.096, 'C2_H_A': 2.133, 'C1_C2_C3_H_deg': 10.2, 'H_on': 'C3 (secondary)', 'C2_Me4_A': 1.718, 'C3_Me4_A': 1.781, 'C2_Me5_A': 2.545, 'C3_Me5_A': 1.492, 'Me_moved_to_C2': [4]}; secondary_anti RMSD 0.053 Å, ΔE +1.55 kJ/mol; secondary_eclip_irc RMSD 1.092 Å, ΔE -1.51 kJ/mol; tertiary_irc RMSD 0.808 Å, ΔE +40.94 kJ/mol; secondary_anti_swapped RMSD 0.037 Å, ΔE +1.55 kJ/mol
+- minus side: reached secondary_anti; {'C3_H_A': 1.094, 'C2_H_A': 2.124, 'C1_C2_C3_H_deg': -1.2, 'H_on': 'C3 (secondary)', 'C2_Me4_A': 1.804, 'C3_Me4_A': 1.674, 'C2_Me5_A': 2.55, 'C3_Me5_A': 1.503, 'Me_moved_to_C2': []}; secondary_anti RMSD 0.002 Å, ΔE +0.01 kJ/mol; secondary_eclip_irc RMSD 1.084 Å, ΔE -3.05 kJ/mol; tertiary_irc RMSD 0.784 Å, ΔE +39.40 kJ/mol; secondary_anti_swapped RMSD 0.069 Å, ΔE +0.01 kJ/mol
+- Connects ['None', 'secondary_anti']; wanted ['secondary_anti', 'secondary_anti_swapped']: **NOT confirmed**
+
 ## Relaxed scan, arm neg (-1.2° → -161.9°)
 | Point | C1–C2–C3–H (°) | E rel. secondary_anti (kJ/mol) | C3–H (Å) | C2–H (Å) | H on |
 |---|---|---|---|---|---|
@@ -82,3 +90,7 @@ Working level M06-2X-D3(0)/ma-def2-SVP, SMD dichloromethane; G at 298.15 K (ORCA
 | ts_anti_eclip_pos | M06-2X_ma-def2-TZVP | 0.6 (0.1) | 2.2 (0.5) |
 | ts_anti_eclip_pos | DLPNO-CCSD(T)_ma-def2-TZVP | 0.5 (0.1) | 2.1 (0.5) |
 | ts_anti_eclip_pos | B3LYP_ma-def2-TZVP | 0.7 (0.2) | 2.3 (0.5) |
+| ts_methyl_shift | M06-2X_ma-def2-SVP (working) | 1.7 (0.4) | 3.1 (0.7) |
+| ts_methyl_shift | M06-2X_ma-def2-TZVP | 0.7 (0.2) | 2.1 (0.5) |
+| ts_methyl_shift | DLPNO-CCSD(T)_ma-def2-TZVP | 0.7 (0.2) | 2.0 (0.5) |
+| ts_methyl_shift | B3LYP_ma-def2-TZVP | 0.8 (0.2) | 2.2 (0.5) |
