@@ -62,12 +62,28 @@ def _pretty(label: str) -> str:
     return label.replace("_", "/")
 
 
+def _product_kJ(rx: Reaction, label: str | None, fallback):
+    """Product line of a curve. One-molecule reaction with an energy zero (02_irc/zero.json, unimolecular_zero): the
+    product-end minimum relative to that zero at that level (the 'separated products' field does not apply there and
+    is removed by the zero rewrite); otherwise the stored value (2026-11-23)."""
+    zp = rx.root / "02_irc" / "zero.json"
+    if not zp.exists():
+        return fallback
+    from .units import kj
+    z = _read_json(zp)["levels"]["working" if label is None else label]
+    if label is None:
+        e_end = _read_json(rx.root / "02_irc" / "endpoints.json")["product_complex"]["E_eh"]
+    else:
+        e_end = _read_json(rx.root / "01_ts" / "diagnostics.json")["energies_eh"][label]["product_complex"]
+    return kj(e_end - z["E_zero_eh"])
+
+
 def _curves(rx: Reaction, rows, meta, keep) -> list[dict]:
     """Energy curves along the displayed path (IRC frames in `keep`): working level first, then
     any path_singlepoints levels."""
     curves = [{"key": "working", "label": f"{rx.level()} (working level, IRC)",
                "E_kJ": [round(float(rows[k]["E_kJ_per_mol"]), 3) for k in keep],
-               "E_separated_products_kJ": meta["E_separated_products_kJ"]}]
+               "E_separated_products_kJ": _product_kJ(rx, None, meta.get("E_separated_products_kJ"))}]
     for label in rx.cfg.get("path_levels", []):
         csv = rx.root / "02_irc" / f"energies_{label}.csv"
         if not csv.exists():
@@ -78,7 +94,7 @@ def _curves(rx: Reaction, rows, meta, keep) -> list[dict]:
         c = {"key": label, "label": f"{_pretty(label)} single points on the same path",
              # null where the frame was not computed: no interpolation (J. Picione, 2026-11-13)
              "E_kJ": [round(float(v), 3) if v else None for v in vals],
-             "E_separated_products_kJ": info["E_separated_products_kJ"]}
+             "E_separated_products_kJ": _product_kJ(rx, label, info.get("E_separated_products_kJ"))}
         if any(not v for v in vals):
             c["label"] += f" ({sum(1 for v in vals if v)} computed frames)"
             c["sparse"] = True
@@ -162,7 +178,11 @@ def mirror_data(rx: Reaction, frames, keep, ts_frame: int, orbitals: list[dict])
 
 def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) -> None:
     iso = iso if iso is not None else rx.cfg.get("isovalue", 0.05)
-    tr = _read_json(rx.root / "03_orbitals" / "tracking.json")
+    # atom-only mode (J. Picione, 2026-11-23): before the IBO step has run on a path there is no tracking file; the
+    # viewer data then carry structure and energy curves only, with an empty orbital list, to check framing early
+    tr_path = rx.root / "03_orbitals" / "tracking.json"
+    atoms_only = not tr_path.exists()
+    tr = {"tracked": []} if atoms_only else _read_json(tr_path)
     frames = read_xyz_frames(rx.root / "02_irc" / "irc_full_trj.xyz")
     csv = (rx.root / "02_irc" / "energies.csv").read_text().splitlines()
     hdr = csv[0].split(",")
@@ -195,10 +215,11 @@ def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) ->
                  "label": t.get("label") or f"{t['label_start']} → {t['label_end']}", "tracked_id": t["id"],
                  "colors": loc_colors[i % len(loc_colors)]}
                 for i, t in enumerate(show)]
-    orbitals += [{"key": "homo", "kind": "canonical", "label": "canonical HOMO",
-                  "colors": ["#7b3fa0", "#d4b8e6"]},
-                 {"key": "lumo", "kind": "canonical", "label": "canonical LUMO",
-                  "colors": ["#2e8b57", "#a8dcbc"]}]
+    if not atoms_only:
+        orbitals += [{"key": "homo", "kind": "canonical", "label": "canonical HOMO",
+                      "colors": ["#7b3fa0", "#d4b8e6"]},
+                     {"key": "lumo", "kind": "canonical", "label": "canonical LUMO",
+                      "colors": ["#2e8b57", "#a8dcbc"]}]
 
     # global box for quantization: atoms ± 6 Å covers every lobe at this isovalue
     allxyz = np.concatenate([f.coords for f in frames])
@@ -266,6 +287,7 @@ def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) ->
     ts = _read_json(rx.root / "01_ts" / "ts.json")
     manifest = {
         "id": rx.cfg["id"], "title": rx.cfg["title"], "equation": rx.cfg["equation"],
+        "atoms_only": atoms_only,
         "level": f"{rx.level()}, RIJCOSX, SMD({rx.cfg['solvent']})",
         "max_triangles_per_lobe": max_tris,
         "isovalue": iso, "isovalue_units": "e^1/2 bohr^-3/2 (orbital amplitude)",
@@ -277,8 +299,9 @@ def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) ->
         "ts_frame": keep.index(meta["ts_frame"]),
         "irc_frames_not_shown": meta.get("display_excluded_frames", []),
         "imaginary_frequency_cm": ts["imaginary_cm"][0],
-        "energy_reference": "separated reactants",
-        "E_separated_products_kJ": meta["E_separated_products_kJ"],
+        "energy_reference": (f"{_read_json(rx.root / '02_irc' / 'zero.json')['zero']} (lowest-free-energy conformer of "
+                             f"the reactant)" if (rx.root / "02_irc" / "zero.json").exists() else "separated reactants"),
+        "E_separated_products_kJ": _product_kJ(rx, None, meta.get("E_separated_products_kJ")),
         "frames": [{"irc_frame": k, "s": float(rows[k]["s_bohr_amu05"]),
                     "E_kJ": float(rows[k]["E_kJ_per_mol"]),
                     **({"source": src[k]} if src else {}),
@@ -299,5 +322,8 @@ def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) ->
     }
     _write_json(od / "manifest.json", manifest)
     tot = (od / "meshes.bin").stat().st_size
-    print(f"meshes.bin {tot / 1e6:.2f} MB for {len(keep)} frames × {len(orbitals)} orbitals "
-          f"({tot / len(keep) / len(orbitals) / 1e3:.1f} kB per orbital per frame)")
+    if atoms_only:
+        print(f"atom-only viewer data: {len(keep)} frames, no orbitals (no 03_orbitals/tracking.json yet)")
+    else:
+        print(f"meshes.bin {tot / 1e6:.2f} MB for {len(keep)} frames × {len(orbitals)} orbitals "
+              f"({tot / len(keep) / len(orbitals) / 1e3:.1f} kB per orbital per frame)")
