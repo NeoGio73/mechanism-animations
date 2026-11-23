@@ -37,3 +37,23 @@ Working level M06-2X-D3(0)/ma-def2-SVP, SMD dichloromethane; zero = `secondary_a
   - The methyl therefore exchanges C2 and C3 with at most a few kJ/mol, but this search did not locate a TS for that motion itself.
 - **Per Section 2.4, anti stays the zero for the anti channel.** The anti channel's DLPNO-CCSD(T) ΔG‡ of 18.6 kJ/mol (4.4 kcal/mol) is unchanged, and so are its other levels.
 - **Possible next step (not run):** a relaxed scan of the methyl-shift coordinate itself, with the methyl hydrogens free. The coordinate is C3–CH₃ minus C2–CH₃, from +0.13 Å (anti) to −0.13 Å (swapped anti). This would give the profile of the shift directly. About 20–30 min of job time.
+
+## Addendum 2026-11-23 evening: the two CH₃-rotation saddles link the scan branches (no new job)
+
+The relaxed scan of q = d(C3–CH₃) − d(C2–CH₃) (`methyl_shift_scan/scan.md`) changes CH₃ rotamer between p08 and p09.
+- Points p00–p08 (q −0.13 to +0.03 Å) have an H10–C4–C2–C3 dihedral of −150° to −169°.
+- Points p09–p13 (q +0.05 to +0.13 Å) have −108° to −110°.
+
+Read from the existing geometries, the two saddles found this morning sit at the junction, with dihedrals between the branches' values:
+
+| Structure | q (Å) | C3–CH₃ / C2–CH₃ (Å) | H10–C4–C2–C3 (°) | ΔE working (kJ/mol) | ΔE DLPNO-CCSD(T) (kJ/mol) |
+|---|---|---|---|---|---|
+| scan p08 (end of branch 1) | +0.030 | 1.768 / 1.738 | −150.0 | +1.62 | +0.55 |
+| saddle 165.5i cm⁻¹ | +0.035 | 1.769 / 1.733 | −136.5 | +1.72 | +0.7 |
+| saddle 123.4i cm⁻¹ | +0.063 | 1.781 / 1.718 | −131.3 | +1.55 | — |
+| scan p09 (start of branch 2) | +0.050 | 1.768 / 1.718 | −108.4 | +0.86 | — |
+
+**Reading:**
+- The saddles link the two branches.
+- The full path from `secondary_anti` to the C2/C3-swapped anti has its maximum at the 165.5i saddle. That is +1.7 kJ/mol (+0.4 kcal/mol) at the working level and +0.7 kJ/mol (+0.2 kcal/mol) at DLPNO-CCSD(T)/ma-def2-TZVP, in electronic energy from `secondary_anti`.
+- No continuation scan was run (J. Picione: E2 has priority, and a lower number cannot change the conclusion).
