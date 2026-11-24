@@ -78,6 +78,40 @@ def _product_kJ(rx: Reaction, label: str | None, fallback):
     return kj(e_end - z["E_zero_eh"])
 
 
+def _display_zero(rx: Reaction, M: dict) -> None:
+    """Diagram zero and labels (J. Picione, 2026-11-23). Every curve is an electronic energy (ΔE), labelled so.
+    reaction.toml [display_zero] at = "path_start": the zero of every curve is moved to the path-start minimum
+    (02_irc/endpoints.json reactant_complex) at that level, the product line is the product-end minimum relative to it,
+    and the reaction's energy zero (02_irc/zero.json, e.g. a lower conformer that does not reach this path) is drawn
+    as a dashed reference line with `other_label`."""
+    from .units import kj
+    M["energy_axis_label"] = "ΔE (electronic energy)"
+    M.setdefault("zero_label", "separated reactants")
+    M.setdefault("product_label", "separated products")
+    cfg = rx.cfg.get("display_zero")
+    if not cfg:
+        return
+    assert cfg.get("at") == "path_start", cfg
+    z = _read_json(rx.root / "02_irc" / "zero.json")["levels"]
+    ep = _read_json(rx.root / "02_irc" / "endpoints.json")
+    diag = _read_json(rx.root / "01_ts" / "diagnostics.json")["energies_eh"]
+    for c in M["curves"]:
+        lv = "working" if c["key"] == "working" else c["key"]
+        e_start = ep["reactant_complex"]["E_eh"] if lv == "working" else diag[lv]["reactant_complex"]
+        shift = kj(e_start - z[lv]["E_zero_eh"])          # path-start minimum above the old zero
+        c["E_kJ"] = [None if v is None else round(v - shift, 3) for v in c["E_kJ"]]
+        c["E_separated_products_kJ"] = c["E_separated_products_kJ"] - shift
+        c["reference_lines"] = [{"label": cfg["other_label"], "E_kJ": round(-shift, 3)}]
+        if c["key"] == "working":
+            for f in M["frames"]:
+                f["E_kJ"] = round(f["E_kJ"] - shift, 3)
+            M["E_separated_products_kJ"] = c["E_separated_products_kJ"]
+    M["zero_label"] = cfg["label"]
+    M["zero_label_short"] = cfg.get("short_label", cfg["label"])
+    M["product_label"] = cfg["product_label"]
+    M["energy_reference"] = cfg["label"]
+
+
 def _curves(rx: Reaction, rows, meta, keep) -> list[dict]:
     """Energy curves along the displayed path (IRC frames in `keep`): working level first, then
     any path_singlepoints levels."""
@@ -320,6 +354,7 @@ def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) ->
                                                      "rotated_frames", "overlap_across_join")}
                              if disp else None),
     }
+    _display_zero(rx, manifest)
     _write_json(od / "manifest.json", manifest)
     tot = (od / "meshes.bin").stat().st_size
     if atoms_only:

@@ -300,7 +300,8 @@ function drawDiagram() {
   // computed points are drawn and read out, nothing is interpolated between them
   const done = computedFrames();
   const eDone = done.map((k) => eArr[k]);
-  const eMin = Math.min(...eDone, ep), eMax = Math.max(...eDone, 0);
+  const refs = curve.reference_lines || [];     // e.g. a lower conformer that does not reach this path
+  const eMin = Math.min(...eDone, ep, ...refs.map((r) => r.E_kJ)), eMax = Math.max(...eDone, 0);
   const pad = (eMax - eMin) * 0.12;
   const y0 = eMin - pad, y1 = eMax + pad * 1.8;
   xs = (s) => D.ml + (s - s0) / (s1 - s0) * (W - D.ml - D.mr);
@@ -323,7 +324,7 @@ function drawDiagram() {
     add('text', { x: W - D.mr + 7, y: ys(k * KCAL) + 4 }, `${+k.toFixed(1)}`.replace('-', '−'));
   }
   add('line', { x1: W - D.mr, x2: W - D.mr, y1: D.mt, y2: H - D.mb, class: 'axis' });
-  add('text', { x: 12, y: D.mt - 12 }, 'kJ/mol');
+  add('text', { x: 12, y: D.mt - 12 }, narrow ? 'ΔE, kJ/mol' : `${M.energy_axis_label || 'ΔE (electronic energy)'}, kJ/mol`);
   add('text', { x: W - 4, y: D.mt - 12, 'text-anchor': 'end' }, narrow ? 'kcal' : '(kcal/mol)');
   add('line', { x1: D.ml, x2: W - D.mr, y1: H - D.mb, y2: H - D.mb, class: 'axis' });
   const sStep = niceStep(s1 - s0);
@@ -338,11 +339,18 @@ function drawDiagram() {
     ? { x: D.ml + 4, a: 'start' } : { x: W - D.mr - 4, a: 'end' });
   add('line', { x1: D.ml, x2: W - D.mr, y1: ys(0), y2: ys(0), class: 'ref' });
   let p = awayFrom(0);
-  add('text', { x: p.x, y: ys(0) - 4, 'text-anchor': p.a }, narrow ? 'reactants' : 'separated reactants, 0');
+  const zl = M.zero_label || 'separated reactants', pl = M.product_label || 'separated products';
+  add('text', { x: p.x, y: ys(0) - 4, 'text-anchor': p.a }, narrow ? zl.split(' ')[0] : `${zl}, 0`);
   add('line', { x1: D.ml, x2: W - D.mr, y1: ys(ep), y2: ys(ep), class: 'ref' });
   p = awayFrom(ep);
   add('text', { x: p.x, y: ys(ep) - 4, 'text-anchor': p.a },
-      narrow ? 'products' : `separated products, ${ep.toFixed(0)}`.replace('-', '−'));
+      narrow ? pl.split(' ')[0] : `${pl}, ${ep.toFixed(0)}`.replace('-', '−'));
+  for (const r of refs) {
+    add('line', { x1: D.ml, x2: W - D.mr, y1: ys(r.E_kJ), y2: ys(r.E_kJ), class: 'ref', 'stroke-dasharray': '6 4' });
+    p = awayFrom(r.E_kJ);
+    add('text', { x: p.x, y: ys(r.E_kJ) + 12, 'text-anchor': p.a },
+        narrow ? `${r.E_kJ.toFixed(0)}`.replace('-', '−') : `${r.label}, ${r.E_kJ.toFixed(1)}`.replace('-', '−'));
+  }
   add('path', { d: done.map((k, j) => `${j ? 'L' : 'M'}${xs(sArr[k]).toFixed(1)},${ys(eArr[k]).toFixed(1)}`).join(''), class: 'curve' });
   done.forEach((k) => add('circle', { cx: xs(sArr[k]), cy: ys(eArr[k]), r: 1.8, class: 'pt' }));
   // label the highest point of the curve shown (single points on the working-level path can

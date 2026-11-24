@@ -163,20 +163,29 @@ def _inset_background(M, curve, w_px=700, h_px=300):
     ax.plot(s[ok], E[ok], color="#1f4e79", lw=2.2)
     ax.axhline(0, color="#9aa4b1", lw=1, ls="--")
     ax.axhline(ep, color="#9aa4b1", lw=1, ls=":")
-    ax.text(s[-1], 3, "separated reactants", ha="right", va="bottom", fontsize=7.5, color="#5b6878")
-    ax.text(s[0], ep + 3, "separated products", ha="left", va="bottom", fontsize=7.5, color="#5b6878")
+    zl = M.get("zero_label", "separated reactants")
+    small = lambda txt: 6.8 if len(txt) > 24 else 7.5          # long labels must clear the curve:
+    wrap = lambda txt: txt.replace(" (", "\n(") if len(txt) > 24 else txt    # two short lines at the right end
+    ax.text(s[-1], 3, wrap(zl), ha="right", va="bottom", fontsize=small(zl), color="#5b6878", linespacing=1.1)
+    ax.text(s[0], ep + 3, M.get("product_label", "separated products"), ha="left", va="bottom", fontsize=7.5,
+            color="#5b6878")
+    refs = curve.get("reference_lines", [])
+    for r in refs:              # e.g. a lower conformer that does not reach this path (J. Picione 2026-11-23)
+        ax.axhline(r["E_kJ"], color="#7a8696", lw=1, ls=(0, (4, 3)))
+        ax.text(s[-1], r["E_kJ"] - 3, wrap(r["label"]), ha="right", va="top", fontsize=small(r["label"]),
+                color="#5b6878", linespacing=1.1)
     top = int(np.nanargmax(E))
     ax.annotate((f"{'TS' if top == M['ts_frame'] else 'highest point'} {E[top]:.1f} kJ/mol "
                  f"({E[top] / 4.184:.1f} kcal/mol)").replace("-", "−"), (s[top], E[top]),
                 xytext=(0, 7), textcoords="offset points", ha="center", fontsize=9, color="#1d2733")
     ax.set_xlabel("reaction coordinate s (bohr·amu$^{1/2}$)", fontsize=9)
-    ax.set_ylabel("E (kJ/mol)", fontsize=9)
+    ax.set_ylabel(f"{M.get('energy_axis_label', 'ΔE (electronic energy)')}, kJ/mol", fontsize=9)
     ax.tick_params(labelsize=8)
-    lo, hi = min(np.nanmin(E), ep), max(np.nanmax(E), 0)
+    lo, hi = min([np.nanmin(E), ep] + [r["E_kJ"] for r in refs]), max(np.nanmax(E), 0)
     ax.set_ylim(lo - 0.12 * (hi - lo), hi + 0.25 * (hi - lo))
     ax.set_xlim(s[0], s[-1])
     title = curve["label"].replace(" single points on the same path", ", on the same path")
-    ax.set_title(f"energy vs separated reactants · {title}", fontsize=8.5, color="#5b6878", loc="left")
+    ax.set_title(f"ΔE vs {M.get('zero_label_short', zl)} · {title}", fontsize=8.5, color="#5b6878", loc="left")
     for sp in ("top", "right"):
         ax.spines[sp].set_visible(False)
     fig.canvas.draw()
