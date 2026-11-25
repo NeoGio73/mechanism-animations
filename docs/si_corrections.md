@@ -342,7 +342,13 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
     0.0000015 Å.
   - **Meaning:** between the TS and s = +1.0 the clockwise and counterclockwise localizations are different sets
     of orbitals, not one set relabelled.
-- **Display:** the reflected set is not shown. Pending J. Picione's choice: show the computed clockwise set and
-  flip the drawing, or re-localize starting from the reflected orbitals.
+- **Display (J. Picione, 2026-11-25, option 1):** the viewer and video show the computed clockwise set, and the
+  card and this SI describe the clockwise arrows. No re-localization. The viewer's mirror toggle is off until a
+  3×17 check (each reflected active orbital against all 17 computed valence orbitals, frames 179–199) shows that
+  the reflected set lies in the computed occupied space.
+- **Why the 3×3 test was stricter than needed (J. Picione):** where the geometry is mirror-symmetric, the mirror
+  image of a valid localized set is itself a valid localized set of the same wavefunction. The three active
+  orbitals need not span the same space as their mirror images, because the other 14 orbitals also differ
+  slightly between the two localizations.
 - **Code:** `pipeline/orbital_steps._check_expected` now also accepts the mirror image of the written pattern
   (all items, never mixed). `pipeline/mirror_display_check.py` performs the check.

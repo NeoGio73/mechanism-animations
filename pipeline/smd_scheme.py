@@ -16,7 +16,7 @@ charge, multiplicity, method, basis, grids and SCF settings are identical. Each 
 Jobs go to <reaction>/01_ts/smd_scheme/gas/<level>/<species>/. Two lanes take jobs from one shared list (a job is
 claimed by creating its folder's .claim directory); each job uses 4 cores through the ordinary core queue.
 
-Usage: python -X utf8 -m pipeline.smd_scheme list | run <lane name> | report
+Usage: python -X utf8 -m pipeline.smd_scheme list | run <lane name> [--retry] | report
 """
 from __future__ import annotations
 
@@ -97,8 +97,26 @@ def jobs() -> list[dict]:
     return js
 
 
-def run(lane: str) -> None:
+def unfinished(js: list[dict]) -> list[dict]:
+    """Jobs without a normally terminated output (not started, crashed or failed)."""
+    out = []
+    for j in js:
+        o = j["wd"] / f"{j['src'].stem}.out"
+        if not (o.exists() and "ORCA TERMINATED NORMALLY" in o.read_text(errors="replace")):
+            out.append(j)
+    return out
+
+
+def run(lane: str, retry: bool = False) -> None:
     js = jobs()
+    if retry:              # only when no other lane is alive (pipeline/after_smd.py): release unfinished claims
+        for j in unfinished(js):
+            c = j["wd"] / ".claim"
+            if c.exists():
+                for f in c.iterdir():
+                    f.unlink()
+                c.rmdir()
+        say(f"lane {lane}: retry of {len(unfinished(js))} unfinished jobs")
     say(f"lane {lane}: {len(js)} gas-phase jobs in the shared list")
     for j in js:
         j["wd"].mkdir(parents=True, exist_ok=True)
@@ -128,7 +146,7 @@ def main() -> None:
             print(j["reaction"], j["level"], j["species"], j["natoms"], j["src"].relative_to(ROOT).as_posix())
         print(len(js), "jobs; source energies all match the values used")
     elif cmd == "run":
-        run(sys.argv[2])
+        run(sys.argv[2], retry="--retry" in sys.argv[3:])
     elif cmd == "report":
         from .smd_scheme_report import report
         report()

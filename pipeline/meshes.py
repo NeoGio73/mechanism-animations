@@ -170,7 +170,7 @@ def mirror_data(rx: Reaction, frames, keep, ts_frame: int, orbitals: list[dict])
     Each plane is [nx, ny, nz, d] with n·x = d on the plane, fitted to the atom pairs of that
     frame; rms_A is how far the reflected frame is from the frame itself (0 = exactly symmetric)."""
     cfg = rx.cfg.get("mirror")
-    if not cfg:
+    if not cfg or not cfg.get("viewer_toggle", True):     # toggle switched off (J. Picione, 2026-11-25, DA)
         return None
 
     def plane(X, perm):
