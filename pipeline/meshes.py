@@ -298,8 +298,19 @@ def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) ->
     disp = _read_json(disp_path) if disp_path.exists() else None
     disp_frames = set(disp["rotated_frames"]) if disp else set()
 
+    # display-only mirror image at single frames (pipeline/mirror_continuity, J. Picione 2026-11-25, Diels–Alder):
+    # where the localizer landed on the other (mirror-image) set, the frame shows the reflection of its computed
+    # active orbitals that continues the previous frame; only if both of his tests passed
+    mc_path = rx.root / "03_orbitals" / "mirror_continuity.json"
+    mc = _read_json(mc_path) if mc_path.exists() else None
+    mirror_frames = set(mc["mirror_frames"]) if mc and mc.get("passes") else set()
+    mirror_ids = set(mc["active"]) if mirror_frames else set()
+
     def values(k, o):
         cd = rx.root / f"03_orbitals/cubes/f{k:03d}"
+        if o["kind"] == "localized" and o["tracked_id"] in mirror_ids and k in mirror_frames:
+            z = np.load(cd / f"{o['key']}_mirror.npz")
+            return z["values"], z["origin"], z["axes"]
         if disp and o["kind"] == "localized" and o["tracked_id"] == disp["shown_tracked_id"]                 and k in disp_frames:
             z = np.load(cd / f"{o['key']}_display.npz")
             return z["values"], z["origin"], z["axes"]

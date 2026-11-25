@@ -350,5 +350,24 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
   image of a valid localized set is itself a valid localized set of the same wavefunction. The three active
   orbitals need not span the same space as their mirror images, because the other 14 orbitals also differ
   slightly between the two localizations.
+- **Flicker between the TS and s = +1.0 (J. Picione, 2026-11-25 evening):** at 6 frames the localizer landed on
+  the counterclockwise set instead of the clockwise one: frames 181, 182, 185, 187, 188 and 198 (s = +0.10, +0.15,
+  +0.30, +0.40, +0.45, +0.95 bohr·amu½). This is the cause of the 0.714 overlap at frame 189. Two tests, frames
+  179–199 (`reactions/da_butadiene_ethylene_m062x/03_orbitals/mirror_continuity.json`):
+  - **(a) 3×17:** each reflected active orbital against all 17 computed valence IBOs of the same frame. The
+    smallest singular value is at least 0.99982 at every frame, so the reflected orbitals lie in the computed
+    occupied space.
+  - **(b) Continuity:** this frame's three active orbitals, as computed and mirror-reflected, against the
+    previous displayed frame. The continuing choice overlaps at least 0.99834 at every frame (frames 180–199). The
+    other choice is 0.67–0.96 (computed at the six frames above, mirror at the rest).
+  - **Display:** at those 6 frames the viewer and video show the mirror image of the computed active orbitals,
+    which continues the previous frame. This is valid because the geometry there is mirror-symmetric within
+    0.0008 Å, so the mirror image of a localized set of this wavefunction is itself a localized set of it. The
+    displayed frame-to-frame overlap of the three orbitals is now at least 0.9957 between frames 178 and 201. The
+    computed cubes, .loc files and tracking.json are unchanged; the displayed copies are
+    `03_orbitals/cubes/fNNN/ibo<id>_mirror.npz`.
+- **Tracking swaps (all six reactions, `docs/results/tracking_table.md`):** the only swaps are among the five
+  equivalent bromine lone pairs (52 frames in E2, 1 in SN2), which do not change their atoms. No active orbital is
+  involved in a swap.
 - **Code:** `pipeline/orbital_steps._check_expected` now also accepts the mirror image of the written pattern
   (all items, never mixed). `pipeline/mirror_display_check.py` performs the check.

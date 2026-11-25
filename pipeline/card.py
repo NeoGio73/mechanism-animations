@@ -145,6 +145,8 @@ def card(rx: Reaction) -> None:
         f"optional in the viewer |",
         *([f"| Display rotation | {_display_rotation_text(rx)} |"] if _display_rotation_text(rx) else []),
         f"| Orbitals that change | {orb_txt} |",
+        # card_notes.toml mechanism_note: one approved plain-words line on the computed path (J. Picione, E2 2026-11-25)
+        *([f"| Along the path | {notes['mechanism_note']} |"] if notes.get("mechanism_note") else []),
         "| What this is | The minimum-energy path, not a trajectory: no temperature, no dynamics, "
         "no explicit solvent molecules |",
         f"| Course mapping | {notes.get('course_mapping', 'McMurry chapter __ (to be filled in)')} |",
