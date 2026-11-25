@@ -366,6 +366,9 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
     displayed frame-to-frame overlap of the three orbitals is now at least 0.9957 between frames 178 and 201. The
     computed cubes, .loc files and tracking.json are unchanged; the displayed copies are
     `03_orbitals/cubes/fNNN/ibo<id>_mirror.npz`.
+- **Mirror toggle back on (J. Picione, 2026-11-25 evening):** the viewer's "mirror direction" switch reflects the
+  displayed set through the TS mirror plane at every frame. The path is mirror-symmetric within 0.0008 Å except at
+  frames 0–2, 4, 6 and 299 (up to 0.0040 Å). The 3×17 check holds at frames 179–199 (0.99982 or higher).
 - **Tracking swaps (all six reactions, `docs/results/tracking_table.md`):** the only swaps are among the five
   equivalent bromine lone pairs (52 frames in E2, 1 in SN2), which do not change their atoms. No active orbital is
   involved in a swap.

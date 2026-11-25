@@ -56,3 +56,12 @@ The fast stretch is where the rate is above half its peak.
 | +1.00 | 152 | 90.2 % | 8.8 % | 72 % | 55 % |
 | +1.60 | 164 | 93.8 % | 5.5 % | 83 % | 67 % |
 | product end | 531 | 99.8 % | −0.8 % | 100 % | 100 % |
+
+## A third measure (IAO charges of single orbitals): not available (2026-11-25)
+
+ORCA's localization program (orca_loc, ORCA 6.1.1) was tested on frame 132 at print levels 3, 5, 10 and 100. It
+prints IAO partial charges only per atom, summed over all localized orbitals (with ORCA's warning that these mean
+something only when every occupied orbital is included; the core orbitals were not localized), and per-orbital
+compositions only as Mulliken populations. It cannot print the IAO charges of single orbitals. As J. Picione
+decided, nothing further was run (no option B). **The order in which the three electron pairs move is not resolved
+by these calculations:** the two available orbital measures disagree, and the card describes the atoms only.
