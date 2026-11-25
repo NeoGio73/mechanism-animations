@@ -49,6 +49,7 @@ LEVELS = [("M06-2X/ma-def2-SVP (working level, geometries)", None, "energies.csv
           ("DLPNO-CCSD(T)/ma-def2-TZVP", DL, f"energies_{DL}.csv")]
 RCOV = {"H": 0.31, "C": 0.76, "N": 0.71, "O": 0.66, "F": 0.57, "Cl": 1.02, "Br": 1.20, "I": 1.39}
 SIDE = {"backward": "reactant side (backward)", "forward": "product side (forward)"}
+LAST: dict = {}          # the last main() call's energies and quantities function (see main)
 
 
 def kj(x: float, d: int = 1, sign: bool = False) -> str:
@@ -183,6 +184,10 @@ def main(rxname: str, out: str) -> None:
              "dE_rev": rel(ts, rev), "dG_rev": rel(ts, rev) + corr("G_minus_E_kJ", ts, rev)}
         return q
     Q = {lv: quantities(lv) for _, lv, _ in LEVELS}
+    # for other checks on the same reference states and thermal corrections (pipeline/smd_scheme_report.py): add an
+    # energy set to E under a new key, then call quantities(key)
+    LAST.clear()
+    LAST.update({"E": E, "quantities": quantities, "Q": Q, "react": react, "prods": prods})
     # cross-check against the pipeline's own table (working level = first row)
     for (nm, lv, _), first in zip(LEVELS, [True, False, False, False]):
         row = diag["rows"][0] if first else next(r for r in diag["rows"] if r["level"] == lv)

@@ -185,15 +185,38 @@ def _check_expected(rx: Reaction, tracked, pops, best, syms):
         return None
     n, m = pops.shape[0], pops.shape[1]
     atoms = lambda row: frozenset(int(a) for a in np.where(row > POP_CUT)[0])
+
+    def match(mp):
+        out = []
+        for e in exp:
+            s, f = frozenset(mp[a] for a in e["start"]), frozenset(mp[a] for a in e["end"])
+            hit = [j for j in range(m) if atoms(pops[0, j]) == s and atoms(pops[-1, j]) == f]
+            out.append((e, s, f, hit, hit[0] if len(hit) == 1 else None))
+        return out
+
+    # J. Picione, 2026-11-25: a symmetric TS ([mirror]) has two equally valid arrow patterns, mirror images of
+    # each other. The expected changes are written for one of them; the localization may give the other. All
+    # items must then match through the mirror permutation (no mixing of the two patterns); the viewer opens on
+    # the reflected set, i.e. on the pattern written in reaction.toml (pipeline/meshes.mirror_data).
+    pattern = "as written in reaction.toml"
+    res = match(list(range(len(syms))))
+    if rx.cfg.get("mirror") and not any(r[4] is not None for r in res):
+        mp = list(range(len(syms)))
+        for a, b in rx.cfg["mirror"]["pairs"]:
+            mp[a], mp[b] = b, a
+        alt = match(mp)
+        if all(r[4] is not None for r in alt) and len({r[4] for r in alt}) == len(alt):
+            res, pattern = alt, "mirror image of the pattern written in reaction.toml"
+            print("expected orbital changes found as the MIRROR IMAGE of the pattern in reaction.toml "
+                  f"(atoms swapped by {rx.cfg['mirror']['pairs']})")
+    from .meshes import _mirror_label
     items, used = [], set()
-    for e in exp:
-        s, f = frozenset(e["start"]), frozenset(e["end"])
-        hit = [j for j in range(m) if atoms(pops[0, j]) == s and atoms(pops[-1, j]) == f]
-        j = hit[0] if len(hit) == 1 else None
+    for e, s, f, hit, j in res:
         if j is not None:
             used.add(j)
-            tracked[j]["label"] = e["label"]
-        items.append({"label": e["label"], "start": sorted(s), "end": sorted(f), "found": j is not None,
+            tracked[j]["label"] = e["label"] if pattern.startswith("as") else _mirror_label(e["label"], mp)
+        items.append({"label": e["label"], "start": sorted(e["start"]), "end": sorted(e["end"]),
+                      "matched_atoms_start": sorted(s), "matched_atoms_end": sorted(f), "found": j is not None,
                       "tracked_id": j, "candidates": hit,
                       "min_overlap": round(float(min(best[k][j] for k in range(n))), 3) if j is not None else None})
     unexpected = [t["id"] for t in tracked if t["changes"] and t["id"] not in used]
@@ -207,7 +230,7 @@ def _check_expected(rx: Reaction, tracked, pops, best, syms):
         print(f"WARNING orbitals change that were not expected: {unexpected}")
     if flagged:
         print(f"WARNING frames where an unexpected orbital changes its atoms: {flagged}")
-    return {"items": items, "unexpected": unexpected, "flagged_frames": flagged}
+    return {"items": items, "pattern": pattern, "unexpected": unexpected, "flagged_frames": flagged}
 
 
 def orbital_cubes(rx: Reaction, grid: int = 70) -> None:

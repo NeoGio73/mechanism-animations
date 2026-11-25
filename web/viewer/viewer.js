@@ -464,6 +464,11 @@ function setupControls() {
     $('mirrorRow').hidden = false;
     $('mirrorNote').hidden = false;
     $('mirrorNote').textContent = M.mirror.note;
+    if (M.mirror.default_on) {   // computed set is the mirror image of the drawn pattern: open on its reflection
+      state.mirror = true;
+      $('mirrorOn').checked = true;
+      buildOrbitalList();
+    }
     $('mirrorOn').addEventListener('change', (e) => { state.mirror = e.target.checked; buildOrbitalList(); update(); });
   }
   document.querySelectorAll('input[name=kind]').forEach((r) => r.addEventListener('change', (e) => {

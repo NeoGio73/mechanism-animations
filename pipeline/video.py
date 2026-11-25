@@ -166,14 +166,49 @@ def _inset_background(M, curve, w_px=700, h_px=300):
     zl = M.get("zero_label", "separated reactants")
     small = lambda txt: 6.8 if len(txt) > 24 else 7.5          # long labels must clear the curve:
     wrap = lambda txt: txt.replace(" (", "\n(") if len(txt) > 24 else txt    # two short lines at the right end
-    ax.text(s[-1], 3, wrap(zl), ha="right", va="bottom", fontsize=small(zl), color="#5b6878", linespacing=1.1)
-    ax.text(s[0], ep + 3, M.get("product_label", "separated products"), ha="left", va="bottom", fontsize=7.5,
-            color="#5b6878")
     refs = curve.get("reference_lines", [])
     for r in refs:              # e.g. a lower conformer that does not reach this path (J. Picione 2026-11-23)
         ax.axhline(r["E_kJ"], color="#7a8696", lw=1, ls=(0, (4, 3)))
-        ax.text(s[-1], r["E_kJ"] - 3, wrap(r["label"]), ha="right", va="top", fontsize=small(r["label"]),
-                color="#5b6878", linespacing=1.1)
+    lo, hi = min([np.nanmin(E), ep] + [r["E_kJ"] for r in refs]), max(np.nanmax(E), 0)
+    ax.set_ylim(lo - 0.12 * (hi - lo), hi + 0.25 * (hi - lo))
+    ax.set_xlim(s[0], s[-1])
+    # line labels (2026-11-25 fix list: the cyanide labels crossed the curve): each label goes at the first of its
+    # candidate places (either end of its line, above or below it) where its box clears the curve and the labels
+    # already placed; the place used before comes first.
+    fig.canvas.draw()
+    rend = fig.canvas.get_renderer()
+    curve_px = ax.transData.transform(np.column_stack([s[ok], E[ok]]))
+    placed = []
+
+    def label(y, txt, prefer):
+        cands = {"right_above": (s[-1], "right", "bottom", +1), "right_below": (s[-1], "right", "top", -1),
+                 "left_above": (s[0], "left", "bottom", +1), "left_below": (s[0], "left", "top", -1)}
+        dy = 0.012 * (hi - lo) + 1.5
+        first = None
+        for k in [prefer] + [c for c in cands if c != prefer]:
+            x, ha, va, sg = cands[k]
+            t_ = ax.text(x, y + sg * dy, wrap(txt), ha=ha, va=va, fontsize=small(txt), color="#5b6878",
+                         linespacing=1.1)
+            bb = t_.get_window_extent(rend).expanded(1.04, 1.15)
+            hit = bool(((curve_px[:, 0] >= bb.x0) & (curve_px[:, 0] <= bb.x1) &
+                        (curve_px[:, 1] >= bb.y0) & (curve_px[:, 1] <= bb.y1)).any())
+            hit = hit or any(bb.overlaps(o) for o in placed)
+            if not hit:
+                placed.append(bb)
+                if first is not None:
+                    first.remove()
+                return
+            if first is None:
+                first = t_                  # kept if no place clears
+            else:
+                t_.remove()
+        placed.append(first.get_window_extent(rend))
+        print(f"WARNING inset label '{txt}' crosses the curve at every candidate place")
+
+    label(0.0, zl, "right_above")
+    label(ep, M.get("product_label", "separated products"), "left_above")
+    for r in refs:
+        label(r["E_kJ"], r["label"], "right_below")
     top = int(np.nanargmax(E))
     ax.annotate((f"{'TS' if top == M['ts_frame'] else 'highest point'} {E[top]:.1f} kJ/mol "
                  f"({E[top] / 4.184:.1f} kcal/mol)").replace("-", "−"), (s[top], E[top]),
@@ -181,11 +216,18 @@ def _inset_background(M, curve, w_px=700, h_px=300):
     ax.set_xlabel("reaction coordinate s (bohr·amu$^{1/2}$)", fontsize=9)
     ax.set_ylabel(f"{M.get('energy_axis_label', 'ΔE (electronic energy)')}, kJ/mol", fontsize=9)
     ax.tick_params(labelsize=8)
-    lo, hi = min([np.nanmin(E), ep] + [r["E_kJ"] for r in refs]), max(np.nanmax(E), 0)
-    ax.set_ylim(lo - 0.12 * (hi - lo), hi + 0.25 * (hi - lo))
-    ax.set_xlim(s[0], s[-1])
     title = curve["label"].replace(" single points on the same path", ", on the same path")
-    ax.set_title(f"ΔE vs {M.get('zero_label_short', zl)} · {title}", fontsize=8.5, color="#5b6878", loc="left")
+    # the title must fit the inset (2026-11-25 fix list: the cyanide title was cut off): smaller type, then 2 lines
+    tt = f"ΔE vs {M.get('zero_label_short', zl)} · {title}"
+    room = w_px - ax.get_window_extent(rend).x0 - 6
+    for fs in (8.5, 8.0, 7.5, 7.0):
+        h_ = ax.set_title(tt, fontsize=fs, color="#5b6878", loc="left")
+        if h_.get_window_extent(rend).width <= room:
+            break
+    else:
+        h_ = ax.set_title(tt.replace(" · ", "\n", 1), fontsize=7.5, color="#5b6878", loc="left", linespacing=1.1)
+    if h_.get_window_extent(rend).width > room:
+        raise ValueError(f"inset title does not fit: {tt}")
     for sp in ("top", "right"):
         ax.spines[sp].set_visible(False)
     fig.canvas.draw()
@@ -219,6 +261,9 @@ def composite(rx: Reaction, png_dir: Path, out_mp4: Path, curve_key: str = "work
         {"atoms": [ka["center"], ka["leaving_group"]], "label": f"{sy[ka['center']]}–{sy[ka['leaving_group']]}"}]
     inset, to_px = _inset_background(M, curve)
     orbs = [o for o in M["orbitals"] if o["kind"] == "localized"]
+    mir = M.get("mirror") or {}
+    if mir.get("default_on"):                  # reflected set shown (render_blender MIRROR_ON): its labels
+        orbs = [{**o, "label": mir["labels"].get(o["key"], o["label"])} for o in orbs]
 
     frames = sorted(png_dir.glob("f*.png"))
     first = Image.open(frames[0])
@@ -252,8 +297,14 @@ def composite(rx: Reaction, png_dir: Path, out_mp4: Path, curve_key: str = "work
         dr = ImageDraw.Draw(im)
         m = int(36 * sc)
         dr.text((m, m), M["equation"], fill="#1d2733", font=_font(int(40 * sc)))
-        dr.text((m, m + int(54 * sc)), f"{M['title']} · minimum-energy path (IRC) · path and orbitals: {M['level']}",
-                fill="#5b6878", font=_font(int(22 * sc)))
+        sub = f"{M['title']} · minimum-energy path (IRC) · path and orbitals: {M['level']}"
+        fsub = _font(int(22 * sc))
+        if fsub.getlength(sub) > W - 2 * m:     # 2026-11-25 fix list: the secondary subtitle ran off the edge
+            a_, b_ = sub.split(" · path and orbitals: ")
+            dr.text((m, m + int(54 * sc)), a_, fill="#5b6878", font=fsub)
+            dr.text((m, m + int(80 * sc)), "path and orbitals: " + b_, fill="#5b6878", font=fsub)
+        else:
+            dr.text((m, m + int(54 * sc)), sub, fill="#5b6878", font=fsub)
         y = H - int(150 * sc)
         dr.text((m, y), "Intrinsic bond orbitals, tracked along the path:", fill="#1d2733",
                 font=_font(int(21 * sc)))

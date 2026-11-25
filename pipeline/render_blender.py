@@ -230,14 +230,26 @@ ORBS = [o["key"] for o in M["orbitals"] if o["kind"] == SETTINGS.get("orbital_ki
 cache = {}
 
 
-def lobe(entry):
+# J. Picione, 2026-11-25: when the localization gave the mirror image of the arrow pattern in reaction.toml
+# (manifest mirror.default_on, checked exact by pipeline/mirror_display_check), the video shows the reflected
+# set, as the viewer does on opening: every lobe reflected through that frame's mirror plane.
+MIRROR_ON = bool((M.get("mirror") or {}).get("default_on"))
+
+
+def lobe(entry, frame=None):
     ov, nv = entry["v"]
     of, nf = entry["f"]
     if not nv:
         return None, None
     q = np.frombuffer(BIN, dtype="<i2", count=nv * 3, offset=ov).reshape(-1, 3)
     f = np.frombuffer(BIN, dtype="<u2", count=nf * 3, offset=of).reshape(-1, 3)
-    return mid + q * scale, f
+    v = mid + q * scale
+    if MIRROR_ON and frame is not None:
+        nx, ny, nz, d = M["mirror"]["planes"][frame]
+        n = np.array([nx, ny, nz])
+        v = v - 2 * ((v @ n) - d)[:, None] * n
+        f = f[:, [0, 2, 1]]                    # reflection turns the surface inside out: keep normals outward
+    return v, f
 
 
 def orbital_objects(key, frame):
@@ -247,7 +259,7 @@ def orbital_objects(key, frame):
         e = M["mesh_index"][key][frame]
         pos_mat, neg_mat = LOBE_MATS[key]
         for part, mat in (("pos", pos_mat), ("neg", neg_mat)):
-            v, f = lobe(e[part])
+            v, f = lobe(e[part], frame)
             if v is not None:
                 obs.append(mesh_object(f"{key}_{frame}_{part}", v, f, mat))
         cache[ck] = obs

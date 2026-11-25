@@ -203,11 +203,29 @@ def mirror_data(rx: Reaction, frames, keep, ts_frame: int, orbitals: list[dict])
         planes.append([round(float(v), 6) for v in n] + [round(d, 6)])
         rms.append(float(np.sqrt(np.mean(np.sum((reflect(Xk, n, d) - Xk[perm]) ** 2, axis=1)))))
     print(f"mirror plane: largest deviation from mirror symmetry along the path {max(rms):.3f} Å (rms)")
-    return {"perm": perm, "planes": planes, "max_rms_A": round(max(rms), 4),
+    # J. Picione, 2026-11-25: when the localization gave the mirror image of the arrow pattern written in
+    # reaction.toml, the viewer opens on the reflected set (the written pattern), but only if the reflection was
+    # shown to be exact at every frame (pipeline/mirror_display_check: geometry within 0.001 Å, smallest
+    # singular value of the 3×3 active-orbital overlap at least 0.999). Otherwise stop: he decides.
+    tr_p = rx.root / "03_orbitals" / "tracking.json"
+    pattern = (json.loads(tr_p.read_text(encoding="utf-8")).get("expected_changes") or {}).get("pattern", "")         if tr_p.exists() else ""
+    default_on = pattern.startswith("mirror")
+    if default_on:
+        chk_p = rx.root / "03_orbitals" / "mirror_display_check.json"
+        chk = json.loads(chk_p.read_text(encoding="utf-8")) if chk_p.exists() else {}
+        if not chk.get("passed"):
+            raise RuntimeError("reflected orbital set not shown: mirror_display_check missing or failed "
+                               f"({chk.get('failing_frames', 'not run')}); J. Picione decides")
+    return {"perm": perm, "planes": planes, "max_rms_A": round(max(rms), 4), "default_on": default_on,
             "labels": {o["key"]: _mirror_label(o["label"], perm) for o in orbitals if o["kind"] == "localized"},
-            "note": cfg.get("note", "Mirror image of the orbital set through the TS mirror plane: the "
+            "note": (cfg.get("note_default_on", "Shown: the mirror image of the computed orbitals through the TS "
+                    "mirror plane. The computed localization runs clockwise round the ring; its mirror image, "
+                    "shown here, runs counterclockwise. Both describe the same mechanism and are equally valid. "
+                    "Untick to see the computed orientation. The reflection was checked at every frame "
+                    "(03_orbitals/mirror_display_check.json); no new calculation.") if default_on else
+                     cfg.get("note", "Mirror image of the orbital set through the TS mirror plane: the "
                     "same mechanism drawn with the arrows the other way round the ring. Built by "
-                    "reflecting the computed orbital surfaces; no new calculation.")}
+                    "reflecting the computed orbital surfaces; no new calculation."))}
 
 
 def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) -> None:

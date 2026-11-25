@@ -320,3 +320,29 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
   `docs/results/da_butadiene_ethylene.md` (section 9). The 2026-11-20 s-trans-only numbers stay in the gas-phase
   section as the s-trans rows. The earlier B3LYP-geometry folder (`reactions/da_butadiene_ethylene`) keeps its old
   wording; it is superseded.
+
+## 12. Diels–Alder orbitals: the production path localized clockwise, the pilot path counterclockwise (2026-11-25)
+
+- **What:** the pilot path (B3LYP-D3(BJ)/ma-def2-SVP, `reactions/da_butadiene_ethylene`) localized the three active
+  IBOs counterclockwise round the ring, the pattern written in reaction.toml (π(C1=C2) → σ(C1–C6),
+  π(C5=C6) → σ(C4–C5), π(C3=C4) → π(C2=C3)). The production path (M06-2X-D3(0)/ma-def2-SVP, SMD) localized them
+  clockwise: π(C3=C4) → σ(C4–C5), π(C5=C6) → σ(C1–C6), π(C1=C2) → π(C2=C3). The two are mirror images through the
+  TS mirror plane (C1↔C4, C2↔C3, C5↔C6). Both are equally valid descriptions of the same mechanism.
+- **Tracking:** continuous along all 302 frames. The lowest frame-to-frame overlap of the active orbitals is 0.714,
+  at frame 189 (s = +0.50 bohr·amu½); it is the lowest of all 17 tracked orbitals. The pilot's lowest was 0.827.
+- **Can the viewer show the mirror image of the computed set? Checked at every frame**
+  (`reactions/da_butadiene_ethylene_m062x/03_orbitals/mirror_display_check.md`), with J. Picione's limits of
+  0.001 Å for the geometry and 0.999 for the orbitals:
+  - **Geometry** (largest displacement of the reflected frame from itself, atoms swapped): within 0.0008 Å at 296
+    frames. It fails at frames 0–2, 4 and 6 (s = −8.94 to −8.65; up to 0.0035 Å) and at frame 299
+    (s = +5.96; 0.0040 Å).
+  - **Orbitals** (smallest singular value of the 3×3 overlap matrix, reflected against computed active orbitals):
+    at least 0.9990 elsewhere. It fails from the TS to s = +1.00 (frames 179–199), worst 0.9924 (determinant
+    0.9848) at frame 181 (s = +0.10). At the TS it is 0.9953, although the TS geometry is mirror-symmetric to
+    0.0000015 Å.
+  - **Meaning:** between the TS and s = +1.0 the clockwise and counterclockwise localizations are different sets
+    of orbitals, not one set relabelled.
+- **Display:** the reflected set is not shown. Pending J. Picione's choice: show the computed clockwise set and
+  flip the drawing, or re-localize starting from the reflected orbitals.
+- **Code:** `pipeline/orbital_steps._check_expected` now also accepts the mirror image of the written pattern
+  (all items, never mixed). `pipeline/mirror_display_check.py` performs the check.
