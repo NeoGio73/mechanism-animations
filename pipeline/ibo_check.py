@@ -66,7 +66,8 @@ def e2_state() -> dict:
     held = []
     try:
         s = json.loads((ROOT / "docs/level_test_queue/allocation.json").read_text(encoding="utf-8"))
-        held = [h["what"] for h in s.get("held", []) if E2 in (h.get("folder") or "") or E2 in h.get("what", "")]
+        # only E2's path single-point jobs count; E2's own IBO jobs (03_orbitals) must not block a restarted lane
+        held = [h["what"] for h in s.get("held", []) if E2 in h.get("what", "") and "02_irc/path_sp" in h.get("what", "")]
     except (OSError, ValueError):
         held = ["allocation.json unreadable"]
     return {"frames_needed": len(todo), "frames_not_normal": bad, "level_file": (rx.root / "02_irc" /
