@@ -37,7 +37,8 @@ LEVEL = "DLPNO-CCSD(T)_ma-def2-TZVP"
 HOLD = ROOT / "docs" / "IBO_HOLD.md"
 ALL = ["e2_ethoxide_2_bromopropane_m062x", "nucadd_cyanide_acetone_m062x", "sn2_hydroxide_bromomethane_m062x",
        "hshift_2_3_dimethyl_2_butyl_m062x", "hshift_3_methyl_2_butyl_m062x", "da_butadiene_ethylene_m062x"]
-E_TOL = 2e-5
+E_TOL = 2e-5            # computed frames: one limit (J. Picione, 2026-11-25)
+E_TOL_MIRROR_WARN = 2e-4  # mirror frames (tertiary): 2e-5..2e-4 Eh passes with a warning, above it the reaction stops
 BOHR = 0.529177210903
 
 
@@ -75,7 +76,13 @@ def e2_state() -> dict:
 def gate(poll_s: int = 60) -> None:
     """Block until E2 is complete and gone. Holds (docs/IBO_HOLD.md) if the E2 lane ended without completing."""
     while True:
-        st = e2_state()
+        try:
+            st = e2_state()
+        except Exception as e:          # never let the check itself kill the lane: log, wait, try again
+            print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} gate check error ({type(e).__name__}: {e}); retrying",
+                  flush=True)
+            time.sleep(poll_s)
+            continue
         done = not st["frames_not_normal"] and st["level_file"] and not st["lane_processes"] and not st["cores_held"]
         if done:
             if HOLD.exists():
@@ -96,17 +103,19 @@ def gate(poll_s: int = 60) -> None:
 
 
 # ------------------------------------------------------------------ output check
-def check(name: str) -> dict:
+def check(name: str, only_frames: list[int] | None = None, write: bool = True) -> dict:
     from .geometry import read_xyz_frames
-    from .steps import Reaction
+    from .steps import Reaction, mirror_partners
     rx = Reaction.load(ROOT / "reactions" / name)
     n = len(read_xyz_frames(rx.root / "02_irc/irc_full_trj.xyz"))
+    mirror = set(mirror_partners(rx, n))           # mirror frames: path energy copied from the partner (rotated copy)
+    warnings, worst_c, worst_m = [], 0.0, 0.0
     rows = (rx.root / "02_irc/energies.csv").read_text().splitlines()
     hdr = rows[0].split(",")
     ie = hdr.index("E_eh")
     e_path = [float(r.split(",")[ie]) for r in rows[1:]]
     problems, worst = [], 0.0
-    for k in range(n):
+    for k in (range(n) if only_frames is None else only_frames):
         d = rx.root / f"03_orbitals/frames/f{k:03d}"
         out = d / "f.out"
         if not _normal(out):
@@ -121,13 +130,42 @@ def check(name: str) -> dict:
             continue
         de = abs(float(m[-1]) - e_path[k])
         worst = max(worst, de)
-        if de > E_TOL:
-            problems.append(f"frame {k}: SCF energy differs from the path energy by {de:.2e} Eh")
-    res = {"reaction": name, "frames": n, "pass": not problems, "problems": problems[:50],
-           "n_problems": len(problems), "max_abs_dE_vs_path_eh": worst, "tolerance_eh": E_TOL,
+        if k in mirror:
+            worst_m = max(worst_m, de)
+            if de > E_TOL_MIRROR_WARN:
+                problems.append(f"mirror frame {k}: SCF energy differs from the partner path energy by {de:.2e} Eh")
+            elif de > E_TOL:
+                warnings.append(f"mirror frame {k}: {de:.2e} Eh from the partner path energy (between "
+                                f"{E_TOL:.0e} and {E_TOL_MIRROR_WARN:.0e} Eh: passes with a warning)")
+        else:
+            worst_c = max(worst_c, de)
+            if de > E_TOL:
+                problems.append(f"frame {k}: SCF energy differs from the path energy by {de:.2e} Eh")
+    from .units import kj
+    res = {"reaction": name, "frames": n, "frames_checked": n if only_frames is None else len(only_frames),
+           "pass": not problems, "problems": problems[:50], "n_problems": len(problems),
+           "warnings": warnings[:50], "n_warnings": len(warnings),
+           "max_abs_dE_vs_path_eh": worst, "max_abs_dE_vs_path_kJ": kj(worst),
+           "max_abs_dE_computed_frames_eh": worst_c, "max_abs_dE_mirror_frames_eh": worst_m if mirror else None,
+           "tolerance_eh": E_TOL, "mirror_warn_band_eh": [E_TOL, E_TOL_MIRROR_WARN] if mirror else None,
            "checked": time.strftime("%Y-%m-%d %H:%M")}
-    (rx.root / "03_orbitals").mkdir(exist_ok=True)
-    (rx.root / "03_orbitals/output_check.json").write_text(json.dumps(res, indent=1), encoding="utf-8")
+    if write:
+        (rx.root / "03_orbitals").mkdir(exist_ok=True)
+        (rx.root / "03_orbitals/output_check.json").write_text(json.dumps(res, indent=1), encoding="utf-8")
+    return res
+
+
+def dry(name: str, n_first: int = 5) -> dict:
+    """Dry run on the first finished real frames (J. Picione, 2026-11-25): does the check read real output correctly?
+    Writes 03_orbitals/dry_run.json; changes nothing else."""
+    from .geometry import read_xyz_frames
+    R = ROOT / "reactions" / name
+    n = len(read_xyz_frames(R / "02_irc/irc_full_trj.xyz"))
+    ks = [k for k in range(n) if _normal(R / f"03_orbitals/frames/f{k:03d}/f.out")][:n_first]
+    res = check(name, only_frames=ks, write=False) if ks else {"frames_checked": 0}
+    res.update(dry_run=True, frames=ks)
+    (R / "03_orbitals").mkdir(exist_ok=True)
+    (R / "03_orbitals/dry_run.json").write_text(json.dumps(res, indent=1), encoding="utf-8")
     return res
 
 
@@ -232,7 +270,12 @@ def finish(name: str) -> dict:
         st["stage"] = "single points running"
     else:
         c = check(name)
-        st["check"] = "pass" if c["pass"] else f"FAIL ({c['n_problems']} problems; see output_check.json)"
+        st["check"] = ("pass" + (f" with {c['n_warnings']} mirror-frame warnings" if c["n_warnings"] else "")
+                       if c["pass"] else f"FAIL ({c['n_problems']} problems; see output_check.json)")
+        st["max_energy_mismatch"] = {"eh": c["max_abs_dE_vs_path_eh"],
+                                     "kJ_per_mol": round(c["max_abs_dE_vs_path_kJ"], 5),
+                                     "computed_frames_eh": c["max_abs_dE_computed_frames_eh"],
+                                     "mirror_frames_eh": c["max_abs_dE_mirror_frames_eh"]}
         if not c["pass"]:
             st["stage"] = "STOPPED: output check failed, not tracked"
         else:
@@ -270,8 +313,10 @@ def status() -> None:
         done, n = sps_complete(name)
         sp = ROOT / "reactions" / name / "03_orbitals/status.json"
         st = json.loads(sp.read_text(encoding="utf-8")) if sp.exists() else {}
+        mm = st.get("max_energy_mismatch")
         print(f"{name}: single points {done} of {n}; {st.get('stage', 'not checked yet')}"
               + (f"; check {st['check']}" if "check" in st else "")
+              + (f"; largest energy mismatch {mm['eh']:.2e} Eh ({mm['kJ_per_mol']:.4f} kJ/mol)" if mm else "")
               + (f"; mirror worst overlap {st['mirror_check']['worst_overlap']}" if "mirror_check" in st else ""))
 
 
@@ -281,6 +326,8 @@ if __name__ == "__main__":
         print(json.dumps(e2_state(), indent=1))
     elif cmd == "status":
         status()
+    elif cmd == "dry":
+        print(json.dumps(dry(sys.argv[2], int(sys.argv[3]) if len(sys.argv) > 3 else 5), indent=1)[:3000])
     elif cmd in ("check", "finish", "mirror"):
         print(json.dumps({"check": check, "finish": finish, "mirror": mirror}[cmd](sys.argv[2]), indent=1,
                          ensure_ascii=False, default=str)[:4000])

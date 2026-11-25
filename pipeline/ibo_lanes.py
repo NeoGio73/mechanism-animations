@@ -44,7 +44,7 @@ def main(names: list[str]) -> None:
         except Exception as e:                      # a failed frame: not a result; stop this reaction, report it
             say(f"{n}: IBO single points STOPPED: {e}")
             st = ROOT / "reactions" / n / "03_orbitals/status.json"
-            st.parent.mkdir(exist_ok=True)
+            st.parent.mkdir(parents=True, exist_ok=True)
             st.write_text(json.dumps({"reaction": n, "stage": f"STOPPED: single point failed ({e})"}, indent=1),
                           encoding="utf-8")
             continue
@@ -53,8 +53,18 @@ def main(names: list[str]) -> None:
             st = finish(n)
             say(f"{n}: {st.get('stage')}; check {st.get('check')}"
                 + (f"; mirror worst overlap {st['mirror_check']['worst_overlap']}" if "mirror_check" in st else ""))
-        except Exception:
-            say(f"{n}: finish step FAILED (reaction stopped, not tracked further):\n{traceback.format_exc()}")
+        except BaseException as e:      # check/tracking code must never stop the lane's remaining single points
+            if isinstance(e, KeyboardInterrupt):
+                raise
+            say(f"{n}: check/tracking step FAILED; reaction marked untracked, lane goes on:\n{traceback.format_exc()}")
+            try:
+                st = ROOT / "reactions" / n / "03_orbitals/status.json"
+                st.parent.mkdir(parents=True, exist_ok=True)
+                st.write_text(json.dumps({"reaction": n, "stage": f"STOPPED: untracked, check/tracking error "
+                                                                  f"({type(e).__name__}: {e})"}, indent=1),
+                              encoding="utf-8")
+            except OSError:
+                pass
     say("lane finished")
 
 
