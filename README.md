@@ -41,8 +41,15 @@ See [docs/pipeline.md](docs/pipeline.md).
 
 ## License and citation
 
-Code: MIT (see `LICENSE`). Content (structures, energies, meshes, images, videos, text):
-CC-BY 4.0. Please cite this repository and ORCA:
+Three licences, by path:
+
+| Licence | File | Covers |
+|---|---|---|
+| MIT | `LICENSE` | All code: `pipeline/`, `tests/`, the viewer code in `web/` (`.html`, `.js`, `.css`), `Open viewer.bat`, and every script file (`.py`, `.sh`, `.ps1`, `.bat`) anywhere else in the repository, for example `reactions/*/00_inputs/*.py` and `docs/estimate_sp/*.py`. Not `patches/pysisyphus/`. |
+| CC BY 4.0 | `LICENSE-CONTENT` | All content: everything in `reactions/` that is not a script (structures, ORCA inputs and outputs, energies, meshes, orbital data, images, videos, reaction cards, run logs), `figures/`, `docs/` (except its script files), and this README. |
+| GPL-3.0 | `patches/pysisyphus/LICENSE` | `patches/pysisyphus/` only. These patches modify pysisyphus 1.0.0, which is GPL-3.0, so they carry its licence. |
+
+Please cite this repository (see `CITATION.cff`) and ORCA:
 
 - F. Neese, "Software update: The ORCA program system—Version 6.0", *WIREs Comput. Mol. Sci.*
   2025, 15, e70019.
