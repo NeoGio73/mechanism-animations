@@ -1,4 +1,4 @@
-# Zenodo preparation: what is not in the repository (2026-11-25 09:30)
+# Zenodo preparation: what is not in the repository (measured 2026-11-25, committed 08:22)
 
 Measured on the working copy with the IBO lanes still running (E2 and tertiary IBO frames partly done).
 GB = 10⁹ bytes. Python environments (`.venv`, `.venv-pysis`) are not counted.
@@ -42,3 +42,23 @@ to 95 %. `.densities` and `.cpcm` can be regenerated from `.gbw` and the input.
 
 Zenodo's limit is 50 GB and 100 files per record, so the raw output must be bundled into archives
 (for example one per reaction and kind, about 30 files).
+
+## Data record plan (J. Picione, 2026-11-25)
+
+- **Contents:** the six final reactions only (`*_m062x` folders), all kept files, compressed. ORCA
+  scratch, the attempts / stopped / crashed / level-test folders and the earlier folders are left out.
+- **The earlier folders** stay on disk, outside this record for now.
+- **Nothing is uploaded or deleted yet.** The 37.1 GB of scratch stays until the IBO lanes have
+  finished and J. Picione says so.
+- **Layout:** five archives per reaction, 30 in all:
+
+| Archive | Contents |
+|---|---|
+| `<reaction>_ts_irc` | `01_ts`, `01_stationary`, `02_irc` outside `path_sp` (IRC runs, end checks, path files), and the reaction's other check folders (for example `01_check`, `03_gas_phase`) |
+| `<reaction>_sp_M06-2X_ma-def2-TZVP` | `02_irc/path_sp/M06-2X_ma-def2-TZVP` |
+| `<reaction>_sp_B3LYP_ma-def2-TZVP` | `02_irc/path_sp/B3LYP_ma-def2-TZVP` |
+| `<reaction>_sp_DLPNO-CCSD(T)_ma-def2-TZVP` | `02_irc/path_sp/DLPNO-CCSD(T)_ma-def2-TZVP` |
+| `<reaction>_orbitals` | `03_orbitals` (IBO frame outputs and orbital cubes) |
+
+- **Size:** expected 25–30 GB in total once the IBO step has ended. Measure the archives when they are
+  built, before any upload.

@@ -47,7 +47,7 @@ Three licences, by path:
 |---|---|---|
 | MIT | `LICENSE` | All code: `pipeline/`, `tests/`, the viewer code in `web/` (`.html`, `.js`, `.css`), `Open viewer.bat`, and every script file (`.py`, `.sh`, `.ps1`, `.bat`) anywhere else in the repository, for example `reactions/*/00_inputs/*.py` and `docs/estimate_sp/*.py`. Not `patches/pysisyphus/`. |
 | CC BY 4.0 | `LICENSE-CONTENT` | All content: everything in `reactions/` that is not a script (structures, ORCA inputs and outputs, energies, meshes, orbital data, images, videos, reaction cards, run logs), `figures/`, `docs/` (except its script files), and this README. |
-| GPL-3.0 | `patches/pysisyphus/LICENSE` | `patches/pysisyphus/` only. These patches modify pysisyphus 1.0.0, which is GPL-3.0, so they carry its licence. |
+| GPL-3.0-only | `patches/pysisyphus/LICENSE` | `patches/pysisyphus/` only. These patches modify pysisyphus 1.0.0, which declares GPLv3 (no "or later"), so they carry the same licence. |
 
 Please cite this repository (see `CITATION.cff`) and ORCA:
 
