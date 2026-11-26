@@ -287,6 +287,8 @@ def finish(name: str) -> dict:
             exp = tr.get("expected_changes") or {}
             st["tracking"] = {"expected": [{k: e[k] for k in ("label", "found", "min_overlap")}
                                            for e in exp.get("items", [])],
+                              "documented": [{k: e[k] for k in ("label", "found", "min_overlap")}
+                                             for e in exp.get("documented", [])],
                               "unexpected": exp.get("unexpected"), "flagged_frames": exp.get("flagged_frames")}
             show = [t["id"] for t in tr["tracked"] if t["changes"]]
             last = R / f"03_orbitals/cubes/f{n - 1:03d}"

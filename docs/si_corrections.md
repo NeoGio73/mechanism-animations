@@ -408,3 +408,38 @@ Not a correction: no number in any table changes. A check of how SMD enters the 
   measured values (by 3.0 and 6.6 kJ/mol), and the E2 barrier (by 3.2 kJ/mol) and the cyanide barrier (by 1.2 kJ/mol)
   toward them; the cyanide reaction free energy moves by 0.1 kJ/mol. There is no measured E2 reaction free energy.
 - **Files:** `docs/results/smd_scheme_check.md` and `.json` (`pipeline/smd_scheme_report.py`).
+
+## 14. Secondary hydride shift: orbital check written from the mechanism; two hyperconjugation changes documented (J. Picione, 2026-11-26)
+
+A correction. Until 2026-11-26 the orbital check of the secondary hydride shift (3-methyl-2-butyl cation) compared
+nothing, because its input had no expected list. The IBO output check passed (energies within 5 × 10⁻¹¹ Eh of the
+path), but tracking found three changing orbitals and none of them was checked against the mechanism.
+
+- **Expected list, from the mechanism:** one change, the arrow the textbook draws, σ(C3–H) → σ(C2–H). Its atoms come
+  from `[key_atoms]`, set on 2026-11-13 from the TS before any orbital calculation. It was not written from the
+  tracking output.
+- **Documented, a separate category:** two changes found by tracking that the textbook drawing does not show. They
+  are hyperconjugation into the cationic centre C2 being withdrawn, not extra arrows:
+  - σ(C1–H), shared with C2 at the start → ordinary σ(C1–H);
+  - σ(C3–CH₃), shared with C2 at the start → ordinary σ(C3–CH₃).
+- **Result:** 1 expected change, found; 2 further changes, documented; no unexpected change. Lowest frame-to-frame
+  overlap 1.000 for all three. The comparison now has a "documented" category beside "expected" and "unexpected"
+  (`pipeline/orbital_steps.py`).
+- **Also new:** frames 40–144 are flagged. Two C–H orbitals with the same atoms at both ends briefly cross the 0.15
+  threshold on C3 during the C2–C3 rotation: σ(C4–H) up to 0.21, and σ(C–H) of the CH₃ on C3 up to 0.16.
+- **Numbering:** atoms are named in the chemical numbering of the 3-methyl-2-butyl cation,
+  CH₃(C1)–C2H⁺–C3H(CH₃)–C4H₃, everywhere a reader sees them (viewer labels, tracking table, card). The 0-based atom
+  indices stay only in the tracking log.
+- **Shares on C2 (Mulliken populations of single IBOs in ma-def2-SVP; same caveat as for E2, not IAO charges):**
+  - σ(C1–H): 0.17 at the reactant end, 0.04 at the TS, 0.00 at the product end;
+  - σ(C3–CH₃): 0.36, 0.03 and 0.00.
+
+  Half of each loss is done by s ≈ −7 bohr·amu½, before the TS (s = 0, the C2–C3 rotation TS) and before the hydrogen
+  moves (s +3.9 to +5.5). At the path start the methyl partly bridges C2 and C3 (1.70 and 1.80 Å).
+- **New cationic carbon C3:** no orbital next to C3 crosses the 0.15 threshold at the product end. The largest share
+  there is 0.11. Shares of this size also occur on carbons that carry no charge, so this measure does not resolve
+  hyperconjugation into C3.
+- **Tertiary shift, same check:** its expected list was written from the mechanism on 2026-11-10, before any
+  calculation. Tracking finds no delocalized orbital and no other change at any frame.
+- **Files:** `docs/results/hshift_hyperconjugation.md`; `reactions/hshift_*_m062x/03_orbitals/hyperconjugation.json`,
+  `tracking.json` and `tracking_log.md`.

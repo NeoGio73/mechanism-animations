@@ -255,6 +255,8 @@ def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) ->
     exp = tr.get("expected_changes")
     if exp:      # reaction.toml lists the orbitals to show: exactly those, in that order
         ids = [e["tracked_id"] for e in exp["items"] if e["found"]]
+        # documented changes (J. Picione, 2026-11-26) are shown too, after the expected ones
+        ids += [e["tracked_id"] for e in exp.get("documented", []) if e["found"]]
         show = [next(t for t in tr["tracked"] if t["id"] == j) for j in ids]
     # one hue per orbital; phase = dark (+) vs light (−) shade of that hue.
     # Nucleophile-side orbital first (blue), then the bond that breaks (orange).

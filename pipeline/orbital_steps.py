@@ -166,12 +166,31 @@ def orbital_track(rx: Reaction) -> None:
             lines.append(f"| {e['label']} | {e['tracked_id'] if e['tracked_id'] is not None else '—'} | "
                          f"{e['min_overlap'] if e['min_overlap'] is not None else '—'} | "
                          f"{'yes' if e['found'] else '**NO**'} |")
-        lines += ["", f"Orbitals that change but were not expected: {expected['unexpected'] or 'none'}",
-                  f"Frames where an unexpected orbital changes its atoms: {expected['flagged_frames'] or 'none'}"]
+        if expected.get("documented"):
+            lines += ["", "## Further changes found by tracking, documented (not in the textbook drawing)", "",
+                      "| Documented change | Tracked orbital | Lowest overlap | Found? | Note |", "|---|---|---|---|---|"]
+            for e in expected["documented"]:
+                lines.append(f"| {e['label']} | {e['tracked_id'] if e['tracked_id'] is not None else '—'} | "
+                             f"{e['min_overlap'] if e['min_overlap'] is not None else '—'} | "
+                             f"{'yes' if e['found'] else '**NO**'} | {e['note']} |")
+        lines += ["", f"Orbitals that change but were neither expected nor documented: {expected['unexpected'] or 'none'}",
+                  f"Frames where any other orbital's atoms (share above {POP_CUT}) differ from its reactant-end atoms: "
+                  f"{_ranges(expected['flagged_frames']) or 'none'}"]
     lines += ["", "Canonical orbitals (sign tracking only): lowest overlap "
               f"HOMO {min(can_ovl['HOMO']):.3f}, LUMO {min(can_ovl['LUMO']):.3f}"]
     (rx.root / "03_orbitals" / "tracking_log.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines[:12 + m]))
+
+
+def _ranges(ks) -> str:
+    """[3, 4, 5, 9] -> '3–5, 9'."""
+    out, ks = [], sorted(ks or [])
+    for k in ks:
+        if out and k == out[-1][1] + 1:
+            out[-1][1] = k
+        else:
+            out.append([k, k])
+    return ", ".join(f"{a}" if a == b else f"{a}–{b}" for a, b in out)
 
 
 def _check_expected(rx: Reaction, tracked, pops, best, syms):
@@ -219,6 +238,27 @@ def _check_expected(rx: Reaction, tracked, pops, best, syms):
                       "matched_atoms_start": sorted(s), "matched_atoms_end": sorted(f), "found": j is not None,
                       "tracked_id": j, "candidates": hit,
                       "min_overlap": round(float(min(best[k][j] for k in range(n))), 3) if j is not None else None})
+    # J. Picione, 2026-11-26: changes found by tracking that the textbook drawing does not show (e.g. hyperconjugation
+    # into a cationic centre withdrawn or re-formed) go in [[documented_orbital_changes]]. They are a third category,
+    # neither expected nor unexpected: reported as "documented", never silenced, never counted as found arrows.
+    documented = []
+    doc = rx.cfg.get("documented_orbital_changes") or []
+    if doc:
+        mpd = mp if not pattern.startswith("as") else list(range(len(syms)))
+        for e in doc:
+            s, f = frozenset(mpd[a] for a in e["start"]), frozenset(mpd[a] for a in e["end"])
+            hit = [j for j in range(m) if atoms(pops[0, j]) == s and atoms(pops[-1, j]) == f and j not in used]
+            j = hit[0] if len(hit) == 1 else None
+            if j is not None:
+                used.add(j)
+                tracked[j]["label"] = e["label"] if pattern.startswith("as") else _mirror_label(e["label"], mpd)
+            else:
+                print(f"WARNING documented orbital change not found as one tracked orbital: {e['label']} "
+                      f"(candidates {hit})")
+            documented.append({"label": e["label"], "note": e.get("note", ""), "start": sorted(e["start"]),
+                               "end": sorted(e["end"]), "found": j is not None, "tracked_id": j, "candidates": hit,
+                               "min_overlap": round(float(min(best[k][j] for k in range(n))), 3)
+                               if j is not None else None})
     unexpected = [t["id"] for t in tracked if t["changes"] and t["id"] not in used]
     flagged = [k for k in range(n)
                if any(atoms(pops[k, j]) != atoms(pops[0, j]) for j in range(m) if j not in used)]
@@ -230,7 +270,8 @@ def _check_expected(rx: Reaction, tracked, pops, best, syms):
         print(f"WARNING orbitals change that were not expected: {unexpected}")
     if flagged:
         print(f"WARNING frames where an unexpected orbital changes its atoms: {flagged}")
-    return {"items": items, "pattern": pattern, "unexpected": unexpected, "flagged_frames": flagged}
+    return {"items": items, "pattern": pattern, "documented": documented, "unexpected": unexpected,
+            "flagged_frames": flagged}
 
 
 def orbital_cubes(rx: Reaction, grid: int = 70) -> None:

@@ -119,6 +119,10 @@ def card(rx: Reaction) -> None:
     min_ovl = min(t["min_overlap"] for t in changing) if changing else None
     if notes.get("orbital_note"):
         orb_txt += ". " + notes["orbital_note"]
+    # J. Picione, 2026-11-26: changes found by tracking that the textbook drawing does not show have their own row,
+    # described in card_notes.toml documented_note (hyperconjugation withdrawn or re-formed), never as extra arrows
+    doc = [e for e in ec.get("documented", []) if e["found"]]
+    doc_txt = (notes.get("documented_note") or "; ".join(f"{e['label']} ({e['note']})" for e in doc)) if doc else ""
 
     lines = [
         f"# Reaction card: {rx.cfg['title']}", "",
@@ -145,6 +149,7 @@ def card(rx: Reaction) -> None:
         f"optional in the viewer |",
         *([f"| Display rotation | {_display_rotation_text(rx)} |"] if _display_rotation_text(rx) else []),
         f"| Orbitals that change | {orb_txt} |",
+        *([f"| Also found by tracking (not arrows) | {doc_txt} |"] if doc_txt else []),
         # card_notes.toml mechanism_note: one approved plain-words line on the computed path (J. Picione, E2 2026-11-25)
         *([f"| Along the path | {notes['mechanism_note']} |"] if notes.get("mechanism_note") else []),
         "| What this is | The minimum-energy path, not a trajectory: no temperature, no dynamics, "
