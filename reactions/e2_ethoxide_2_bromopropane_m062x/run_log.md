@@ -1377,3 +1377,7 @@ Every ORCA job, its wall time, and what changed when a job failed. Times are wal
 ## 2026-11-26 11:20 — card built from data on disk (no ORCA job)
 
 `card.md` written by `pipeline/card.py` at idle priority, one thread, from the finished folder. Card code fixed the same day: the barrier-comparison line and the reactant-complex line now use the DLPNO-CCSD(T) row (they had used the last row of the level table, B3LYP); the orbital comparison names only the six M06-2X reactions; above/below follows the sign; one-molecule sides no longer say that fragments drift apart.
+
+## 2026-11-26 12:00 — one-page card sample (J. Picione, 2026-11-26)
+
+`card.md` is now one page (summary rows at DLPNO-CCSD(T)/ma-def2-TZVP free energies with the measured value and the difference, zero = separated reactants at 1 M; orbitals; along the path; six limitations in plain words) and `card_details.md` holds the level table (one M06-2X/ma-def2-TZVP row, no "protocol"), the IRCMax section, the derivation of the measured value and the technical notes. `layout = "split"` in card_notes.toml; no number changed (only kcal/mol added beside 15 kJ/mol). The other five cards keep the full layout until J. Picione has read this sample.

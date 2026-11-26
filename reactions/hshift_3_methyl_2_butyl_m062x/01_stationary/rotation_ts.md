@@ -76,6 +76,8 @@ Working level M06-2X-D3(0)/ma-def2-SVP, SMD dichloromethane; G at 298.15 K (ORCA
 
 ## ΔG‡ and ΔE‡ from secondary_anti
 
+*Note added 2026-11-26 (J. Picione's decision): the four "production TS" rows are energy differences only. `secondary_anti` does not reach the production TS, so they are not the barrier of any path. The anti form's barrier is the `ts_anti_rotation` rows; the barrier of the path shown is measured from the eclipsed form (ΔG‡ 11.1 kJ/mol, 2.7 kcal/mol, at DLPNO-CCSD(T)/ma-def2-TZVP, 298 K).*
+
 | TS | Level | ΔE‡ | ΔG‡ |
 |---|---|---|---|
 | production TS (eclip side, 01_ts) | M06-2X_ma-def2-SVP (working) | 19.0 (4.5) | 15.8 (3.8) |

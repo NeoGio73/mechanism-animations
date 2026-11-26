@@ -34,7 +34,7 @@ Experiment: k₂(HO⁻ + CH₃Br, water) measured at six temperatures, 292.69–
 
 ## Known artifacts and limitations
 
-- M06-2X underestimates this barrier: ΔG‡ = 94.1 kJ/mol (22.5 kcal/mol) at the protocol level versus 100.4 kJ/mol (24.0 kcal/mol) at DLPNO-CCSD(T)/ma-def2-TZVP (6 kJ/mol lower). The experimental value is given above; the close agreement of the coupled-cluster number is partly fortuitous (implicit solvent, working-level geometries and thermal corrections).
+- M06-2X underestimates this barrier: ΔG‡ = 94.1 kJ/mol (22.5 kcal/mol) at M06-2X-D3(0)/ma-def2-TZVP versus 100.4 kJ/mol (24.0 kcal/mol) at DLPNO-CCSD(T)/ma-def2-TZVP (6 kJ/mol lower). The experimental value is given above; the close agreement of the coupled-cluster number is partly fortuitous (implicit solvent, working-level geometries and thermal corrections).
 - Ion–dipole wells: the reactant complex lies 6.2 kJ/mol (1.5 kcal/mol) below separated reactants on the working-level curve and 6.8 kJ/mol (1.6 kcal/mol) below at ma-def2-TZVP, and 5.4 kJ/mol (1.3 kcal/mol) below at DLPNO-CCSD(T)/ma-def2-TZVP. In water the deep double well of gas-phase ion–molecule reactions is largely washed out; what remains here is a shallow, partly artificial well (a teaching point, not a failure).
 - Implicit solvent only: no explicit water molecules, so no specific hydrogen bonds to the base/nucleophile or leaving group.
 - The product end of the path was truncated where the energy had flattened: the IRC was stopped by the IRC stopping rule (docs/protocol.md) at s = 9.40 bohr·amu½ (IRC step 188), after the bonds had finished changing; beyond it only the separating fragments drift apart. The product complex was optimized from that last point.

@@ -1,8 +1,8 @@
 # Results summary: 1,2-Hydride shift, 3-methyl-2-butyl cation → 2-methyl-2-butyl cation
 
-`CH₃CH⁺CH(CH₃)₂ → CH₃CH₂C⁺(CH₃)₂`, in dichloromethane (SMD), 298.15 K. Reaction folder `reactions/hshift_3_methyl_2_butyl_m062x`. Written 2026-11-22 05:29 by `pipeline/results_summary.py` from the finished jobs; no new calculation.
+`CH₃CH⁺CH(CH₃)₂ → CH₃CH₂C⁺(CH₃)₂`, in dichloromethane (SMD), 298.15 K. Reaction folder `reactions/hshift_3_methyl_2_butyl_m062x`. Written 2026-11-26 11:34 by `pipeline/results_summary.py` from the finished jobs; no new calculation.
 
-**Units and zeros.** Energies in kJ/mol with kcal/mol in brackets. Every number names its zero. The reaction has one molecule throughout, so there are no separated reactants, and every step keeps the number of molecules, so no standard-state term applies. The zero is the lowest-free-energy conformer of the secondary cation (`secondary_anti`, working-level G; rule of J. Picione, 2026-11-19, the same as for separated species), not the form the path reaches. The path starts from the secondary cation as the path reaches it (`secondary_eclip_irc`, frame 0), which lies above the zero by +2.77 (+0.66) kJ/mol in G (working level) and, in E, by M06-2X/ma-def2-SVP +3.06 (+0.73) kJ/mol; M06-2X/ma-def2-TZVP +2.41 (+0.58) kJ/mol; B3LYP/ma-def2-TZVP +2.32 (+0.55) kJ/mol; DLPNO-CCSD(T)/ma-def2-TZVP +3.16 (+0.76) kJ/mol. Barriers from the secondary cation as the path reaches it (`secondary_eclip_irc`, frame 0) are given as well. ΔE is electronic. ΔH and ΔG add the M06-2X/ma-def2-SVP thermal correction (quasi-RRHO, Grimme 2012, 100 cm⁻¹) to the electronic energy of the level named. ΔH needs no standard-state term.
+**Units and zeros.** Energies in kJ/mol with kcal/mol in brackets. Every number names its zero. The reaction has one molecule throughout, so there are no separated reactants, and every step keeps the number of molecules, so no standard-state term applies. The zero is the lowest-free-energy conformer of the secondary cation (`secondary_anti`, working-level G; rule of J. Picione, 2026-11-19, the same as for separated species), not the form the path reaches. The path starts from the secondary cation as the path reaches it (`secondary_eclip_irc`, frame 0), which lies above the zero by +2.77 (+0.66) kJ/mol in G (working level) and, in E, by M06-2X/ma-def2-SVP +3.06 (+0.73) kJ/mol; M06-2X/ma-def2-TZVP +2.41 (+0.58) kJ/mol; B3LYP/ma-def2-TZVP +2.32 (+0.55) kJ/mol; DLPNO-CCSD(T)/ma-def2-TZVP +3.16 (+0.76) kJ/mol. Barriers from the secondary cation as the path reaches it (`secondary_eclip_irc`, frame 0) are given as well. The `secondary_anti` form does not reach the TS of the path shown; it has its own TS (`ts_anti_rotation`), so its barrier is given through that TS, and the TS shown measured from `secondary_anti` is an energy difference, not the barrier of any path (J. Picione, 2026-11-26; section 3). ΔE is electronic. ΔH and ΔG add the M06-2X/ma-def2-SVP thermal correction (quasi-RRHO, Grimme 2012, 100 cm⁻¹) to the electronic energy of the level named. ΔH needs no standard-state term.
 
 ## 1. Path
 
@@ -52,7 +52,7 @@ The reactant end of the path ended 0.000 Å (RMSD) from the reactant-end minimum
 
 All at M06-2X/ma-def2-SVP geometries. Electronic energies at the level named; ΔH and ΔG with the working-level thermal correction. kJ/mol (kcal/mol).
 
-**Barriers, zero = the secondary cation, lowest-free-energy conformer (`secondary_anti`), 298.15 K:**
+**The TS of the path shown, measured from the secondary cation, lowest-free-energy conformer (`secondary_anti`), 298.15 K. Not the barrier of any path:** `secondary_anti` does not reach this TS (its own barrier is in the table after next).
 
 | Level | ΔE‡ | ΔH‡ | ΔG‡ |
 |---|---|---|---|
@@ -69,6 +69,15 @@ All at M06-2X/ma-def2-SVP geometries. Electronic energies at the level named; Δ
 | M06-2X/ma-def2-TZVP | 18.1 (4.3) | 11.4 (2.7) | 15.1 (3.6) |
 | B3LYP/ma-def2-TZVP | 1.4 (0.3) | -5.3 (-1.3) | -1.6 (-0.4) |
 | DLPNO-CCSD(T)/ma-def2-TZVP | 14.1 (3.4) | 7.4 (1.8) | 11.1 (2.7) |
+
+**Barrier of `secondary_anti` through its own TS (`ts_anti_rotation`, 162.4i cm⁻¹, `01_stationary/ts_anti_rotation`; confirmed to connect `secondary_anti` with the tertiary cation), zero = `secondary_anti`, 298.15 K:**
+
+| Level | ΔE‡ | ΔH‡ | ΔG‡ |
+|---|---|---|---|
+| M06-2X/ma-def2-SVP (working level, geometries) | 25.0 (6.0) | 19.3 (4.6) | 20.9 (5.0) |
+| M06-2X/ma-def2-TZVP | 26.2 (6.3) | 20.5 (4.9) | 22.2 (5.3) |
+| B3LYP/ma-def2-TZVP | 9.3 (2.2) | 3.6 (0.9) | 5.2 (1.2) |
+| DLPNO-CCSD(T)/ma-def2-TZVP | 22.6 (5.4) | 16.9 (4.0) | 18.6 (4.4) |
 
 **Reaction, zero = the secondary cation, lowest-free-energy conformer (`secondary_anti`); product = the tertiary cation (product-end minimum, `tertiary_irc`), 298.15 K:**
 
@@ -130,6 +139,10 @@ A highest frame after the TS frame means the level puts the top of the barrier l
 ## 7. Experiment
 
 No measured value is recorded for this reaction (`00_inputs/card_notes.toml` has none).
+
+Limitations recorded for this comparison (card notes, `00_inputs/card_notes.toml`):
+
+- Two forms of the secondary cation are minima at this level, anti and eclipsed, and both are partly methyl-bridged. A third arrangement, with C3–H in line with the empty orbital on C2, is not a minimum: it goes downhill to the tertiary cation. The path shown starts from the eclipsed form. The anti form is 2.8 kJ/mol (0.7 kcal/mol) lower in free energy at the working level and has its own, higher rotation barrier (18.6 against 11.1 kJ/mol at DLPNO-CCSD(T)/ma-def2-TZVP, 298 K).
 
 ## 8. Job times
 

@@ -392,8 +392,10 @@ Not a correction: no number in any table changes. A check of how SMD enters the 
 | E2, EtO⁻ + 2-bromopropane (ethanol) | +3.2 (+0.8) | +4.0 (+1.0) |
 | CN⁻ + acetone (water) | −1.2 (−0.3) | −0.1 (0.0) |
 | Diels–Alder, butadiene + ethylene | +0.5 (+0.1) | +0.6 (+0.2) |
-| 1,2-H shift, 3-methyl-2-butyl cation (DCM) | +0.3 (+0.1) | +0.3 (+0.1) |
+| 1,2-H shift, 3-methyl-2-butyl cation (DCM), path shown, from the eclipsed form | +0.4 (+0.1) | +0.3 (+0.1) |
 | 1,2-H shift, 2,3-dimethyl-2-butyl cation (DCM) | +0.3 (+0.1) | 0.0 (0.0) |
+
+(Secondary hydride shift row corrected 2026-11-26: ΔG‡ is now the barrier of the path shown, from the eclipsed form, 11.1 kJ/mol in scheme A; it was the TS shown measured from the anti form, 14.0 kJ/mol, which is not the barrier of any path (J. Picione, 2026-11-26). The anti form's own rotation TS has no gas-phase single point, so it has no B − A.)
 
 - **Where the difference sits (per-species table in `docs/results/smd_scheme_check.md`):** the hydroxide and
   ethoxide ions lie 6.6 and 4.9 kJ/mol (1.6 and 1.2 kcal/mol) lower in scheme B; bromide is the same in both

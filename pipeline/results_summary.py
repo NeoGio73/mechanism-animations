@@ -163,6 +163,8 @@ def main(rxname: str, out: str) -> None:
     E = {None: Ework, **{lv: {**diag["energies_eh"][lv], **{k: v["sp"][lv] for k, v in zc.items()}}
                          for _, lv, _ in LEVELS[1:]}}
     zoff = uni and react[0] != "reactant_complex"      # the zero is not the form the path reaches
+    from .own_barrier import own_barriers               # that form's own TS, when it has one (J. Picione, 2026-11-26)
+    own = own_barriers(rx) if zoff else None
 
     def quantities(lv):
         e = E[lv]
@@ -268,7 +270,10 @@ def main(rxname: str, out: str) -> None:
               f"the {rnm} (`{react[0]}`, working-level G; rule of J. Picione, 2026-11-19, the same as for separated "
               f"species), not the form the path reaches. The path starts from {path_form}, which lies above the zero by "
               f"{t(Q[None]['dG_cx_sep'], 2, True)} kJ/mol in G (working level) and, in E, by {offs}. Barriers from {path_form} "
-              "are given as well.")
+              "are given as well." + (
+              f" The `{own['name']}` form does not reach the TS of the path shown; it has its own TS (`{own['ts_key']}`), "
+              f"so its barrier is given through that TS, and the TS shown measured from `{own['name']}` is an energy "
+              "difference, not the barrier of any path (J. Picione, 2026-11-26; section 3)." if own else ""))
     elif uni:
         zt = (f"The zero is the {rnm} at the reactant end of the path (`{ends['reactant_complex']['minimum']}`): the reaction has one molecule "
               "throughout, so there are no separated reactants, and every step keeps the number of molecules, so no "
@@ -441,7 +446,10 @@ def main(rxname: str, out: str) -> None:
     w("All at M06-2X/ma-def2-SVP geometries. Electronic energies at the level named; ΔH and ΔG with the working-level "
       "thermal correction. kJ/mol (kcal/mol).")
     w("")
-    if uni:
+    if uni and own:
+        w(f"**The TS of the path shown, measured from {zero_name}, 298.15 K. Not the barrier of any path:** "
+          f"`{own['name']}` does not reach this TS (its own barrier is in the table after next).")
+    elif uni:
         w(f"**Barriers, zero = {zero_name}, 298.15 K:**")
     else:
         w(f"**Barriers, zero = {zero_name}, 298.15 K, ΔG at 1 M:**")
@@ -461,6 +469,17 @@ def main(rxname: str, out: str) -> None:
             q = Q[lv]
             w(f"| {nm} | {t(q['dE_cx'])} | {t(q['dH_cx'])} | {t(q['dG_cx'])} |")
         w("")
+        if uni and own:
+            w(f"**Barrier of `{own['name']}` through its own TS (`{own['ts_key']}`, {abs(own['imaginary_cm'][0]):.1f}i "
+              f"cm⁻¹, `{own['ts_folder']}`; confirmed to connect `{own['name']}` with the {pnm}), zero = "
+              f"`{own['name']}`, 298.15 K:**")
+            w("")
+            w("| Level | ΔE‡ | ΔH‡ | ΔG‡ |")
+            w("|---|---|---|---|")
+            for nm, lv, _ in LEVELS:
+                q = own["rows"][lv]
+                w(f"| {nm} | {t(q['dE'])} | {t(q['dH'])} | {t(q['dG'])} |")
+            w("")
         for i, (nm1, lv1, _) in enumerate(LEVELS):
             for nm2, lv2, _ in LEVELS[i + 1:]:
                 a, b = Q[lv1], Q[lv2]

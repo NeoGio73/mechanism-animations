@@ -40,7 +40,7 @@ At M06-2X/ma-def2-SVP (DefGrid3; the working level for the two cation reactions)
 
 ## Known artifacts and limitations
 
-- M06-2X overestimates this barrier: ΔG‡ = 18.0 kJ/mol (4.3 kcal/mol) at the protocol level versus 17.0 kJ/mol (4.1 kcal/mol) at DLPNO-CCSD(T)/ma-def2-TZVP (1 kJ/mol higher).
+- M06-2X overestimates this barrier: ΔG‡ = 18.0 kJ/mol (4.3 kcal/mol) at M06-2X-D3(0)/ma-def2-TZVP versus 17.0 kJ/mol (4.1 kcal/mol) at DLPNO-CCSD(T)/ma-def2-TZVP (1 kJ/mol higher).
 - Implicit solvent only: no explicit dichloromethane molecules.
 - The product end of the path was truncated where the energy had flattened: the IRC was stopped by the IRC stopping rule (docs/protocol.md) at s = 13.97 bohr·amu½ (IRC step 129), after the bonds had finished changing; the product-end minimum was optimized from that last point.
 - The reactant end of the path was truncated where the energy had flattened: the IRC was stopped by the IRC stopping rule (docs/protocol.md) at s = -13.29 bohr·amu½ (IRC step 264), after the bonds had finished changing; the reactant-end minimum was optimized from that last point.

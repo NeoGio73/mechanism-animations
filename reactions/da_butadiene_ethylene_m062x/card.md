@@ -101,7 +101,7 @@ Experiment (gas phase): C₂H₄ + 1,3-butadiene → cyclohexene, second order, 
 
 ## Known artifacts and limitations
 
-- M06-2X underestimates this barrier: ΔG‡ = 131.9 kJ/mol (31.5 kcal/mol) at the protocol level versus 144.4 kJ/mol (34.5 kcal/mol) at DLPNO-CCSD(T)/ma-def2-TZVP (12 kJ/mol lower). The comparison with experiment is the gas-phase Ea table above.
+- M06-2X underestimates this barrier: ΔG‡ = 131.9 kJ/mol (31.5 kcal/mol) at M06-2X-D3(0)/ma-def2-TZVP versus 144.4 kJ/mol (34.5 kcal/mol) at DLPNO-CCSD(T)/ma-def2-TZVP (12 kJ/mol lower). The comparison with experiment is the gas-phase Ea table above.
 - Reactant complex (a weak, dispersion-bound pair of the neutral reactants) lies 2.7 kJ/mol (0.7 kcal/mol) above separated reactants on the working-level curve and 4.2 kJ/mol (1.0 kcal/mol) above at ma-def2-TZVP, and 6.5 kJ/mol (1.6 kcal/mol) above at DLPNO-CCSD(T)/ma-def2-TZVP; the barriers above are also given from separated reactants.
 - Implicit solvent only: no explicit toluene molecules.
 - The product end of the path was truncated where the energy had flattened: the IRC was stopped by the IRC stopping rule (docs/protocol.md) at s = 5.97 bohr·amu½ (IRC step 122), after the bonds had finished changing; the product-end minimum was optimized from that last point.

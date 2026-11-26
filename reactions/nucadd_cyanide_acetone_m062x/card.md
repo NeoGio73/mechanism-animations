@@ -58,7 +58,7 @@ Experiment (water, 25 °C): cyanide addition to acetone, alkoxide formation. Equ
 
 ## Known artifacts and limitations
 
-- M06-2X underestimates this barrier: ΔG‡ = 72.1 kJ/mol (17.2 kcal/mol) at the protocol level versus 79.3 kJ/mol (19.0 kcal/mol) at DLPNO-CCSD(T)/ma-def2-TZVP (7 kJ/mol lower). The measured value is in the table above, with the differences below it.
+- M06-2X underestimates this barrier: ΔG‡ = 72.1 kJ/mol (17.2 kcal/mol) at M06-2X-D3(0)/ma-def2-TZVP versus 79.3 kJ/mol (19.0 kcal/mol) at DLPNO-CCSD(T)/ma-def2-TZVP (7 kJ/mol lower). The measured value is in the table above, with the differences below it.
 - Ion–dipole wells: the reactant complex lies 11.8 kJ/mol (2.8 kcal/mol) below separated reactants on the working-level curve but only 11.2 kJ/mol (2.7 kcal/mol) below at ma-def2-TZVP, and 8.1 kJ/mol (1.9 kcal/mol) below at DLPNO-CCSD(T)/ma-def2-TZVP. In water the deep double well of gas-phase ion–molecule reactions is largely washed out; what remains here is a shallow, partly artificial well (a teaching point, not a failure).
 - Implicit solvent only: no explicit water molecules, so no specific hydrogen bonds to the nucleophile or the product anion.
 - The product end of the path was truncated where the energy had flattened: the IRC was stopped by the IRC stopping rule (docs/protocol.md) at s = 4.41 bohr·amu½ (IRC step 94), after the bonds had finished changing; the product-end minimum was optimized from that last point.

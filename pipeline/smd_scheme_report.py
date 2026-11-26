@@ -121,10 +121,17 @@ def report() -> dict:
         assert all(abs(a_chk[x] - A[x]) < 1e-9 for x in A), name
         solv = {k: (E[M6][k] - g[M6][k]) * EH for k in EB}
         solv_dl = {k: (E[DL][k] - g[DL][k]) * EH for k in EB}
-        r = {"reaction": name, "label": NAMES[name], "reference": L["react"], "products": L["prods"],
-             "dG_barrier_A": A["dG_sep"], "dG_barrier_B": B["dG_sep"], "dG_barrier_diff": B["dG_sep"] - A["dG_sep"],
+        # a reactant conformer with its own TS (pipeline/own_barrier.py): the TS shown measured from it is not the
+        # barrier of any path, so the barrier here is the path shown, from the form it starts from (J. Picione,
+        # 2026-11-26); that conformer's own rotation TS has no scheme-B (gas-phase) single point
+        from .own_barrier import own_barriers
+        from .steps import Reaction
+        bk = "dG_cx" if own_barriers(Reaction.load(ROOT / "reactions" / name)) else "dG_sep"
+        r = {"reaction": name, "label": NAMES[name] + (" (path shown, from the eclipsed form)" if bk == "dG_cx" else ""),
+             "reference": L["react"], "products": L["prods"], "barrier_from": "path start" if bk == "dG_cx" else "zero",
+             "dG_barrier_A": A[bk], "dG_barrier_B": B[bk], "dG_barrier_diff": B[bk] - A[bk],
              "dGr_A": A["dGr"], "dGr_B": B["dGr"], "dGr_diff": B["dGr"] - A["dGr"],
-             "dE_barrier_A": A["dE_sep"], "dE_barrier_B": B["dE_sep"],
+             "dE_barrier_A": A[bk.replace("dG", "dE")], "dE_barrier_B": B[bk.replace("dG", "dE")],
              "solvation_M062X_kJ": solv, "solvation_DLPNO_kJ": solv_dl}
         worst = max(worst, abs(r["dG_barrier_diff"]), abs(r["dGr_diff"]))
         rows.append(r)

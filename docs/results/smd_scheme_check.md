@@ -10,7 +10,7 @@ Scheme A (as in the paper): DLPNO-CCSD(T)/ma-def2-TZVP with SMD. Scheme B: gas-p
 | E2, EtO⁻ + 2-bromopropane (ethanol) | 99.6 (23.8) | 102.8 (24.6) | +3.16 (+0.75) | -108.3 (-25.9) | -104.3 (-24.9) | +3.99 (+0.95) |
 | CN⁻ + acetone (water) | 79.3 (19.0) | 78.2 (18.7) | -1.16 (-0.28) | 36.4 (8.7) | 36.3 (8.7) | -0.12 (-0.03) |
 | Diels–Alder, butadiene + ethylene (SMD as in the paper) | 144.4 (34.5) | 144.8 (34.6) | +0.48 (+0.11) | -123.3 (-29.5) | -122.6 (-29.3) | +0.63 (+0.15) |
-| 1,2-H shift, 3-methyl-2-butyl cation (DCM) | 14.0 (3.3) | 14.3 (3.4) | +0.30 (+0.07) | -45.4 (-10.9) | -45.2 (-10.8) | +0.29 (+0.07) |
+| 1,2-H shift, 3-methyl-2-butyl cation (DCM) (path shown, from the eclipsed form) | 11.1 (2.7) | 11.5 (2.8) | +0.40 (+0.10) | -45.4 (-10.9) | -45.2 (-10.8) | +0.29 (+0.07) |
 | 1,2-H shift, 2,3-dimethyl-2-butyl cation (DCM) | 17.0 (4.1) | 17.4 (4.1) | +0.33 (+0.08) | 0.0 (0.0) | 0.0 (0.0) | +0.00 (+0.00) |
 
 Reference species (zero) per reaction: SN2: hydroxide + bromomethane → methanol + bromide; E2: ethoxide + 2-bromopropane → propene + ethanol + bromide; CN⁻ + acetone (water): cyanide + acetone → acetone_cyanohydrin_alkoxide; Diels–Alder: butadiene_s-trans + ethylene → cyclohexene; 1: secondary_anti → product_complex; 1: dimethylbutyl_cation → dimethylbutyl_cation_shifted
