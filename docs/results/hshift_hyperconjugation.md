@@ -1,5 +1,7 @@
 # Hydride shifts: orbital check against the mechanism, and hyperconjugation into the cationic carbons (2026-11-26)
 
+*Wording amended the same day (J. Picione): at the start of the secondary path the C3–CH₃ pair is a three-centre bond (the methyl bridges C2 and C3), not hyperconjugation; the C1–H pair is hyperconjugation.*
+
 J. Picione, 2026-11-26. All numbers come from the IBOs already on disk (`03_orbitals/frames/fNNN/f_loc.npz`); no ORCA
 job was run. Code: `pipeline/hshift_hyperconj.py` (writes `03_orbitals/hyperconjugation.json` in both folders) and
 the comparison in `pipeline/orbital_steps.py`. s is in bohr·amu½; energies are working-level electronic energies
@@ -28,7 +30,7 @@ changes are recorded under a separate key, `[[documented_orbital_changes]]`.
 |---|---|---|---|
 | Expected (mechanism) | σ(C3–H) → σ(C2–H) | yes | 1.000 |
 | Documented (tracking; not in the drawing) | σ(C1–H), hyperconjugating into C2 → ordinary σ(C1–H) | yes | 1.000 |
-| Documented (tracking; not in the drawing) | σ(C3–CH₃), hyperconjugating into C2 → ordinary σ(C3–CH₃) | yes | 1.000 |
+| Documented (tracking; not in the drawing) | σ(C3–CH₃), three-centre bond with C2 at the start → ordinary σ(C3–CH₃) | yes | 1.000 |
 
 - **Result:** 1 expected change, found; 2 further changes, documented.
 - **Unexpected changes:** none.
@@ -43,7 +45,9 @@ changes are recorded under a separate key, `[[documented_orbital_changes]]`.
 
 ## 2. The two documented orbitals: share on the cationic carbon C2 along the path
 
-| Point | s | σ(C1–H): share on C2 | σ(C3–CH₃): share on C2 | σ(C3–CH₃): share on C3 | C2–CH₃ | C3–CH₃ | C2–C3–CH₃ angle |
+σ(C1–H) is hyperconjugation into C2. σ(C3–CH₃) is a three-centre bond at the start (C2, C3 and the bridging methyl carbon) that opens to an ordinary σ(C3–CH₃).
+
+| Point | s | σ(C1–H), hyperconjugation: share on C2 | σ(C3–CH₃), three-centre bond at the start: share on C2 | σ(C3–CH₃): share on C3 | C2–CH₃ | C3–CH₃ | C2–C3–CH₃ angle |
 |---|---|---|---|---|---|---|---|
 | Reactant end (frame 0) | −9.57 | 0.171 | 0.359 | 0.220 | 1.70 Å | 1.80 Å | 63° |
 | TS (frame 189; the C2–C3 rotation TS) | 0.00 | 0.040 | 0.033 | 0.543 | 2.42 Å | 1.56 Å | 107° |
@@ -60,12 +64,14 @@ For comparison, the hydrogen moves later. C2–H changes fastest at s +3.87 and 
 has 0.067 of its share on C2 at the reactant end and 0.050 at the TS; it then becomes σ(C2–H), with 0.534 on C2 at the
 product end.
 
-- **The start of this path is partly methyl-bridged.** At the reactant end the C3–CH₃ bonding pair has more of its
-  share on C2 (0.36) than on C3 (0.22). The methyl sits 1.70 Å from C2 and 1.80 Å from C3, and C2–C3 is 1.40 Å. This
-  is the flat methyl-shift region found on 2026-11-23. It is the strong end of σ(C–C) hyperconjugation, not ordinary
-  hyperconjugation.
-- **Answer to the open question (does hyperconjugation weaken near the TS?): on this path, yes.** Both orbitals lose
-  almost all of their share on C2 before the TS: from 0.36 and 0.17 to 0.03 and 0.04. Half of each loss is done by
+- **At the start of this path the C3–CH₃ pair is a three-centre bond.** At the reactant end it has more of its
+  share on C2 (0.36) than on C3 (0.22). The methyl sits 1.70 Å from C2 and 1.80 Å from C3, and C2–C3 is 1.40 Å: it
+  bridges C2 and C3, so the starting ion is not the open secondary cation of the textbook drawing. This is the flat
+  methyl-shift region found on 2026-11-23. (First written as "the strong end of σ(C–C) hyperconjugation"; named a
+  three-centre bond by J. Picione, 2026-11-26.)
+- **Answer to the open question (does hyperconjugation weaken near the TS?): on this path, yes.** The C1–H
+  hyperconjugation falls from 0.17 to 0.04 on C2 before the TS, and the three-centre C3–CH₃ bond opens (0.36 to 0.03
+  on C2). Half of each loss is done by
   s ≈ −7, well before the TS at s = 0 and long before the hydrogen moves. Over the same stretch the energy rises by
   16.0 kJ/mol (3.8 kcal/mol), from the reactant end to the TS. No other orbital visibly takes over until the hydrogen
   itself moves: the migrating C–H has only 0.05–0.08 on C2 up to the TS.

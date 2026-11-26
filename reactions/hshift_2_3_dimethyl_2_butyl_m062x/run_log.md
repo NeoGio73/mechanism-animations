@@ -2794,3 +2794,9 @@ Every ORCA job, its wall time, and what changed when a job failed. Times are wal
 | 2026-11-25 18:33 | `01_ts/smd_scheme/gas/M06-2X_ma-def2-TZVP/rotamer_h_perp/rotamer_h_perp` | `M062X D3ZERO ma-def2-TZVP def2/J RIJCOSX VeryTightSCF DefGrid3` | 46 s | E = -236.13458252 Eh | SMD-scheme check: gas-phase twin of 01_ts/diagnostics/M06-2X_ma-def2-TZVP/rotamer_h_perp/rotamer_h_perp.inp |
 | 2026-11-25 18:34 | `01_ts/smd_scheme/gas/M06-2X_ma-def2-TZVP/rotamer_h_plane/rotamer_h_plane` | `M062X D3ZERO ma-def2-TZVP def2/J RIJCOSX VeryTightSCF DefGrid3` | 46 s | E = -236.13455513 Eh | SMD-scheme check: gas-phase twin of 01_ts/diagnostics/M06-2X_ma-def2-TZVP/rotamer_h_plane/rotamer_h_plane.inp |
 | 2026-11-26 07:48 | `03_orbitals/` | — | — | — | Check of the expected list (J. Picione 2026-11-26; no ORCA job): written from the mechanism on 2026-11-10 (commit 673e45a, before any calculation). No delocalized orbital at either end; no other orbital changes its carriers (share > 0.15) at any of 543 frames; closest 0.147. Methyl C–H shares on the cationic carbon 0.09–0.12 at the ends, 0.04–0.07 at the TS, but the same kind of share on the non-cationic C3 reaches 0.15: not resolved by Mulliken shares. `03_orbitals/hyperconjugation.json`, docs/results/hshift_hyperconjugation.md. |
+
+## 2026-11-26 11:20 — card built from data on disk (no ORCA job)
+
+`card.md` written by `pipeline/card.py` at idle priority, one thread, from the finished folder. Card code fixed the same day: the barrier-comparison line and the reactant-complex line now use the DLPNO-CCSD(T) row (they had used the last row of the level table, B3LYP); the orbital comparison names only the six M06-2X reactions; above/below follows the sign; one-molecule sides no longer say that fragments drift apart.
+
+One-molecule card: barriers from `dimethylbutyl_cation` and from the reactant-end minimum, as in the results summary.

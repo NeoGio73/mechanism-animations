@@ -972,3 +972,9 @@ Every ORCA job, its wall time, and what changed when a job failed. Times are wal
 | 2026-11-25 18:46 | `01_ts/smd_scheme/gas/M06-2X_ma-def2-TZVP/hydroxide/hydroxide` | `M062X D3ZERO ma-def2-TZVP def2/J RIJCOSX VeryTightSCF DefGrid3` | 2 s | E = -75.79413258 Eh | SMD-scheme check: gas-phase twin of 01_ts/diagnostics/M06-2X_ma-def2-TZVP/hydroxide/hydroxide.inp |
 | 2026-11-25 18:46 | `01_ts/smd_scheme/gas/M06-2X_ma-def2-TZVP/bromide/bromide` | `M062X D3ZERO ma-def2-TZVP def2/J RIJCOSX VeryTightSCF DefGrid3` | 3 s | E = -2574.27743071 Eh | SMD-scheme check: gas-phase twin of 01_ts/diagnostics/M06-2X_ma-def2-TZVP/bromide/bromide.inp |
 | 2026-11-26 04:42 | — | — | — | — | SMD-scheme check (docs/results/smd_scheme_check.md): largest B - A 6.58 kJ/mol (SN2 reaction free energy), over the 2 kJ/mol limit. J. Picione 2026-11-26: scheme A kept in every table (consistent with paths, cards, videos); B - A in the SI (si_corrections entry 13) as the solvation-scheme uncertainty; no table changed. |
+
+## 2026-11-26 11:20 — card built from data on disk (no ORCA job)
+
+`card.md` written by `pipeline/card.py` at idle priority, one thread, from the finished folder. Card code fixed the same day: the barrier-comparison line and the reactant-complex line now use the DLPNO-CCSD(T) row (they had used the last row of the level table, B3LYP); the orbital comparison names only the six M06-2X reactions; above/below follows the sign; one-molecule sides no longer say that fragments drift apart.
+
+`curve_max_note` in card_notes.toml marked stale and commented out (written for the B3LYP-geometry path; not printed, since this path has no curve-maximum section).

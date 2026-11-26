@@ -34,7 +34,7 @@ Frames with a match below 0.7: 0
 | Documented change | Tracked orbital | Lowest overlap | Found? | Note |
 |---|---|---|---|---|
 | σ(C1–H), hyperconjugating into C2 → ordinary σ(C1–H) | 6 | 1.0 | yes | hyperconjugation into the cationic centre C2 withdrawn; not an extra arrow |
-| σ(C3–CH₃), hyperconjugating into C2 → ordinary σ(C3–CH₃) | 14 | 1.0 | yes | hyperconjugation into the cationic centre C2 withdrawn (at the path start the methyl partly bridges C2 and C3); not an extra arrow |
+| σ(C3–CH₃), three-centre bond with C2 at the start → ordinary σ(C3–CH₃) | 14 | 1.0 | yes | at the path start a three-centre bond: the methyl bridges C2 and C3 (J. Picione, 2026-11-26: not hyperconjugation); it opens to an ordinary bond before the TS; not an extra arrow |
 
 Orbitals that change but were neither expected nor documented: none
 Frames where any other orbital's atoms (share above 0.15) differ from its reactant-end atoms: 40–144

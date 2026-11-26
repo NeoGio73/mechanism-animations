@@ -16,7 +16,7 @@ Frame-to-frame overlap = |<orbital at frame k−1 | matched orbital at frame k>|
 |  |  | π(C1=C2) → π(C2=C3) | 0.716 | 189 | +0.50 |  |
 | hshift_3_methyl_2_butyl_m062x | 15 | σ(C3–H) → σ(C2–H) | 1.000 | 291 | +5.08 | 0 |
 |  |  | σ(C1–H), hyperconjugating into C2 → ordinary σ(C1–H) | 1.000 | 339 | +7.47 |  |
-|  |  | σ(C3–CH₃), hyperconjugating into C2 → ordinary σ(C3–CH₃) | 1.000 | 25 | -8.21 |  |
+|  |  | σ(C3–CH₃), three-centre bond with C2 at the start → ordinary σ(C3–CH₃) | 1.000 | 25 | -8.21 |  |
 | hshift_2_3_dimethyl_2_butyl_m062x | 18 | σ(C3–H) → σ(C2–H) (three-centre at the TS) | 1.000 | 272 | +0.44 | 0 |
 
 Lowest overlap over all tracked orbitals: sn2_hydroxide_bromomethane_m062x: 0.615 (frame 87); e2_ethoxide_2_bromopropane_m062x: 0.444 (frame 62); nucadd_cyanide_acetone_m062x: 1.000 (frame 234); da_butadiene_ethylene_m062x: 0.714 (frame 189); hshift_3_methyl_2_butyl_m062x: 1.000 (frame 291); hshift_2_3_dimethyl_2_butyl_m062x: 1.000 (frame 272).
