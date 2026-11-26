@@ -374,3 +374,37 @@ the files that hold the withdrawn output (kept, labelled not results) and the co
   involved in a swap.
 - **Code:** `pipeline/orbital_steps._check_expected` now also accepts the mirror image of the written pattern
   (all items, never mixed). `pipeline/mirror_display_check.py` performs the check.
+
+## 13. Solvation scheme for the DLPNO-CCSD(T) energies: scheme A kept; B − A given as an uncertainty (J. Picione, 2026-11-26)
+
+Not a correction: no number in any table changes. A check of how SMD enters the DLPNO-CCSD(T)/ma-def2-TZVP energies.
+
+- **Scheme A (in every table, card and video):** DLPNO-CCSD(T)/ma-def2-TZVP with SMD.
+- **Scheme B (check only):** gas-phase DLPNO-CCSD(T)/ma-def2-TZVP + [E(SMD) − E(gas)] at M06-2X/ma-def2-TZVP, at the
+  same geometries. Both schemes use the same working-level thermal corrections, reference species and 1 M standard
+  state. 80 gas-phase single points, 2026-11-25 (`pipeline/smd_scheme.py`; jobs in
+  `reactions/<reaction>/01_ts/smd_scheme/gas/`).
+- **B − A, kJ/mol (kcal/mol), 298.15 K:**
+
+| Reaction | ΔG‡ | ΔrG |
+|---|---|---|
+| SN2, HO⁻ + CH₃Br (water) | +3.0 (+0.7) | +6.6 (+1.6) |
+| E2, EtO⁻ + 2-bromopropane (ethanol) | +3.2 (+0.8) | +4.0 (+1.0) |
+| CN⁻ + acetone (water) | −1.2 (−0.3) | −0.1 (0.0) |
+| Diels–Alder, butadiene + ethylene | +0.5 (+0.1) | +0.6 (+0.2) |
+| 1,2-H shift, 3-methyl-2-butyl cation (DCM) | +0.3 (+0.1) | +0.3 (+0.1) |
+| 1,2-H shift, 2,3-dimethyl-2-butyl cation (DCM) | +0.3 (+0.1) | 0.0 (0.0) |
+
+- **Where the difference sits (per-species table in `docs/results/smd_scheme_check.md`):** the hydroxide and
+  ethoxide ions lie 6.6 and 4.9 kJ/mol (1.6 and 1.2 kcal/mol) lower in scheme B; bromide is the same in both
+  schemes (0.0 kJ/mol), and the neutral reactants and products shift by 1.1 kJ/mol or less. The SN2 and E2 transition
+  states shift by 4.3 and 2.7 kJ/mol, so the barriers change by less than the reaction free energies. In the cyanide
+  reaction the species shift by 1.2 (cyanide) to 6.6 kJ/mol (TS), including 4.2 kJ/mol for acetone, but the shifts
+  cancel to within 1.2 kJ/mol.
+- **Decision:** scheme A is kept, for consistency with the paths, cards and videos. The two reactions that start from
+  hydroxide or ethoxide carry an extra 3 to 7 kJ/mol (0.7 to 1.6 kcal/mol) of uncertainty from the solvation scheme;
+  the other four agree within 1.2 kJ/mol (0.3 kcal/mol).
+- **Scheme B is not uniformly closer to experiment:** it moves the SN2 barrier and reaction free energy away from the
+  measured values (by 3.0 and 6.6 kJ/mol), and the E2 barrier (by 3.2 kJ/mol) and the cyanide barrier (by 1.2 kJ/mol)
+  toward them; the cyanide reaction free energy moves by 0.1 kJ/mol. There is no measured E2 reaction free energy.
+- **Files:** `docs/results/smd_scheme_check.md` and `.json` (`pipeline/smd_scheme_report.py`).

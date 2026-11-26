@@ -16,9 +16,17 @@ Production numbers stay as they are; this is a sensitivity test on stationary po
 Scheduling (his order): behind the path single points, so that E2 is not delayed. `run` waits until every running
 reaction has its DLPNO-CCSD(T) path file and no single-point lane is left, then runs one test optimization (the
 largest minimum, alkoxide·(H2O)3 with three waters on O), estimates the job time of the whole test from it, and stops
-before the rest if that estimate is over 36 h (04_explicit_water/STOP_ESTIMATE.md).
+before the rest if that estimate is over the limit (04_explicit_water/STOP_ESTIMATE.md). The estimate is summed
+job time (s at 4 cores); two jobs run at a time, so the clock time is about half of it.
 
-Usage: python -X utf8 -m pipeline.explicit_water <rx> build | estimate | run [--now] | md
+J. Picione, 2026-11-26: limit 38 h (was 36 h; the 36.8 h estimate stopped the run on 2026-11-25 20:14); start at
+07:00; run in order of n (every n = 1 structure, then the n = 1 single points as soon as its structures are kept, then
+n = 2, then n = 3), so that the smaller clusters are complete if anything stops early. Not stopped at Friday 20:00
+(progress.md then says what is left and the new estimate); hard stop Saturday 2026-11-28 08:00 whatever is left
+(a running job is ended; it is not a result). Nothing starts after this test.
+
+Usage: python -X utf8 -m pipeline.explicit_water <rx> build | estimate | run [--now] [--not-before T] [--hard-stop T] | md
+  T as YYYY-MM-DDTHH:MM, local time
 Output: <rx>/04_explicit_water/ (starts/, opt/<species>_w<n>/<arr>/, sp/<level>/<species>_w<n>/, explicit_water.json/.md)
 """
 from __future__ import annotations
@@ -47,7 +55,7 @@ ARRANGEMENTS = {       # sites of the n waters
     "alkoxide": {1: ["O", "N"], 2: ["OO", "NN", "ON"], 3: ["OOO", "OON", "ONN"]},
 }
 TEST = ("alkoxide", 3, "OOO")
-LIMIT_H = 36.0
+LIMIT_H = 38.0          # J. Picione 2026-11-26 (36.0 before)
 PATH_RX = ["da_butadiene_ethylene_m062x", "e2_ethoxide_2_bromopropane_m062x",
            "hshift_2_3_dimethyl_2_butyl_m062x", "hshift_3_methyl_2_butyl_m062x"]
 DLPNO = "DLPNO-CCSD(T)_ma-def2-TZVP"
@@ -205,13 +213,15 @@ def ts_mode_check(rx: Reaction, wd: Path, name: str) -> dict:
             "water_share_of_mode": round(share_w, 3), "stretch_rates": rates, "accepted": bool(ok)}
 
 
-def opt_one(rx: Reaction, name: str, meta: dict) -> dict:
+def opt_one(rx: Reaction, name: str, meta: dict, watch=None) -> dict:
     sp = meta["species"]
     wd = rx.d(f"{SUB}/opt/{sp}_w{meta['n']}/{meta['arr']}")
     g = read_xyz(rx.root / SUB / "starts" / f"{name}.xyz")
     t0 = time.time()
-    r = orca.run(wd, name, _opt_input(rx, sp, g), rx.log, note=f"explicit-water test (J. Picione 2026-11-20): {name}")
-    row = {"name": name, **meta, "job": name, "wall_s": r.wall_s, "ok": bool(r.ok and r.opt_converged is not False)}
+    r = orca.run(wd, name, _opt_input(rx, sp, g), rx.log, note=f"explicit-water test (J. Picione 2026-11-20): {name}",
+                 watch=watch)
+    row = {"name": name, **meta, "job": name, "wall_s": r.wall_s,
+           "ok": bool(r.ok and r.opt_converged is not False and not r.stopped)}
     if row["ok"] and sp != "ts" and r.imaginary:
         # a minimum that stopped on a saddle point (a turned water): push along the mode and reoptimize once
         h = orca.read_hess(wd / f"{name}.hess")
@@ -221,9 +231,11 @@ def opt_one(rx: Reaction, name: str, meta: dict) -> dict:
         prev, name2 = r.imaginary, f"{name}_min"
         r = orca.run(wd, name2, _opt_input(rx, sp, gp), rx.log,
                      note=f"rerun: {name} stopped on a saddle point ({[round(f, 1) for f in prev]} cm-1); "
-                          "displaced 0.1 Å along that mode, same keywords")
+                          "displaced 0.1 Å along that mode, same keywords", watch=watch)
         row.update(job=name2, first_imaginary_cm=prev, wall_s=row["wall_s"] + r.wall_s,
-                   ok=bool(r.ok and r.opt_converged is not False))
+                   ok=bool(r.ok and r.opt_converged is not False and not r.stopped))
+    if r.stopped:
+        row["stopped"] = r.stopped
     if row["ok"]:
         row.update(E_eh=r.energy_eh, G_eh=r.gibbs_eh, imaginary_cm=r.imaginary)
         if sp == "ts":
@@ -238,13 +250,14 @@ def opt_one(rx: Reaction, name: str, meta: dict) -> dict:
     return row
 
 
-def sp_one(rx: Reaction, lv: dict, key: str, row: dict) -> float:
+def sp_one(rx: Reaction, lv: dict, key: str, row: dict, watch=None) -> float:
     g = read_xyz(rx.root / row["dir"] / f"{row['job']}.xyz")
     wd = rx.d(f"{SUB}/sp/{lv['label']}/{key}")
     inp = orca.make_input(f'{lv["method"]} CPCM({rx.cfg["solvent"]})', g, -1, 1, blocks=rx.solvent_block,
                           nprocs=rx.cfg["nprocs"], maxcore_mb=rx.cfg["maxcore_mb"])
-    r = orca.run(wd, key, inp, rx.log, note=f"explicit-water test: {lv['label']} single point on {row['job']}")
-    if not r.ok:
+    r = orca.run(wd, key, inp, rx.log, note=f"explicit-water test: {lv['label']} single point on {row['job']}",
+                 watch=watch)
+    if not r.ok or r.stopped:
         raise orca.OrcaError(f"{key} {lv['label']} failed; see {r.out}")
     return r.energy_eh, r.wall_s
 
@@ -301,8 +314,15 @@ def path_sp_done(root: Path) -> bool:
 
 
 # ------------------------------------------------------------------ main run
-def run(rx: Reaction, now: bool) -> None:
+def run(rx: Reaction, now: bool, not_before: str | None = None, hard_stop: str | None = None) -> None:
     root = rx.root.parents[1]
+    if not_before:
+        t0 = time.mktime(time.strptime(not_before, "%Y-%m-%dT%H:%M"))
+        print(f"{time.strftime('%Y-%m-%d %H:%M')} waiting until {not_before} (J. Picione 2026-11-26); "
+              f"limit {LIMIT_H:g} h, hard stop {hard_stop}", flush=True)
+        while time.time() < t0:
+            time.sleep(30)
+        print(f"{time.strftime('%Y-%m-%d %H:%M')} starting", flush=True)
     if not now:
         print(f"{time.strftime('%Y-%m-%d %H:%M')} waiting behind the path single points", flush=True)
         while not path_sp_done(root):
@@ -329,35 +349,131 @@ def run(rx: Reaction, now: bool) -> None:
         print("STOP: estimate over the limit", flush=True)
         return
 
-    todo = [n for n in man if n not in res["opt"]]
-    with ThreadPoolExecutor(max_workers=2) as ex:      # two 4-core jobs at a time, as the path lanes
-        for row in ex.map(lambda n: opt_one(rx, n, man[n]), todo):
-            res["opt"][row["name"]] = row
-            _write_json(out_json, res)
-            print(f"{time.strftime('%H:%M')} {row['name']}: {row['wall_s']:.0f} s, usable {row['usable']}", flush=True)
-
-    # lowest G per species and n among the usable structures
-    keep = {}
-    for sp in ARRANGEMENTS:
-        for n in (1, 2, 3):
-            rows = [r for r in res["opt"].values() if r["species"] == sp and r["n"] == n and r.get("usable")]
-            if not rows:
-                raise RuntimeError(f"no usable {sp}·(H2O){n}")
-            keep[f"{sp}_w{n}"] = min(rows, key=lambda r: r["G_eh"])["name"]
-    res["kept"] = keep
-    _write_json(out_json, res)
-
+    if stop.exists():                                   # the 2026-11-25 stop note moves aside (kept)
+        stop.rename(stop.with_name("STOP_ESTIMATE_2026-11-25.md"))
+    hard = time.mktime(time.strptime(hard_stop, "%Y-%m-%dT%H:%M")) if hard_stop else None
+    past = lambda: hard is not None and time.time() >= hard
+    watch = (lambda: f"hard stop {hard_stop} (J. Picione 2026-11-26)" if past() else None) if hard else None
+    res.setdefault("kept", {})
     res.setdefault("sp", {})
-    jobs = [(lv, key) for lv in rx.cfg["diagnostic_levels"] for key in keep]
-    jobs = [(lv, key) for lv, key in jobs if key not in res["sp"].get(lv["label"], {})]
-    with ThreadPoolExecutor(max_workers=2) as ex:
-        for (lv, key), (e, w) in zip(jobs, ex.map(lambda j: sp_one(rx, j[0], j[1], res["opt"][keep[j[1]]]), jobs)):
-            res["sp"].setdefault(lv["label"], {})[key] = {"E_eh": e, "wall_s": w}
-            _write_json(out_json, res)
-    analyse(rx, res)
-    _write_json(out_json, res)
-    write_md(rx, res)
-    print(f"{time.strftime('%Y-%m-%d %H:%M')} done", flush=True)
+    res.setdefault("not_kept", {})
+    res["order"] = "by n (J. Picione 2026-11-26)"
+
+    def opt_job(name):
+        return None if past() else opt_one(rx, name, man[name], watch)
+
+    def sp_job(j):
+        if past():
+            return None
+        try:
+            return sp_one(rx, j[0], j[1], res["opt"][res["kept"][j[1]]], watch)
+        except orca.OrcaError:
+            if past():
+                return None
+            raise
+
+    for n in (1, 2, 3):
+        todo = [k for k, m in man.items() if m["n"] == n and k not in res["opt"]]
+        print(f"{time.strftime('%Y-%m-%d %H:%M')} n = {n}: {len(todo)} optimizations", flush=True)
+        with ThreadPoolExecutor(max_workers=2) as ex:      # two 4-core jobs at a time, as the path lanes
+            for row in ex.map(opt_job, todo):
+                if row is None:
+                    continue
+                if row.get("stopped"):
+                    res.setdefault("stopped_jobs", []).append(row["name"])
+                    progress(rx, res, man)
+                    continue
+                res["opt"][row["name"]] = row
+                _write_json(out_json, res)
+                progress(rx, res, man)
+                print(f"{time.strftime('%H:%M')} {row['name']}: {row['wall_s']:.0f} s, usable {row['usable']}", flush=True)
+        if past():
+            break
+        # lowest G per species among the usable structures of this n
+        for sp in ARRANGEMENTS:
+            rows = [r for r in res["opt"].values() if r["species"] == sp and r["n"] == n and r.get("usable")]
+            if rows:
+                res["kept"][f"{sp}_w{n}"] = min(rows, key=lambda r: r["G_eh"])["name"]
+            else:
+                res["not_kept"][f"{sp}_w{n}"] = "no usable structure"
+                print(f"{time.strftime('%H:%M')} no usable {sp}·(H2O){n}; n = {n} has no single points", flush=True)
+        _write_json(out_json, res)
+        keys = [f"{sp}_w{n}" for sp in ARRANGEMENTS]
+        if any(k not in res["kept"] for k in keys):
+            continue
+        jobs = [(lv, key) for lv in rx.cfg["diagnostic_levels"] for key in keys
+                if key not in res["sp"].get(lv["label"], {})]
+        print(f"{time.strftime('%Y-%m-%d %H:%M')} n = {n}: {len(jobs)} single points", flush=True)
+        with ThreadPoolExecutor(max_workers=2) as ex:
+            for (lv, key), out in zip(jobs, ex.map(sp_job, jobs)):
+                if out is None:
+                    continue
+                e, w = out
+                res["sp"].setdefault(lv["label"], {})[key] = {"E_eh": e, "wall_s": w}
+                _write_json(out_json, res)
+                progress(rx, res, man)
+        if past():
+            break
+        analyse(rx, res)
+        _write_json(out_json, res)
+        write_md(rx, res)
+        progress(rx, res, man)
+        print(f"{time.strftime('%Y-%m-%d %H:%M')} n = {n} complete", flush=True)
+    progress(rx, res, man, final=True)
+    print(f"{time.strftime('%Y-%m-%d %H:%M')} " + ("stopped at the hard stop" if past() else "done")
+          + "; nothing else starts", flush=True)
+
+
+def _model_s(rx: Reaction, res: dict, man: dict) -> tuple:
+    """Model job seconds (as estimate()) per optimization and per single point (level, species_wn)."""
+    test = "_".join([TEST[0], f"w{TEST[1]}", TEST[2]])
+    t_ref, n_ref = res["opt"][test]["wall_s"], man[test]["atoms"]
+    bt = _bare_times(rx)
+    mo = {k: t_ref * (m["atoms"] / n_ref) ** 2.5 * (2.5 if m["species"] == "ts" else 1.0) for k, m in man.items()}
+    lvk = {"M06-2X_ma-def2-TZVP": "ts_tzvp", "B3LYP_ma-def2-TZVP": "ts_b3lyp", DLPNO: "ts_dlpno"}
+    ms = {}
+    for lv in rx.cfg["diagnostic_levels"]:
+        for sp in ARRANGEMENTS:
+            for n in (1, 2, 3):
+                na = {"cyanide": 2, "ts": 12, "alkoxide": 12}[sp] + 3 * n
+                ms[(lv["label"], f"{sp}_w{n}")] = bt.get(lvk.get(lv["label"], ""), 600) * (na / 12) ** 3
+    return mo, ms
+
+
+def progress(rx: Reaction, res: dict, man: dict, final: bool = False) -> None:
+    """04_explicit_water/progress.md/.json: what is done, what is left, and the remaining time: the model scaled by
+    the measured / model ratio of the jobs already done (optimizations and single points separately)."""
+    test = "_".join([TEST[0], f"w{TEST[1]}", TEST[2]])
+    mo, ms = _model_s(rx, res, man)
+    done_o = [k for k in res["opt"] if k != test]
+    left_o = [k for k in man if k not in res["opt"]]
+    ro = (sum(res["opt"][k]["wall_s"] for k in done_o) / sum(mo[k] for k in done_o)) if done_o else 1.0
+    done_s = [(lv, k) for lv, d in res.get("sp", {}).items() for k in d]
+    all_s = [(lv["label"], f"{sp}_w{n}") for n in (1, 2, 3) for lv in rx.cfg["diagnostic_levels"] for sp in ARRANGEMENTS]
+    left_s = [j for j in all_s if j not in done_s]
+    rs_ = (sum(res["sp"][lv][k]["wall_s"] for lv, k in done_s) / sum(ms[j] for j in done_s)) if done_s else 1.0
+    job_h = (sum(mo[k] for k in left_o) * ro + sum(ms[j] for j in left_s) * rs_) / 3600
+    per_n = {n: {"opt_done": sum(1 for k in res["opt"] if man[k]["n"] == n),
+                 "opt_all": sum(1 for m in man.values() if m["n"] == n),
+                 "sp_done": sum(1 for lv, k in done_s if k.endswith(f"_w{n}")),
+                 "sp_all": 3 * len(rx.cfg["diagnostic_levels"])} for n in (1, 2, 3)}
+    p = {"time": time.strftime("%Y-%m-%d %H:%M"), "final": final, "per_n": per_n,
+         "left_opt": left_o, "left_sp": [f"{lv} {k}" for lv, k in left_s],
+         "measured_over_model": {"opt": round(ro, 2), "sp": round(rs_, 2)},
+         "left_job_h": round(job_h, 1), "left_clock_h_two_lanes": round(job_h / 2, 1),
+         "stopped_jobs": res.get("stopped_jobs", []), "not_kept": res.get("not_kept", {})}
+    _write_json(rx.root / SUB / "progress.json", p)
+    L = [f"# Explicit-water test: progress at {p['time']}" + (" (final)" if final else ""), "",
+         "| n | optimizations done | single points done |", "|---|---|---|"]
+    L += [f"| {n} | {v['opt_done']} of {v['opt_all']} | {v['sp_done']} of {v['sp_all']} |" for n, v in per_n.items()]
+    L += ["", f"Left: {len(left_o)} optimizations, {len(left_s)} single points. New estimate of what is left: "
+          f"{p['left_job_h']} h job time, about {p['left_clock_h_two_lanes']} h on the clock (two jobs at a time); "
+          f"jobs so far took {ro:.2f}× (optimizations) and {rs_:.2f}× (single points) the model time."]
+    if p["stopped_jobs"]:
+        L += ["", "Ended at the hard stop (not results): " + ", ".join(p["stopped_jobs"])]
+    if p["not_kept"]:
+        L += ["", "No usable structure: " + ", ".join(p["not_kept"])]
+    (rx.root / SUB / "progress.md").write_text("\n".join(L) + "\n", encoding="utf-8")
 
 
 # ------------------------------------------------------------------ analysis
@@ -375,6 +491,10 @@ def analyse(rx: Reaction, res: dict) -> None:
         Eac = frag[ac]["E_eh"] if lv == wl else diag["energies_eh"][lv][ac]
         Gac = Eac + frag[ac]["G_eh"] - frag[ac]["E_eh"]
         for n in (1, 2, 3):
+            keys = [f"{sp}_w{n}" for sp in ARRANGEMENTS]
+            if not all(k in res.get("kept", {}) and (lv == wl or k in res["sp"].get(lv, {})) for k in keys):
+                row[f"n{n}"] = None                     # not complete (order by n; J. Picione 2026-11-26)
+                continue
             G = {}
             for sp in ARRANGEMENTS:
                 o = res["opt"][res["kept"][f"{sp}_w{n}"]]
@@ -385,8 +505,9 @@ def analyse(rx: Reaction, res: dict) -> None:
         rows.append(row)
     res["rows"] = rows
     res["measured"] = {"dG_TS_1M_kJ": 69.6, "dG_rxn_1M_kJ": 10.5}
+    done_n = [n for n in (1, 2, 3) if rows and rows[-1].get(f"n{n}")]
     res["contacts"] = {k: contacts(rx.root / res["opt"][v]["dir"] / f"{res['opt'][v]['job']}.xyz", k.split('_w')[0])
-                       for k, v in res["kept"].items()}
+                       for k, v in res["kept"].items() if int(k.split("_w")[1]) in done_n}
 
 
 def contacts(xyz: Path, sp: str) -> list[dict]:
@@ -415,7 +536,7 @@ def _lv(label: str) -> str:
 
 def write_md(rx: Reaction, res: dict) -> None:
     f = lambda x: f"{x:+.1f} ({x / 4.184:+.1f})" if x is not None else "–"
-    g = lambda x: f"{x:.1f} ({x / 4.184:.1f})"
+    g = lambda x: f"{x:.1f} ({x / 4.184:.1f})" if x is not None else "–"
     L = ["Sensitivity test only: every other number in this summary stays on SMD water without explicit waters. "
          "Cluster-continuum model: n = 1, 2, 3 explicit waters, the same n on both sides (CN⁻·(H₂O)n + acetone → "
          "TS·(H₂O)n → alkoxide·(H₂O)n), all in SMD water; lowest-G arrangement for each species and n (working level); "
@@ -424,11 +545,14 @@ def write_md(rx: Reaction, res: dict) -> None:
         L += [f"**{title}:**", "", "| Level | n = 0 (production) | n = 1 | n = 2 | n = 3 |", "|---|---|---|---|---|"]
         for r in res["rows"]:
             L.append(f"| {_lv(r['level'])} | " + " | ".join(
-                (g if key == "dG_TS_1M_kJ" else f)(r[k][key]) for k in ("n0", "n1", "n2", "n3")) + " |")
+                (g if key == "dG_TS_1M_kJ" else f)(r[k][key] if r.get(k) else None)
+                for k in ("n0", "n1", "n2", "n3")) + " |")
         L += [f"| Measured | {(g if key == 'dG_TS_1M_kJ' else f)(meas)} | | | |", ""]
     L += ["**Lowest structures and their hydrogen bonds** (H···X and O(water)···X, Å):", "",
           "| Structure | Kept arrangement | Water → acceptor: H···X / O···X |", "|---|---|---|"]
     for k, v in res["kept"].items():
+        if k not in res["contacts"]:
+            continue
         o = res["opt"][v]
         c = "; ".join(f"{x['water']} → {x['to']}: {x['H_X_A']:.2f} / {x['O_X_A']:.2f}" for x in res["contacts"][k])
         extra = ""
@@ -452,7 +576,9 @@ def main() -> None:
     elif cmd == "estimate":
         print(json.dumps(estimate(rx, None), indent=1))
     elif cmd == "run":
-        run(rx, "--now" in sys.argv[3:])
+        a = sys.argv[3:]
+        opt = lambda f: a[a.index(f) + 1] if f in a else None
+        run(rx, "--now" in a, opt("--not-before"), opt("--hard-stop"))
     elif cmd == "md":
         write_md(rx, _read_json(rx.root / SUB / "explicit_water.json"))
 
