@@ -178,6 +178,7 @@ def card(rx: Reaction) -> None:
                    + ". See 03_orbitals/tracking_log.md; awaiting J. Picione's decision.")
         changing = moved
     min_ovl = min(t["min_overlap"] for t in changing) if changing else None
+    orb_base = orb_txt                   # the one-page card carries its own plain-words note (orbital_card_note)
     if notes.get("orbital_note"):
         orb_txt += ". " + notes["orbital_note"]
     # J. Picione, 2026-11-26: changes found by tracking that the textbook drawing does not show have their own row,
@@ -335,58 +336,141 @@ def card(rx: Reaction) -> None:
               "- `run_log.md`: every ORCA job, wall time, and reruns", "",
               "Content CC-BY 4.0; code MIT. Computed with ORCA 6.1.1.", ""]
     if notes.get("layout") == "split":      # one-page card + card_details.md (J. Picione, 2026-11-26; E2 first)
-        _write_split(rx, notes, ts, meta, man, tr, diag, changing, min_ovl, cm, auto, orb_txt, doc_txt)
+        ctx = {"one": one, **({"z_nm": z_nm, "s_nm": s_nm, "o_nm": o_nm} if one else {})}
+        _write_split(rx, notes, ts, meta, man, tr, diag, changing, min_ovl, cm,
+                     [a.replace(FORTUITOUS, "") for a in auto], orb_base, doc_txt, ctx)
         return
     (r / "card.md").write_text("\n".join(lines), encoding="utf-8")
     print("\n".join(lines))
 
 
-def _write_split(rx, notes, ts, meta, man, tr, diag, changing, min_ovl, cm, auto, orb_txt, doc_txt) -> None:
+WHAT_THIS_IS = ("The minimum-energy path, not a recording of how one molecule moves: no temperature, no vibration, "
+                "no solvent molecules.")          # J. Picione, 2026-11-26
+
+
+def _true_minus(text: str) -> str:
+    """A hyphen before a digit that is not part of a name (M06-2X, 2-bromopropane, p. 2-38) is a minus sign."""
+    import re
+    return re.sub(r"(?<![\w)\]])-(?=\d)", "−", text)
+
+
+def _sgn(x: float) -> str:
+    """'+5.5 kJ/mol (+1.3 kcal/mol)'; a kcal/mol value below 0.05 keeps two decimals (−0.05, not −0.0)."""
+    k = x * KJ_TO_KCAL
+    return f"{x:+.1f} kJ/mol ({k:+.2f} kcal/mol)" if 0 < abs(k) < 0.05 else f"{x:+.1f} kJ/mol ({k:+.1f} kcal/mol)"
+
+
+def _pm(v: float, e: float) -> str:
+    return f"{v:.1f} ± {e:.1f} kJ/mol ({v * KJ_TO_KCAL:.1f} ± {e * KJ_TO_KCAL:.1f} kcal/mol)"
+
+
+def _details_edit(text: str, notes: dict) -> str:
+    """card_notes.toml [[details_edit]] old/new: removes project history from texts read from other files (the
+    gas-phase report). Each `old` must occur exactly once, so an edit can never silently miss or hit twice."""
+    for e in notes.get("details_edit", []):
+        n = text.count(e["old"])
+        if n != 1:
+            raise ValueError(f"details_edit: {n} matches for {e['old'][:60]!r}")
+        text = text.replace(e["old"], e["new"])
+    return text
+
+
+def _write_split(rx, notes, ts, meta, man, tr, diag, changing, min_ovl, cm, auto, orb_base, doc_txt, ctx) -> None:
     """The card as one page a student reads (card.md) and the rest in card_details.md (J. Picione, 2026-11-26).
 
-    card.md: summary rows at the default curve's level (DLPNO-CCSD(T)/ma-def2-TZVP free energies, measured value and
-    difference beside them, zero = separated reactants at 1 M as in the manuscript), the orbitals, the approved
-    "along the path" line, and at most six limitations in plain words (card_notes.toml card_limitations). No dates,
-    names or project history on either page; that stays in card_notes.toml, run_log.md and docs/si_corrections.md.
-    Every number comes from the same files as the full card; none is recomputed."""
+    card.md: summary rows at the default curve's level (DLPNO-CCSD(T)/ma-def2-TZVP), each with the measured value and
+    the difference on the same zero where there is one; the orbitals; the approved "along the path" line; at most six
+    limitations in plain words (card_notes.toml card_limitations). Summary kinds (card_notes.toml `summary`):
+    "two" (two or more molecules: ΔG‡ and ΔrG from separated reactants, 298 K, 1 M), "gas" (Diels–Alder: the
+    measurement is in the gas phase, so the comparison row is the gas-phase Ea from the conformer mixture,
+    03_gas_phase/conformers.json, and the solution ΔG‡ is computed only), "low_T" (tertiary shift: ΔG‡ at the
+    temperature of the measurement, 01_ts/rotamer_zero.json, from the lowest cation conformer), "own" (secondary
+    shift: one barrier per form, pipeline/own_barrier.py). No dates, names or project history on either page; that
+    stays in card_notes.toml, run_log.md and docs/si_corrections.md. Every number comes from the same files as the
+    full card, the results summary or the files named here; none is recomputed from ORCA output."""
     from .steps import level_name
     r = rx.root
-    sg = lambda x: f"{x:+.1f} kJ/mol ({x / 4.184:+.1f} kcal/mol)"
+    one = ctx.get("one")
     sol = rx.cfg["solvent"]
     work = level_name(rx.cfg["method"])
     lab = {lv["label"]: level_name(lv["method"]) for lv in rx.cfg.get("diagnostic_levels", [])}
     dflt = man.get("default_curve", "working")
     cc = next(row for row in diag["rows"] if row["level"] == dflt)
     cc_name = lab[dflt]
-    zero = notes.get("summary_zero", "from separated reactants, 298 K, 1 M")
+    kind = notes.get("summary", "own" if one and one.get("own") else "one" if one else "two")
     ms = notes.get("summary_measured") or {}
     lim = notes.get("card_limitations", [])
     if len(lim) > 6:
         raise ValueError("card_limitations: at most six on the one-page card")
-    mtxt = lambda key, val: (f"; measured {fmt_kj(ms[key])}, {ms['label']}; computed − measured {sg(val - ms[key])}"
+    mtxt = lambda key, val: (f"; measured {fmt_kj(ms[key])}, {ms.get(key.replace('kJ', 'label'), ms['label'])}; "
+                             f"computed − measured {_sgn(val - ms[key])}"
                              if ms.get(key) is not None else "; no measured value")
     course = notes.get("course_mapping", "")
     course = "" if "__" in course else course
+    level_txt = (f"Geometries, reaction path and orbitals: {work}, with the SMD model of {sol}. Energies (the default "
+                 f"curve in the viewer and video): {cc_name} single points on those geometries, SMD {sol}; thermal "
+                 f"corrections from {work} frequencies.")
+    if kind == "gas":
+        level_txt += (f" Comparison with the gas-phase measurement: separate gas-phase geometries and frequencies at "
+                      f"{work}, {cc_name} single points.")
+    # ---------------------------------------------------------------- summary rows
+    if kind == "two":
+        zero = notes.get("summary_zero", "from separated reactants, 298 K, 1 M")
+        summ = [f"| Free energy of activation, ΔG‡ ({zero}) | **{fmt_kj(cc['dG_TS_vs_separated_1M_kJ'])}** at "
+                f"{cc_name}{mtxt('dG_TS_kJ', cc['dG_TS_vs_separated_1M_kJ'])} |",
+                f"| Reaction free energy, ΔrG ({zero}) | {fmt_kj(cc['dG_reaction_1M_kJ'])} at {cc_name}"
+                f"{mtxt('dG_reaction_kJ', cc['dG_reaction_1M_kJ'])} |"]
+    elif kind == "gas":
+        conf = _read_json(r / "03_gas_phase/conformers.json")
+        g = next(x for x in conf["rows"] if x["level"] == dflt)["mixture"]
+        x = conf["experiment"]
+        zero = notes.get("summary_zero", "from separated reactants, 298 K, 1 M")
+        summ = [f"| Activation energy, Ea ({notes['gas_label']}) | **{fmt_kj(g['Ea_kJ'])}** at {cc_name}; measured "
+                f"{_pm(x['Ea_kJ'], x['Ea_err_kJ'])}, {notes['gas_measured_label']}; computed − measured "
+                f"{_sgn(g['Ea_minus_exp_kJ'])} |",
+                f"| Free energy of activation in {sol}, ΔG‡ ({zero}) | {fmt_kj(cc['dG_TS_vs_separated_1M_kJ'])} at "
+                f"{cc_name}; computed only (the measurement is in the gas phase) |",
+                f"| Reaction free energy in {sol}, ΔrG ({zero}) | {fmt_kj(cc['dG_reaction_1M_kJ'])} at {cc_name}; "
+                "no measured value |"]
+    elif kind == "low_T":
+        rz = _read_json(r / "01_ts/rotamer_zero.json")
+        x = rz["experiment"]
+        g = rz["by_temperature"][f"{float(x['T_K'])}"]["levels"][dflt]["dG_ts_kJ"]
+        z = notes["summary_zero"]
+        summ = [f"| Free energy of activation at {x['T_K']:.0f} K, ΔG‡ ({z}) | **{fmt_kj(g)}** at {cc_name}; measured "
+                f"{_pm(x['dG_kJ'], x['err_kJ'])}, {ms['label']}; computed − measured {_sgn(g - x['dG_kJ'])} |",
+                f"| Free energy of activation at 298 K, ΔG‡ (same zero) | {fmt_kj(cc['dG_TS_vs_separated_1M_kJ'])} at "
+                f"{cc_name}; computed only |",
+                f"| Reaction free energy, ΔrG | {fmt_kj(cc['dG_reaction_1M_kJ'])}: {notes['reaction_note']} |"]
+    elif kind == "own":
+        summ = [f"| Free energy of activation, ΔG‡ (298 K) | **{fmt_kj(cc['dG_TS_vs_complex_kJ'])}** for the path "
+                f"shown, from {ctx['s_nm']}; {fmt_kj(cc['own_dG'])} for {ctx['o_nm']}; both at {cc_name} |",
+                f"| Reaction free energy, ΔrG (298 K) | {fmt_kj(cc['dG_reaction_1M_kJ'])} at {cc_name}, from "
+                f"{ctx['z_nm']} |"]
+    else:
+        raise ValueError(f"summary kind {kind!r}")
+    summ += [f"| {row['label']} | {row['text']} |" for row in notes.get("summary_rows", [])]
+    orb_card = (orb_base + (". Localized orbitals (IBOs), followed frame to frame" if orb_base.endswith(")") else
+                            " (localized orbitals, IBOs, followed frame to frame)")
+                + (". " + notes["orbital_card_note"] if notes.get("orbital_card_note") else ""))
     card = [
         f"# {rx.cfg['title']}", "",
         "| | |", "|---|---|",
         f"| Reaction | {rx.cfg['equation']}, in {sol} |",
-        f"| Level of theory | Geometries, reaction path and orbitals: {work}, with the SMD model of {sol}. Energies "
-        f"(the default curve in the viewer and video): {cc_name} single points on those geometries, SMD {sol}; "
-        f"thermal corrections from {work} frequencies. |",
-        f"| Free energy of activation, ΔG‡ ({zero}) | **{fmt_kj(cc['dG_TS_vs_separated_1M_kJ'])}** at {cc_name}"
-        f"{mtxt('dG_TS_kJ', cc['dG_TS_vs_separated_1M_kJ'])} |",
-        f"| Reaction free energy, ΔrG ({zero}) | {fmt_kj(cc['dG_reaction_1M_kJ'])} at {cc_name}"
-        f"{mtxt('dG_reaction_kJ', cc['dG_reaction_1M_kJ'])} |",
+        f"| Level of theory | {level_txt} |",
+        *summ,
         f"| Transition state | one imaginary frequency, {abs(ts['imaginary_cm'][0]):.0f}i cm⁻¹; {_ts_geometry(rx, ts)} |",
-        f"| Orbitals that change | {orb_txt} (localized orbitals, IBOs, followed frame to frame) |",
-        *([f"| Also found (not arrows) | {doc_txt} |"] if doc_txt else []),
+        f"| Orbitals that change | {orb_card} |",
+        *([f"| Also found by tracking (not arrows) | {doc_txt} |"] if doc_txt else []),
         *([f"| Along the path | {notes['mechanism_note']} |"] if notes.get("mechanism_note") else []),
-        "| What this is | The minimum-energy path, not a trajectory: no temperature, no motion, no solvent molecules |",
+        f"| What this is | {WHAT_THIS_IS} |",
         f"| Course mapping | {course} |", "",
         "## Limitations", "",
         *[f"{i}. {x}" for i, x in enumerate(lim, 1)], "",
-        "Energies at every level, how the measured value was derived, and technical notes: `card_details.md`.", "",
+        "Energies at every level, " + ("how the measured value was derived, " if notes.get("experimental_details")
+                                       else "the context for the missing measured value, "
+                                       if notes.get("context_details") else "")
+        + "and technical notes: `card_details.md`.", "",
         "Content CC-BY 4.0; code MIT. Computed with ORCA 6.1.1.", ""]
     # ---------------------------------------------------------------- details
     rows = [row for row in diag["rows"] if not row["level"].endswith("(protocol)")]   # same level as M06-2X/TZVP
@@ -395,25 +479,82 @@ def _write_split(rx, notes, ts, meta, man, tr, diag, changing, min_ovl, cm, auto
                       + (" (default curve)" if row["level"] == dflt else ""))
     f = lambda x: fmt_kj(x) if x is not None else "—"
     det = [f"# Card details: {rx.cfg['title']}", "",
-           f"## Energies at every level (same {work} geometries, SMD {sol})", "",
-           "| Level | ΔE‡ from separated reactants | ΔE‡ from the reactant complex | Reaction energy ΔrE "
-           "| ΔG‡ from separated reactants (298 K, 1 M) | ΔG‡ from the reactant complex (298 K) "
-           "| Reaction free energy ΔrG (298 K, 1 M) |", "|---|---|---|---|---|---|---|"]
-    for row in rows:
-        det.append("| " + " | ".join([nm(row), fmt_kj(row["dE_TS_vs_separated_kJ"]), fmt_kj(row["dE_TS_vs_complex_kJ"]),
-                                      fmt_kj(row["dE_reaction_kJ"]), f(row["dG_TS_vs_separated_1M_kJ"]),
-                                      f(row["dG_TS_vs_complex_kJ"]), f(row["dG_reaction_1M_kJ"])]) + " |")
-    if ms.get("dG_TS_kJ") is not None:
-        det.append(f"| **Measured**, {ms['label']} | — | — | — | {f(ms.get('dG_TS_kJ'))} | — | "
-                   f"{f(ms.get('dG_reaction_kJ'))} |")
-    det += ["", f"ΔG adds the {work} thermal corrections (298.15 K, quasi-RRHO) to each level's electronic energies, "
-            "and the 1 atm → 1 M standard-state correction for steps that change the number of molecules; the "
-            "reactant complex → TS step needs none.", ""]
+           f"## Energies at every level (same {work} geometries, SMD {sol})", ""]
+    if kind == "own":
+        s_nm, o_nm, z_nm = ctx["s_nm"], ctx["o_nm"], ctx["z_nm"]
+        det += [f"| Level | ΔE‡, path shown (from {s_nm}) | ΔG‡ (298 K), path shown | ΔE‡, {o_nm} | ΔG‡ (298 K), "
+                f"{o_nm} | Reaction energy ΔrE, from {z_nm} | Reaction free energy ΔrG (298 K) |",
+                "|---|---|---|---|---|---|---|"]
+        det += ["| " + " | ".join([nm(row), fmt_kj(row["dE_TS_vs_complex_kJ"]), fmt_kj(row["dG_TS_vs_complex_kJ"]),
+                                   fmt_kj(row["own_dE"]), fmt_kj(row["own_dG"]), fmt_kj(row["dE_reaction_kJ"]),
+                                   fmt_kj(row["dG_reaction_1M_kJ"])]) + " |" for row in rows]
+    elif one:
+        z_nm, s_nm = ctx["z_nm"], ctx["s_nm"]
+        det += [f"| Level | ΔE‡ from {z_nm} | ΔE‡ from {s_nm} | Reaction energy ΔrE | ΔG‡ from {z_nm} (298 K) "
+                f"| ΔG‡ from {s_nm} (298 K) | Reaction free energy ΔrG (298 K) |", "|---|---|---|---|---|---|---|"]
+        det += ["| " + " | ".join([nm(row), fmt_kj(row["dE_TS_vs_separated_kJ"]), fmt_kj(row["dE_TS_vs_complex_kJ"]),
+                                   fmt_kj(row["dE_reaction_kJ"]), f(row["dG_TS_vs_separated_1M_kJ"]),
+                                   f(row["dG_TS_vs_complex_kJ"]), f(row["dG_reaction_1M_kJ"])]) + " |" for row in rows]
+    else:
+        det += ["| Level | ΔE‡ from separated reactants | ΔE‡ from the reactant complex | Reaction energy ΔrE "
+                "| ΔG‡ from separated reactants (298 K, 1 M) | ΔG‡ from the reactant complex (298 K) "
+                "| Reaction free energy ΔrG (298 K, 1 M) |", "|---|---|---|---|---|---|---|"]
+        det += ["| " + " | ".join([nm(row), fmt_kj(row["dE_TS_vs_separated_kJ"]), fmt_kj(row["dE_TS_vs_complex_kJ"]),
+                                   fmt_kj(row["dE_reaction_kJ"]), f(row["dG_TS_vs_separated_1M_kJ"]),
+                                   f(row["dG_TS_vs_complex_kJ"]), f(row["dG_reaction_1M_kJ"])]) + " |" for row in rows]
+        if kind == "two" and ms.get("dG_TS_kJ") is not None:
+            det.append(f"| **Measured** | — | — | — | {f(ms.get('dG_TS_kJ'))} | — | {f(ms.get('dG_reaction_kJ'))} |")
+    det += ["", (f"ΔG adds the {work} thermal corrections (298.15 K, quasi-RRHO) to each level's electronic energies; "
+                 "there is one molecule throughout, so no standard-state correction applies." if one else
+                 f"ΔG adds the {work} thermal corrections (298.15 K, quasi-RRHO) to each level's electronic energies, "
+                 "and the 1 atm → 1 M standard-state correction for steps that change the number of molecules; the "
+                 "reactant complex → TS step needs none."), ""]
+    if kind == "two" and ms.get("dG_TS_kJ") is not None:
+        det += [f"Measured ΔG‡: {ms['label']}"
+                + (f"; measured ΔrG: {ms.get('dG_reaction_label', ms['label'])}" if ms.get("dG_reaction_kJ")
+                   is not None else "") + ".", "",
+                "## Computed − measured", ""]
+        both = ms.get("dG_reaction_kJ") is not None
+        det += (["| Level | ΔG‡ from separated reactants | Reaction free energy ΔrG |", "|---|---|---|"] if both else
+                ["| Level | ΔG‡ from separated reactants |", "|---|---|"])
+        for row in rows:
+            a, b = row["dG_TS_vs_separated_1M_kJ"], row["dG_reaction_1M_kJ"]
+            det.append(f"| {nm(row)} | {_sgn(a - ms['dG_TS_kJ'])} |"
+                       + (f" {_sgn(b - ms['dG_reaction_kJ'])} |" if both else ""))
+        det.append("")
+        er = ms.get("dG_reverse_kJ")        # product → TS, first order, no standard state
+        if er is not None:
+            det += ["## Reverse barrier: product → TS (ΔG‡, 298 K)", "",
+                    "| Level | ΔG‡(reverse) = ΔG‡ − ΔrG | Computed − measured |", "|---|---|---|"]
+            det += [f"| {nm(row)} | {fmt_kj(row['dG_TS_vs_separated_1M_kJ'] - row['dG_reaction_1M_kJ'])} | "
+                    f"{_sgn(row['dG_TS_vs_separated_1M_kJ'] - row['dG_reaction_1M_kJ'] - er)} |" for row in rows]
+            det += [f"| **Measured** ({ms['dG_reverse_label']}) | {fmt_kj(er)} | — |", "",
+                    "The reverse step is first order, so it needs no standard-state correction; its error equals the "
+                    "barrier error minus the reaction-free-energy error.", ""]
+    if kind == "low_T":
+        T = f"{float(x['T_K'])}"
+        det += [f"## Comparison with the measurement at {x['T_K']:.0f} K", "",
+                f"ΔG‡ at {x['T_K']:.0f} K, {notes['summary_zero']} (`01_ts/rotamer_zero.json`; same thermal model "
+                f"as at 298.15 K). Measured: {_pm(x['dG_kJ'], x['err_kJ'])}, {ms['label']}.", "",
+                f"| Level | ΔG‡ ({x['T_K']:.0f} K) | Computed − measured |", "|---|---|---|"]
+        for row in rows:
+            key = "working" if row["level"].endswith("(working)") else row["level"]
+            gv = rz["by_temperature"][T]["levels"][key]["dG_ts_kJ"]
+            det.append(f"| {nm(row)} | {fmt_kj(gv)} | {_sgn(gv - x['dG_kJ'])} |")
+        det.append("")
     if cm:
-        sec = _curve_max_section(cm, None)
+        sec = _curve_max_section(dict(cm, exp_label="Measured"), None)
+        sec = [ln.replace("| **Measured** |", f"| **Measured**, {ms['label']} |") if ms.get("label") else ln
+               for ln in sec]
         det += [ln.replace("### ", "## ").replace(cm["level"], lab.get(dflt, cm["level"])) for ln in sec]
+    gp = r / "03_gas_phase/gas_phase.md"
+    if kind == "gas" and gp.exists():
+        det += ["## Comparison with the gas-phase experiment", "", _details_edit(gp.read_text(encoding="utf-8").strip(),
+                                                                                 notes), ""]
     if notes.get("experimental_details"):
         det += ["## The measured value: source and derivation", "", notes["experimental_details"], ""]
+    if notes.get("context_details"):
+        det += ["## Measured value", "", notes["context_details"], ""]
     rot = _display_rotation_text(rx)
     det += ["## Path and orbitals", "",
             f"- IRC frames: {meta['n_frames']}; reaction coordinate s from {meta['s_min']:.2f} to {meta['s_max']:.2f} "
@@ -422,6 +563,7 @@ def _write_split(rx, notes, ts, meta, man, tr, diag, changing, min_ovl, cm, auto
             f"- Orbitals: IBOs (IAO/IBO localization, occupied valence), isovalue ±{man['isovalue']} "
             f"{man['isovalue_units']}; tracked frame to frame by maximum overlap with fixed phase "
             f"({_overlap_text(rx, tr, man, changing, min_ovl)}); canonical HOMO/LUMO optional in the viewer.",
+            *([f"- Direction of the arrows: {notes['orbital_details']}"] if notes.get("orbital_details") else []),
             *([f"- Display rotation: {rot}."] if rot else []), "",
             "## Technical notes", "",
             *[f"- {x}" for x in auto], *[f"- {x}" for x in notes.get("details_notes", [])], "",
@@ -435,12 +577,15 @@ def _write_split(rx, notes, ts, meta, man, tr, diag, changing, min_ovl, cm, auto
             f"- `web/viewer/index.html?r={rx.cfg['id']}`: interactive viewer",
             "- `run_log.md`: every ORCA job and rerun", "",
             "Content CC-BY 4.0; code MIT. Computed with ORCA 6.1.1.", ""]
-    (r / "card.md").write_text("\n".join(card), encoding="utf-8")
-    (r / "card_details.md").write_text("\n".join(det), encoding="utf-8")
-    print("\n".join(card))
+    (r / "card.md").write_text(_true_minus("\n".join(card)), encoding="utf-8")
+    (r / "card_details.md").write_text(_true_minus("\n".join(det)), encoding="utf-8")
+    print(_true_minus("\n".join(card)))
 
 
 CURVE_MAX_MIN_KJ = 1.0      # J. Picione, 2026-11-11
+# full card only; the split card's limitation says why the agreement should not be over-read (J. Picione, 2026-11-26)
+FORTUITOUS = (" The experimental value is given above; the close agreement of the coupled-cluster number is partly "
+              "fortuitous (implicit solvent, working-level geometries and thermal corrections).")
 
 
 def _curve_max(man: dict, diag: dict | None, notes: dict) -> dict | None:
@@ -465,11 +610,12 @@ def _curve_max(man: dict, diag: dict | None, notes: dict) -> dict | None:
     irc = lambda i: man["frames"][i].get("irc_frame", i)
     mb = notes.get("measured_barrier") or {}
     xr = notes.get("experiment_row") or {}
-    exp = mb.get("dG_kJ", xr.get("dG_TS_vs_separated_1M_kJ"))
+    sm = notes.get("summary_measured") or {}           # the split card's measured value (E2)
+    exp = mb.get("dG_kJ", xr.get("dG_TS_vs_separated_1M_kJ", sm.get("dG_TS_kJ")))
     g_ts = row["dG_TS_vs_separated_1M_kJ"]
     return {"level": key.replace("_", "/"), "ts_irc": irc(ts), "max_irc": irc(k), "E_ts": E[ts],
             "E_max": E[k], "dE": d, "s_max": man["frames"][k]["s"], "dG_ts": g_ts, "dG_max": g_ts + d,
-            "exp": exp, "exp_label": mb.get("label", xr.get("label", "Experiment"))}
+            "exp": exp, "exp_label": mb.get("label", xr.get("label", sm.get("label", "Experiment")))}
 
 
 def _curve_max_section(cm: dict, note: str | None) -> list[str]:
@@ -671,9 +817,7 @@ def _auto_limitations(rx, tz, svp, ts, diag, tr, has_exp: bool = True, gas: bool
                       " The measured value is in the table above, with the differences below it."
                       if exp_dg is not None and abs(best["dG_TS_vs_separated_1M_kJ"] - exp_dg) > 4 else
                       "" if one else      # one molecule: the experiment section makes its own comparison
-                      " The experimental value is given above; the close agreement of the "
-                      "coupled-cluster number is partly fortuitous (implicit solvent, working-level "
-                      "geometries and thermal corrections)." if has_exp else ""))
+                      FORTUITOUS if has_exp else ""))
     rc_svp, rc_tz = svp["reactant_complex"], tz["reactant_complex"]
     _pos = lambda x: f"{fmt_kj(abs(x))} {'below' if x < 0 else 'above'}"     # sign in the word, not the number
     charged = any(s.get("smiles", "").count("-]") or s.get("smiles", "").count("+]")

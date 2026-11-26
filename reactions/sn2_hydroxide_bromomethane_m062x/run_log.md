@@ -978,3 +978,7 @@ Every ORCA job, its wall time, and what changed when a job failed. Times are wal
 `card.md` written by `pipeline/card.py` at idle priority, one thread, from the finished folder. Card code fixed the same day: the barrier-comparison line and the reactant-complex line now use the DLPNO-CCSD(T) row (they had used the last row of the level table, B3LYP); the orbital comparison names only the six M06-2X reactions; above/below follows the sign; one-molecule sides no longer say that fragments drift apart.
 
 `curve_max_note` in card_notes.toml marked stale and commented out (written for the B3LYP-geometry path; not printed, since this path has no curve-maximum section).
+
+## 2026-11-26 15:20 — one-page card and card_details.md (J. Picione, 2026-11-26)
+
+`card.md` (one page) and `card_details.md` rebuilt by `pipeline/card.py` from data on disk, idle priority, one thread (no ORCA job). Applies J. Picione's 2026-11-26 decision after reading the E2 sample: true minus signs; "What this is" in his wording; the coupled-cluster comparison line in his E2 pattern; at most six plain-word limitations; no dates, names or history on either page (history stays in card_notes.toml and here); no number changed. Summary rows: ΔG‡ and ΔrG with measured values and differences; solvation-scheme limitation (3.0 kJ/mol ΔG‡, 6.6 kJ/mol ΔrG, from docs/results/smd_scheme_check.md). Moved to card_details.md: IRC truncation notes, the M06-2X-versus-coupled-cluster note.

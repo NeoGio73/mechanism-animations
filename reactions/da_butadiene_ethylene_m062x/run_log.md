@@ -864,3 +864,7 @@ Every ORCA job, its wall time, and what changed when a job failed. Times are wal
 ## 2026-11-26 11:20 — card built from data on disk (no ORCA job)
 
 `card.md` written by `pipeline/card.py` at idle priority, one thread, from the finished folder. Card code fixed the same day: the barrier-comparison line and the reactant-complex line now use the DLPNO-CCSD(T) row (they had used the last row of the level table, B3LYP); the orbital comparison names only the six M06-2X reactions; above/below follows the sign; one-molecule sides no longer say that fragments drift apart.
+
+## 2026-11-26 15:20 — one-page card and card_details.md (J. Picione, 2026-11-26)
+
+`card.md` (one page) and `card_details.md` rebuilt by `pipeline/card.py` from data on disk, idle priority, one thread (no ORCA job). Applies J. Picione's 2026-11-26 decision after reading the E2 sample: true minus signs; "What this is" in his wording; the coupled-cluster comparison line in his E2 pattern; at most six plain-word limitations; no dates, names or history on either page (history stays in card_notes.toml and here); no number changed. Comparison row: gas-phase Ea from the conformer mixture (03_gas_phase/conformers.json), toluene ΔG‡ computed only; arrow direction, six mirror frames and the viewer's mirror switch in plain words. Gas-phase section copied into card_details.md with history removed by exact replacements (card_notes.toml details_edit). Moved to card_details.md: gas-phase details, reactant complex, product-side stop, canonical HOMO note.

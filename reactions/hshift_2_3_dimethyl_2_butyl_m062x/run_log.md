@@ -2800,3 +2800,7 @@ Every ORCA job, its wall time, and what changed when a job failed. Times are wal
 `card.md` written by `pipeline/card.py` at idle priority, one thread, from the finished folder. Card code fixed the same day: the barrier-comparison line and the reactant-complex line now use the DLPNO-CCSD(T) row (they had used the last row of the level table, B3LYP); the orbital comparison names only the six M06-2X reactions; above/below follows the sign; one-molecule sides no longer say that fragments drift apart.
 
 One-molecule card: barriers from `dimethylbutyl_cation` and from the reactant-end minimum, as in the results summary.
+
+## 2026-11-26 15:20 — one-page card and card_details.md (J. Picione, 2026-11-26)
+
+`card.md` (one page) and `card_details.md` rebuilt by `pipeline/card.py` from data on disk, idle priority, one thread (no ORCA job). Applies J. Picione's 2026-11-26 decision after reading the E2 sample: true minus signs; "What this is" in his wording; the coupled-cluster comparison line in his E2 pattern; at most six plain-word limitations; no dates, names or history on either page (history stays in card_notes.toml and here); no number changed. Comparison at 135 K from the lowest cation conformer (01_ts/rotamer_zero.json), with the flat-top sentence; 135 K table at every level in card_details.md (differences +4.1 and +13.4 kJ/mol are new arithmetic). Moved to card_details.md: bridged structure indistinguishable from the TS.
