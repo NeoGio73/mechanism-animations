@@ -105,7 +105,7 @@ Every input also has `%pal nprocs 4 end` (except as noted in Table 1), `%maxcore
 | SN2 | passes | 20.4° (frame 152, beyond zone) / 5.7° (frame 1) | reactant complex: +0.10 kJ/mol, 0.08 Å; opt +0.04 kJ/mol, 0.06 Å heavy atoms. The C–O distance differs by 0.12 Å, so the optimized structure became the official end | product complex: +0.23 kJ/mol, 0.03 Å; opt +0.01 kJ/mol, 0.002 Å: same minimum |
 | E2 | passes | 8.5° (frame 129) / 2.6° (frame 264) | reactant complex: +0.90 kJ/mol, 0.32 Å; opt −0.27 kJ/mol, 0.23 Å. The official end is the reached minimum; the last frame is +1.17 kJ/mol and 0.20 Å from it | product complex: +4.73 kJ/mol, 0.53 Å; opt −0.28 kJ/mol, 0.15 Å. The official end is the reached minimum; the last frame is +5.01 kJ/mol and 0.40 Å from it |
 | CN⁻ + acetone | passes | 11.4° (frame 157) / 15.1° (frame 76, beyond zone) | reactant complex: +0.94 kJ/mol, 0.25 Å; opt −0.07 kJ/mol, 0.11 Å: same minimum | product complex: −0.03 kJ/mol, 0.003 Å; opt −0.03 kJ/mol, 0.003 Å: same minimum |
-| Tertiary 1,2-H shift | flagged: the near-TS zone fails (median / 90th percentile 9.6° / 39.3° backward, 25.2° / 44.8° forward) | 54.2° (frame 1) / 75.4° (frame 1) | open cation: +1.47 kJ/mol, 0.26 Å; opt −0.06 kJ/mol, 0.009 Å: same minimum | bridged form: −0.003 kJ/mol, 0.004 Å; opt −0.002 kJ/mol, 0.001 Å: same minimum |
+| Tertiary 1,2-H shift | flagged: the near-TS zone fails (median / 90th percentile 9.6° / 39.3° backward, 25.2° / 44.8° forward); beyond \|s\| = 1 the backward (open) side fails the median narrowly, 5.74° / 10.18° (242 frames), and the forward side passes, 4.27° / 8.38° (108 frames) | 54.2° (frame 1) / 75.4° (frame 1) | open cation: +1.47 kJ/mol, 0.26 Å; opt −0.06 kJ/mol, 0.009 Å: same minimum | bridged form: −0.003 kJ/mol, 0.004 Å; opt −0.002 kJ/mol, 0.001 Å: same minimum |
 | Secondary 1,2-H shift | flagged: the near-TS zone fails (7.6° / 25.4° backward, 10.6° / 25.4° forward) | 61.9° (frame 1) / 66.9° (frame 1) | eclipsed form: −0.10 kJ/mol, 0.23 Å; opt −0.10 kJ/mol, 0.06 Å. Outside the energy limit, so the optimized structure became the official end | tertiary cation: +0.19 kJ/mol, 0.43 Å; opt +0.18 kJ/mol, 0.13 Å. The optimized structure became the official end |
 | Diels–Alder | passes | 17.2° (frame 177) / 39.8° (frame 119) | reactant complex: +0.33 kJ/mol, 0.18 Å; opt −0.30 kJ/mol, 0.25 Å. The optimized structure became the official end | product (cyclohexene): +0.01 kJ/mol, 0.002 Å; opt +0.004 kJ/mol, 0.001 Å: same minimum |
 
@@ -119,6 +119,16 @@ Every input also has `%pal nprocs 4 end` (except as noted in Table 1), `%maxcore
   analysis, all 70 frames of the six paths with an angle above 15° have an RMS gradient of 2.0 × 10⁻⁴ Eh/bohr or less
   (`docs/si_figures/angle_vs_gradient.md`): 30 lie near the flat hydride-shift TSs and 40 in the final approach to a
   minimum. The largest angles sit at the first frame from these TSs, where the gradient is near zero.
+- **Frames the angle check counts:** every interior frame of each side (the last frame of a side has no angle,
+  since the angle uses the steps on both sides of the frame), split at |s| = 1 bohr·amu½, except trailing frames at
+  the end minimum (|ΔE| < 0.005 kJ/mol from the previous frame and RMS gradient < 5 × 10⁻⁵ Eh/bohr; rule of
+  2026-11-14). Only two sides have such frames:
+  - Cyanide product side: frames 77–93 from the TS (17 frames, angles up to 117.0° at frame 77) are left out; the
+    counted zone beyond |s| = 1 is frames 21–76 (56 frames), largest 15.1° (frame 76). The 117° in SI entry 6 comes
+    from the angle-against-gradient plot, which shows every frame, these 17 included.
+  - Diels–Alder product side: frames 120–121 from the TS (2 frames, up to 89.1°) are left out.
+  - The tertiary backward side has none left out: its 242 frames beyond |s| = 1 run to the side's last interior frame
+    and include all 151 continued frames.
 - **Exceptions recorded in `irc_meta.json`:**
   - Tertiary, backward side: not ended by the stopping rule. It was accepted where the comparison runs were stopped
     (2026-11-16).
