@@ -2808,3 +2808,11 @@ One-molecule card: barriers from `dimethylbutyl_cation` and from the reactant-en
 ## 2026-11-27 01:40 — card wording (J. Picione, 2026-11-27)
 
 No ORCA job. `card.md` rebuilt: limitation 2 "That agreement should not be over-read" became "That difference should not be over-read either". No number changed.
+
+## 2026-11-27 05:14 — diagram labels, video re-rendered, product-end note (J. Picione, 2026-11-27)
+
+No ORCA job.
+- Labels (his wording, one ion, so no "separated"): `00_inputs/reaction.toml` now sets `zero_label = "the cation (reactant = product)"` and `product_label = "the cation, hydrogen on C2"`; `pipeline/meshes.py` reads them (`_labels`, also used by a full mesh build) and the viewer footnote reference follows the zero label. `python -m pipeline <rx> relabel` changed only these keys in `04_meshes/manifest.json`; meshes.bin untouched.
+- Video: `pipeline <rx> video` (hidden, GPU) 05:14:19–05:18:05 (3 min 46 s), then, after the inset label placement was fixed (labels kept inside the plot; with the product line on the zero line, the zero label goes at the reactant end and the product label at the product end), `video_composite` from the same frames 05:24:19–05:25:08 (no GPU). The other four videos' insets are pixel-identical under the new placement code, so they were not touched.
+- Figure still `docs/paper_figures/hshift_2_3_dimethyl_2_butyl.png` rebuilt from the same panel renders (labels from the data; product line now drawn).
+- `02_irc/endpoints.json`: a `note` field in `product_complex` saying that the computed half ends at the bridged form (tested by `end_check.md`) and the open cation is the end of the full degenerate path through the mirror half, the mirror image of the reactant end by construction. No value changed. Point closed in `docs/results/paper_tables.md`.

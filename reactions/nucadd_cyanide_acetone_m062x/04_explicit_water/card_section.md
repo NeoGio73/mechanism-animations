@@ -20,7 +20,9 @@ A sensitivity test only: every other number on this card is without added waters
 | B3LYP/ma-def2-TZVP | +45.8 (+11.0) | +43.8 (+10.5) | +35.6 (+8.5) | +27.0 (+6.4) | +16.4 (+3.9) |
 | Measured | +10.5 (+2.5) | | | | |
 
-**Why the n = 3 values changed.** The n = 3 cyanide·water cluster with two waters on N and one on C kept a small imaginary frequency after its first optimization (85i cm⁻¹, the free O–H hydrogen of one water), so at first it could not be used and the cluster with waters on C was the reference. One more optimization, started along that mode with the same settings, reached a true minimum (lowest frequency 17.4 cm⁻¹). It lies 7.8 kJ/mol (1.9 kcal/mol) below the earlier reference in working-level free energy (0.7 kJ/mol (0.2 kcal/mol) above it in electronic energy) and is now the n = 3 reactant. The last column keeps the earlier n = 3 values.
+**Reading.** At DLPNO-CCSD(T)/ma-def2-TZVP the added waters raise the barrier by 5.7 to 6.5 kJ/mol (1.4 to 1.6 kcal/mol) at every n (6.1, 6.5 and 5.7 kJ/mol for n = 1, 2, 3), further from the measured 69.6 kJ/mol, and lower the reaction free energy by 3.2, 11.7 and 21.7 kJ/mol (0.8, 2.8 and 5.2 kcal/mol) for n = 1, 2, 3, to +14.7 kJ/mol at n = 3, still above the measured +10.5 kJ/mol and not yet levelled off.
+
+The earlier n = 3 reference, cyanide·(H₂O)3 CCC (last column), was replaced because NNC, which still had an imaginary frequency (85i cm⁻¹) after its first optimization, became a true minimum (lowest frequency 17.4 cm⁻¹) after one more optimization with the same settings and lies 7.8 kJ/mol (1.9 kcal/mol) below CCC in working-level free energy.
 
 **Lowest structures and their hydrogen bonds** (H···X and O(water)···X, Å):
 

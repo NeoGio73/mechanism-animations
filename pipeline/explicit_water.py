@@ -25,7 +25,7 @@ n = 2, then n = 3), so that the smaller clusters are complete if anything stops 
 (progress.md then says what is left and the new estimate); hard stop Saturday 2026-11-28 08:00 whatever is left
 (a running job is ended; it is not a result). Nothing starts after this test.
 
-Usage: python -X utf8 -m pipeline.explicit_water <rx> build | estimate | run [--now] [--not-before T] [--hard-stop T] | md
+Usage: python -X utf8 -m pipeline.explicit_water <rx> build | estimate | run [--now] [--not-before T] [--hard-stop T] | md | retry | freqs | card_section
   T as YYYY-MM-DDTHH:MM, local time
 Output: <rx>/04_explicit_water/ (starts/, opt/<species>_w<n>/<arr>/, sp/<level>/<species>_w<n>/, explicit_water.json/.md)
 """
@@ -555,6 +555,7 @@ def write_md(rx: Reaction, res: dict) -> None:
                                                           for k in ("n0", "n1", "n2", "n3")) + " |"
                      + (f" {fm(old[r['level']]['n3'][key])} |" if changed else ""))
         L += [f"| Measured | {fm(meas)} | | | |" + (" |" if changed else ""), ""]
+    L += [reading_sentence(res), ""]
     if rt:
         o_new = {k: res["opt"][k] for k in RETRY}
         L += ["**Retry of two cyanide·(H₂O)3 arrangements** (" + rt["rules"] + ")", ""]
@@ -564,10 +565,7 @@ def write_md(rx: Reaction, res: dict) -> None:
                   f"still not a minimum ({', '.join(f'{-x:.0f}i' for x in o.get('imaginary_cm') or [])} cm⁻¹), not used")
             L.append(f"- {k}: was {abs(b['imaginary_cm'][0]):.0f}i cm⁻¹; after the retry {st}.")
         if changed:
-            L += ["", f"The n = 3 reactant is now cyanide·(H₂O)3 {rt['kept_cyanide_w3'].split('_')[-1]}, the lowest "
-                  f"working-level free energy of all usable arrangements; it replaces {old_ref}, which was kept "
-                  "only because the two arrangements with water on both ends of cyanide still had an imaginary "
-                  "frequency. The last column keeps the earlier n = 3 values."]
+            L += ["", why_sentence(res)]
         elif rt.get("neither_minimum"):
             L += ["", "Neither became a minimum: the n = 3 values are lower bounds (the two unusable arrangements lie "
                   "5.7–7.2 kJ/mol below the kept one in working-level free energy)."]
@@ -684,6 +682,84 @@ def retry(rx: Reaction) -> None:
     print(f"{time.strftime('%Y-%m-%d %H:%M')} retry done; kept cyanide_w3 = {best}; nothing else starts", flush=True)
 
 
+# ---------------------------------------------- shared wording (J. Picione, 2026-11-27: the three files agree)
+DL = "DLPNO-CCSD(T)_ma-def2-TZVP"
+
+
+def _r1(x: float) -> float:
+    return float(f"{x:.1f}")
+
+
+def reading_sentence(res: dict) -> str:
+    """The one reading of the final table, from its rounded entries (same sentence in explicit_water.md,
+    card_section.md and SI entry 15)."""
+    r = next(x for x in res["rows"] if x["level"] == DL)
+    b = [_r1(r[f"n{i}"]["dG_TS_1M_kJ"]) - _r1(r["n0"]["dG_TS_1M_kJ"]) for i in (1, 2, 3)]
+    g = [_r1(r["n0"]["dG_rxn_1M_kJ"]) - _r1(r[f"n{i}"]["dG_rxn_1M_kJ"]) for i in (1, 2, 3)]
+    k = lambda v: f"{v[0] / 4.184:.1f}, {v[1] / 4.184:.1f} and {v[2] / 4.184:.1f}"
+    n3 = _r1(r["n3"]["dG_rxn_1M_kJ"])
+    return (f"**Reading.** At DLPNO-CCSD(T)/ma-def2-TZVP the added waters raise the barrier by {min(b):.1f} to "
+            f"{max(b):.1f} kJ/mol ({min(b) / 4.184:.1f} to {max(b) / 4.184:.1f} kcal/mol) at every n "
+            f"({b[0]:.1f}, {b[1]:.1f} and {b[2]:.1f} kJ/mol for n = 1, 2, 3), further from the measured 69.6 kJ/mol, "
+            f"and lower the "
+            f"reaction free energy by {g[0]:.1f}, {g[1]:.1f} and {g[2]:.1f} kJ/mol ({k(g)} kcal/mol) for n = 1, 2, 3, "
+            f"to {n3:+.1f} kJ/mol at n = 3, still above the measured +10.5 kJ/mol and not yet levelled off.")
+
+
+def why_sentence(res: dict) -> str:
+    """One sentence: why the earlier n = 3 reference was replaced."""
+    rt, o = res["retry"], res["opt"]
+    old, new = rt["before"]["kept"]["cyanide_w3"], rt["kept_cyanide_w3"]
+    first = abs(rt["before"]["opt"][new]["imaginary_cm"][0])
+    dG = (o[old]["G_eh"] - o[new]["G_eh"]) * 2625.49962
+    lo = res["lowest_freqs"][new]["lowest_cm"]
+    a, b = old.split("_")[-1], new.split("_")[-1]
+    return (f"The earlier n = 3 reference, cyanide·(H₂O)3 {a} (last column), was replaced because {b}, which still had "
+            f"an imaginary frequency ({first:.0f}i cm⁻¹) after its first optimization, became a true minimum (lowest "
+            f"frequency {lo:.1f} cm⁻¹) after one more optimization with the same settings and lies {dG:.1f} kJ/mol "
+            f"({dG / 4.184:.1f} kcal/mol) below {a} in working-level free energy.")
+
+
+def card_section(rx: Reaction) -> str:
+    """04_explicit_water/card_section.md, the section in card_details.md (no dates or names; card rule)."""
+    import re
+    EH, K = 2625.49962, 1 / 4.184
+    W = rx.root / SUB
+    e = _read_json(W / "explicit_water.json")
+    o, lf = e["opt"], e["lowest_freqs"]
+    md = (W / "explicit_water.md").read_text(encoding="utf-8")
+    energy = md.split("\n\n", 1)[1].split("\n\n**Reading.**", 1)[0]
+    hb = "**Lowest structures" + md.split("**Lowest structures", 1)[1].split("\n\n**Lowest frequency", 1)[0]
+    hb = re.sub(r" \(-(\d+i cm)", r" (\1", hb)
+    rel = lambda a, b: ((o[a]["E_eh"] - o[b]["E_eh"]) * EH, (o[a]["G_eh"] - o[b]["G_eh"]) * EH)
+    kj = lambda x: f"{x:.1f} kJ/mol ({x * K:.1f} kcal/mol)"
+    dE_cc, dG_cc = rel("cyanide_w2_CC", "cyanide_w2_NC")
+    dE_ncc, dG_ncc = rel("cyanide_w3_NCC", "cyanide_w3_NNC")
+    intro = ("A sensitivity test only: every other number on this card is without added waters. One to three water "
+             "molecules are placed around the ions, the same number on both sides (CN⁻·(H₂O)n + acetone → TS·(H₂O)n → "
+             "alkoxide·(H₂O)n), all in SMD water. For each species and n, the true minimum (or, for the transition "
+             "state, the structure with the reaction's imaginary mode) lowest in free energy at the working level is "
+             "kept; the other levels are single points on it, with working-level thermal corrections. 298.15 K, 1 M; "
+             "kJ/mol (kcal/mol).")
+    unusable = [
+        "- ts·(H₂O)1, water on N: not a transition state. It moved back to a loose complex of acetone and "
+        "cyanide·water (C···C 3.30 Å) with a residual 14i cm⁻¹ mode, overlap 0.06 with the reaction mode.",
+        f"- cyanide·(H₂O)2, both waters on C: one imaginary frequency left ({abs(lf['cyanide_w2_CC']['lowest_cm']):.0f}i "
+        f"cm⁻¹, the free O–H hydrogen of one water). It lies {kj(dE_cc)} above the kept arrangement in electronic "
+        f"energy and {kj(dG_cc)} above it in free energy, so it would not have been kept.",
+        f"- cyanide·(H₂O)3, one water on N and two on C: an imaginary frequency left after two optimizations "
+        f"({abs(lf['cyanide_w3_NCC']['lowest_cm']):.0f}i cm⁻¹). Not used; it lies {kj(-dE_ncc)} below the kept "
+        f"arrangement in electronic energy but {kj(dG_ncc)} above it in free energy, so it would not have been kept.",
+    ]
+    sec = "\n\n".join([intro, energy.strip(), reading_sentence(e), why_sentence(e), hb.strip(),
+                        f"**Arrangements not used** ({len(o)} tried, {sum(1 for r in o.values() if r.get('usable'))} "
+                        "usable):", "\n".join(unusable),
+                        "Files: `04_explicit_water/explicit_water.md` and `.json` (with the lowest frequency of every "
+                        "structure); jobs in `04_explicit_water/`."])
+    (W / "card_section.md").write_text(sec + "\n", encoding="utf-8")
+    return sec
+
+
 def main() -> None:
     rx = Reaction.load(Path(sys.argv[1]))
     cmd = sys.argv[2]
@@ -699,6 +775,8 @@ def main() -> None:
         write_md(rx, _read_json(rx.root / SUB / "explicit_water.json"))
     elif cmd == "retry":
         retry(rx)
+    elif cmd == "card_section":
+        print(card_section(rx))
     elif cmd == "freqs":
         print(json.dumps(lowest_freqs(rx, _read_json(rx.root / SUB / "explicit_water.json")), indent=1))
 

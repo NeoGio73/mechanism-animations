@@ -78,6 +78,27 @@ def _product_kJ(rx: Reaction, label: str | None, fallback):
     return kj(e_end - z["E_zero_eh"])
 
 
+def _labels(rx: Reaction, M: dict) -> None:
+    """Diagram line labels set in the reaction's own reaction.toml (zero_label, product_label; J. Picione,
+    2026-11-27: one-ion ends are not "separated"). The defaults above stay as they are."""
+    for k in ("zero_label", "product_label"):
+        if k in rx.cfg:
+            M[k] = rx.cfg[k]
+    if "zero_label" in rx.cfg:          # the viewer footnote ("relative to ...") names the same zero
+        M["energy_reference"] = rx.cfg["zero_label"]
+
+
+def relabel(rx: Reaction, out_sub: str = "04_meshes") -> None:
+    """Apply the reaction.toml labels to an existing manifest.json without rebuilding meshes.bin (labels only)."""
+    p = rx.d(out_sub) / "manifest.json"
+    M = _read_json(p)
+    keys = ("zero_label", "product_label", "energy_reference")
+    before = {k: M.get(k) for k in keys}
+    _labels(rx, M)
+    _write_json(p, M)
+    print(f"{rx.cfg['id']}: {before} -> { {k: M.get(k) for k in keys} }")
+
+
 def _display_zero(rx: Reaction, M: dict) -> None:
     """Diagram zero and labels (J. Picione, 2026-11-23). Every curve is an electronic energy (ΔE), labelled so.
     reaction.toml [display_zero] at = "path_start": the zero of every curve is moved to the path-start minimum
@@ -88,6 +109,7 @@ def _display_zero(rx: Reaction, M: dict) -> None:
     M["energy_axis_label"] = "ΔE (electronic energy)"
     M.setdefault("zero_label", "separated reactants")
     M.setdefault("product_label", "separated products")
+    _labels(rx, M)
     cfg = rx.cfg.get("display_zero")
     if not cfg:
         return

@@ -9,13 +9,15 @@
   body { margin: 0; background: #fff; color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
   .wrap { max-width: 860px; margin: 0 auto; padding: 24px 16px 40px; }
   h1 { font-size: 1.6rem; margin: 0 0 6px; }
-  p.lead { color: var(--muted); margin: 0 0 22px; }
+  p.lead { color: var(--muted); margin: 0 0 12px; }
+  p.levels { font-size: .9rem; margin: 0 0 22px; }
   ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
   li a { display: block; padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; color: inherit; text-decoration: none; }
   li a:hover, li a:focus-visible { border-color: var(--accent); }
   .eq { color: var(--muted); }
   .meta { font-size: .85rem; color: var(--muted); margin-top: 4px; }
   footer { margin-top: 28px; font-size: .85rem; color: var(--muted); }
+  footer p { margin: 0 0 6px; }
 </style>
 </head>
 <body>
@@ -24,19 +26,33 @@
   <p class="lead">Textbook organic mechanisms computed from first principles: transition state and
     intrinsic reaction coordinate from DFT with implicit solvent, intrinsic bond orbitals tracked
     along the path. Drag along the energy diagram to move the molecule.</p>
+  <p class="levels">Every reaction: path, geometries and orbitals at M06-2X-D3(0)/ma-def2-SVP;
+    energies (the default curve) from DLPNO-CCSD(T)/ma-def2-TZVP single points on that path;
+    SMD solvent as listed.</p>
   <ul id="list"></ul>
-  <footer>Content CC-BY 4.0, code MIT. Each reaction page links to a card with the level of theory,
-    barrier and known limitations.</footer>
+  <footer>
+    <p>Content CC-BY 4.0, code MIT. Each reaction page links to a card with the level of theory,
+      barrier and known limitations.</p>
+    <p>Earlier pilot runs are kept in the repository for the record.</p>
+  </footer>
 </div>
 <script>
-  // One entry per reaction; the viewer is data-driven (viewer/index.html?r=<id>).
+  // One entry per production reaction; the viewer is data-driven (viewer/index.html?r=<folder>,
+  // here the production folders reactions/<id>_m062x).
+  const LEVELS = 'M06-2X-D3(0)/ma-def2-SVP path · DLPNO-CCSD(T)/ma-def2-TZVP energies';
   const REACTIONS = [
-    { id: 'sn2_hydroxide_bromomethane', title: 'SN2, hydroxide + bromomethane',
-      eq: 'HO⁻ + CH₃Br → CH₃OH + Br⁻', meta: 'B3LYP-D3(BJ)/def2-SVP, SMD water' },
-    { id: 'e2_ethoxide_2_bromopropane', title: 'E2, ethoxide + 2-bromopropane',
-      eq: 'EtO⁻ + (CH₃)₂CHBr → CH₂=CHCH₃ + EtOH + Br⁻', meta: 'B3LYP-D3(BJ)/ma-def2-SVP, SMD ethanol' },
-    { id: 'da_butadiene_ethylene', title: 'Diels–Alder, butadiene + ethylene',
-      eq: 'CH₂=CH–CH=CH₂ + CH₂=CH₂ → cyclohexene', meta: 'B3LYP-D3(BJ)/ma-def2-SVP, SMD toluene' },
+    { id: 'sn2_hydroxide_bromomethane_m062x', title: 'SN2, hydroxide + bromomethane',
+      eq: 'HO⁻ + CH₃Br → CH₃OH + Br⁻', solvent: 'SMD water' },
+    { id: 'e2_ethoxide_2_bromopropane_m062x', title: 'E2, ethoxide + 2-bromopropane',
+      eq: 'EtO⁻ + (CH₃)₂CHBr → CH₂=CHCH₃ + EtOH + Br⁻', solvent: 'SMD ethanol' },
+    { id: 'nucadd_cyanide_acetone_m062x', title: 'Nucleophilic addition, cyanide + acetone',
+      eq: 'N≡C⁻ + (CH₃)₂C=O → (CH₃)₂C(O⁻)C≡N', solvent: 'SMD water' },
+    { id: 'hshift_2_3_dimethyl_2_butyl_m062x', title: '1,2-Hydride shift, 2,3-dimethyl-2-butyl cation (degenerate)',
+      eq: '(CH₃)₂C⁺–CH(CH₃)₂ → (CH₃)₂CH–C⁺(CH₃)₂', solvent: 'SMD dichloromethane' },
+    { id: 'hshift_3_methyl_2_butyl_m062x', title: '1,2-Hydride shift, 3-methyl-2-butyl cation → 2-methyl-2-butyl cation',
+      eq: 'CH₃CH⁺CH(CH₃)₂ → CH₃CH₂C⁺(CH₃)₂', solvent: 'SMD dichloromethane' },
+    { id: 'da_butadiene_ethylene_m062x', title: 'Diels–Alder, butadiene + ethylene',
+      eq: 'CH₂=CH–CH=CH₂ + CH₂=CH₂ → cyclohexene', solvent: 'SMD toluene' },
   ];
   const ul = document.getElementById('list');
   for (const r of REACTIONS) {
@@ -44,7 +60,7 @@
     li.innerHTML = `<a href="viewer/index.html?r=${r.id}"><strong></strong> <span class="eq"></span><div class="meta"></div></a>`;
     li.querySelector('strong').textContent = r.title;
     li.querySelector('.eq').textContent = '· ' + r.eq;
-    li.querySelector('.meta').textContent = r.meta;
+    li.querySelector('.meta').textContent = `${LEVELS}, ${r.solvent}`;
     ul.appendChild(li);
   }
 </script>

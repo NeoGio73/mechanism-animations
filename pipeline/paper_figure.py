@@ -101,7 +101,22 @@ def render(rx, M, rows) -> dict:
             st["orbital_keys"] = ps[0]["keys"]
         if setup:
             st["setup"] = setup                    # same camera scale as the first group
-        (odir / "figure_settings.json").write_text(json.dumps(st, indent=1), encoding="utf-8")
+        sp, txt = odir / "figure_settings.json", json.dumps(st, indent=1)
+        mesh_mtime = (rx.root / ps[0]["meshes"] / "meshes.bin").stat().st_mtime
+        pjp = odir / "projection.json"
+        reuse = (sp.exists() and sp.read_text(encoding="utf-8") == txt and pjp.exists()
+                 and pjp.stat().st_mtime > mesh_mtime
+                 and all((odir / f"{p['name']}.png").exists() for p in ps))
+        if reuse:      # same meshes and settings: the panels are unchanged, only the layout is redrawn
+            print(f"panels {g}: reused (settings and meshes unchanged)", flush=True)
+            pj = json.loads(pjp.read_text(encoding="utf-8"))
+            setup = setup or pj.pop("_setup")
+            pj.pop("_setup", None)
+            for k, v in pj.items():
+                v["png"] = str(odir / f"{k}.png")
+            proj.update(pj)
+            continue
+        sp.write_text(txt, encoding="utf-8")
         log = odir / "blender_figure.log"
         with open(log, "w") as fh:
             r = subprocess.run([str(BLENDER), "-b", "--factory-startup", "--python",
@@ -222,8 +237,6 @@ def compose(rx, M, rows, proj) -> Path:
     ax.axhline(0, color="#9aa4b1", lw=0.6, ls="--")
     ep = M.get("E_separated_products_kJ")
     ep = curve.get("E_separated_products_kJ", ep)
-    if rid == "hshift_2_3_dimethyl_2_butyl":   # one ion, degenerate shift: the zero is the cation (reactant = product)
-        ep = None
     if ep is not None:
         ax.axhline(ep, color="#9aa4b1", lw=0.6, ls=":")
     marks = {}
@@ -265,16 +278,17 @@ def compose(rx, M, rows, proj) -> Path:
     lo, hi = min(np.nanmin(E), ep if ep is not None else np.nanmin(E)), max(np.nanmax(E), 0)
     ax.set_ylim(lo - 0.08 * (hi - lo), hi + 0.16 * (hi - lo))
     ax.spines["top"].set_visible(False)
-    zl = M.get("zero_label", "separated reactants")
-    if rid == "hshift_2_3_dimethyl_2_butyl":
-        zl = "2,3-dimethyl-2-butyl cation (reactant = product)"
+    zl = M.get("zero_label", "separated reactants")   # labels from the reaction's data (reaction.toml, manifest)
     lvl = curve["label"].replace(" single points on the same path", "")
     ax.set_title(f"Electronic energy ΔE relative to {zl}: {lvl}",
                  fontsize=MIN_PT, loc="left", color="#3b4654")
-    _line_label(fig, ax, s[ok], E[ok], 0.0, zl, prefer="right")
+    # product line on the zero line (one ion, degenerate shift): zero label at the reactant end, product label at
+    # the product end (as in the video)
+    same = ep is not None and abs(ep) < 0.03 * span
+    _line_label(fig, ax, s[ok], E[ok], 0.0, zl, prefer="left" if same else "right")
     if ep is not None:
-        pl = "alkoxide (the product, one ion)" if rid == "nucadd_cyanide_acetone" else M.get("product_label", "separated products")
-        _line_label(fig, ax, s[ok], E[ok], ep, pl, prefer="left")
+        pl = M.get("product_label", "separated products")
+        _line_label(fig, ax, s[ok], E[ok], ep, pl, prefer="right" if same else "left")
     fig.canvas.draw()
     small = [(t.get_text(), t.get_fontsize()) for t in fig.findobj(matplotlib.text.Text)
              if t.get_text().strip() and t.get_visible() and t.get_fontsize() < MIN_PT]
@@ -302,7 +316,7 @@ def caption(rx, M, rows, out: Path) -> None:
          f"isovalue ±{M['isovalue']} {M['isovalue_units']}, dark = + phase, light = − phase, drawn at "
          f"{ORB_ALPHA:.0%} opacity (video and viewer 60 %); the same meshes as the viewer and video. Dashed, drawn over "
          "the orbitals: bonds forming or breaking. Bottom: electronic energy ΔE relative to "
-         f"{'the cation (reactant = product)' if rid == 'hshift_2_3_dimethyl_2_butyl' else M.get('zero_label', 'separated reactants')}, "
+         f"{M.get('zero_label', 'separated reactants')}, "
          f"{curve['label']} (the default curve), against the "
          f"mass-weighted reaction coordinate s; red points mark the panels. TS imaginary frequency "
          f"{abs(M['imaginary_frequency_cm']):.0f}i cm⁻¹."]

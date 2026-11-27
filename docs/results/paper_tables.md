@@ -123,10 +123,12 @@ Every input also has `%pal nprocs 4 end` (except as noted in Table 1), `%maxcore
   - Tertiary, backward side: not ended by the stopping rule. It was accepted where the comparison runs were stopped
     (2026-11-16).
   - Diels–Alder, forward side: ended on "energy increased" and accepted as complete (2026-11-14).
-- **Open point (tertiary product end):**
-  - The degenerate path uses only 7 frames on the bridged side, frames 0–6; the rest is the mirror half.
-  - `end_check.md` compares that end with the bridged form (shown above), while `endpoints.json` lists the forward end
-    as the open cation, 0.71 Å away.
-  - Which comparison the manuscript should quote is J. Picione's choice. The table shows the end check.
+- **Tertiary product end (closed, J. Picione 2026-11-27):**
+  - The two files do not conflict. The computed half of the degenerate path ends at the bridged form (7 frames on
+    that side, frames 0–6), and `end_check.md` tests that end; this is the comparison in the table.
+  - The open cation in `endpoints.json` (0.71 Å from the last frame) is the end of the full degenerate path, reached
+    through the mirror half: the far end is the mirror image of the reactant end by construction. `endpoints.json`
+    now says so in a note field; no value in it changed.
+  - The manuscript quotes the end check as the table shows it.
 - **Diels–Alder reactant end:** the first Opt Freq had an imaginary frequency (92.7i cm⁻¹) and was redone with
   TightOpt (`run_log.md`). `endpoints.json` gives 0.60 Å from the last frame to the official end structure.

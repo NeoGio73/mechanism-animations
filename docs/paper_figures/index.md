@@ -25,12 +25,10 @@ labelled. The default-level energy curve (DLPNO-CCSD(T)/ma-def2-TZVP) is below t
 
 Notes:
 - The energy curve is below the frames, not beside them, so that the four panels keep the full 190 mm width.
-- Labels differ from the viewer and video in two places:
-  - **Tertiary shift:** the zero is labelled as the cation (reactant = product), and there is no "separated products"
-    line. The viewer and video data still say "separated reactants" and "separated products" for this one-ion
-    degenerate shift.
-  - **Cyanide:** the product line is labelled as the alkoxide, a single ion; the viewer and video say "separated
-    products".
+- The energy-line labels are the same as in the viewer and video, set in each reaction's `00_inputs/reaction.toml`
+  (`zero_label`, `product_label`). Two reactions end in one ion, so they have no "separated" wording:
+  - **Tertiary shift:** the zero is "the cation (reactant = product)" and the product line "the cation, hydrogen on C2".
+  - **Cyanide:** the product line is "alkoxide (the product, one ion)".
 - **Diels–Alder "as computed" panels:** these use a separate mesh build without the display-only mirror frames, in
   `reactions/da_butadiene_ethylene_m062x/05_render/paper_figure/meshes_computed/`. The viewer data in `04_meshes/`
   were not changed.

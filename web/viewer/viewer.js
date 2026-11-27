@@ -280,7 +280,7 @@ function setupDiagram() {
   eArr = curve.E_kJ;
   sel.value = curve.key;
   drawDiagram();
-  new ResizeObserver(drawDiagram).observe(svg);
+  new ResizeObserver(() => drawDiagram()).observe(svg);
 }
 
 function niceStep(range, n = 6) {
@@ -288,7 +288,7 @@ function niceStep(range, n = 6) {
   return [1, 2, 2.5, 5, 10].map((m) => m * p).find((v) => v >= raw);
 }
 
-function drawDiagram() {
+function drawDiagram(roomBelow = false) {
   const W = svg.clientWidth || 800, H = svg.clientHeight || 230;
   const narrow = W < 560;           // phones: shorter labels, tighter margins
   D.ml = narrow ? 44 : 58; D.mr = narrow ? 40 : 64;
@@ -303,7 +303,8 @@ function drawDiagram() {
   const refs = curve.reference_lines || [];     // e.g. a lower conformer that does not reach this path
   const eMin = Math.min(...eDone, ep, ...refs.map((r) => r.E_kJ)), eMax = Math.max(...eDone, 0);
   const pad = (eMax - eMin) * 0.12;
-  const y0 = eMin - pad, y1 = eMax + pad * 1.8;
+  // roomBelow: second pass, when a line label could not be placed without covering another label (see below)
+  const y0 = eMin - pad * (roomBelow ? 2.6 : 1), y1 = eMax + pad * 1.8;
   xs = (s) => D.ml + (s - s0) / (s1 - s0) * (W - D.ml - D.mr);
   ys = (e) => H - D.mb - (e - y0) / (y1 - y0) * (H - D.mt - D.mb);
   const add = (tag, attrs, text) => {
@@ -340,16 +341,17 @@ function drawDiagram() {
   add('line', { x1: D.ml, x2: W - D.mr, y1: ys(0), y2: ys(0), class: 'ref' });
   let p = awayFrom(0);
   const zl = M.zero_label || 'separated reactants', pl = M.product_label || 'separated products';
-  add('text', { x: p.x, y: ys(0) - 4, 'text-anchor': p.a }, narrow ? zl.split(' ')[0] : `${zl}, 0`);
+  const zText = add('text', { x: p.x, y: ys(0) - 4, 'text-anchor': p.a }, narrow ? zl.split(' ')[0] : `${zl}, 0`);
   add('line', { x1: D.ml, x2: W - D.mr, y1: ys(ep), y2: ys(ep), class: 'ref' });
   p = awayFrom(ep);
-  add('text', { x: p.x, y: ys(ep) - 4, 'text-anchor': p.a },
-      narrow ? pl.split(' ')[0] : `${pl}, ${ep.toFixed(0)}`.replace('-', '−'));
+  const plText = add('text', { x: p.x, y: ys(ep) - 4, 'text-anchor': p.a },
+      narrow ? pl.split(' ')[0] : `${pl}, ${(Math.abs(ep) < 0.05 ? 0 : ep).toFixed(0)}`.replace('-', '−'));
+  const refTexts = [];
   for (const r of refs) {
     add('line', { x1: D.ml, x2: W - D.mr, y1: ys(r.E_kJ), y2: ys(r.E_kJ), class: 'ref', 'stroke-dasharray': '6 4' });
     p = awayFrom(r.E_kJ);
-    add('text', { x: p.x, y: ys(r.E_kJ) + 12, 'text-anchor': p.a },
-        narrow ? `${r.E_kJ.toFixed(0)}`.replace('-', '−') : `${r.label}, ${r.E_kJ.toFixed(1)}`.replace('-', '−'));
+    refTexts.push(add('text', { x: p.x, y: ys(r.E_kJ) + 12, 'text-anchor': p.a },
+        narrow ? `${r.E_kJ.toFixed(0)}`.replace('-', '−') : `${r.label}, ${r.E_kJ.toFixed(1)}`.replace('-', '−')));
   }
   add('path', { d: done.map((k, j) => `${j ? 'L' : 'M'}${xs(sArr[k]).toFixed(1)},${ys(eArr[k]).toFixed(1)}`).join(''), class: 'curve' });
   done.forEach((k) => add('circle', { cx: xs(sArr[k]), cy: ys(eArr[k]), r: 1.8, class: 'pt' }));
@@ -358,11 +360,33 @@ function drawDiagram() {
   const ts = eArr.indexOf(Math.max(...eDone));
   const lab = (k, text, dy, anchor) => add('text', { x: xs(sArr[k]), y: ys(eArr[k]) + dy, 'text-anchor': anchor, class: 'lab' },
     (narrow ? `${text} ${eArr[k].toFixed(0)}` : `${text} ${eArr[k].toFixed(1)} (${(eArr[k] / KCAL).toFixed(1)})`).replaceAll('-', '−'));
-  lab(ts, ts === M.ts_frame ? 'TS' : narrow ? 'max' : 'highest point', -10, 'middle');
+  const topText = lab(ts, ts === M.ts_frame ? 'TS' : narrow ? 'max' : 'highest point', -10, 'middle');
   // the path ends are minima only at the working level; at other levels call them path ends
   const working = curve.key === 'working';
-  lab(0, narrow ? 'RC' : working ? 'reactant complex' : 'reactant end of path', 18, 'start');
-  lab(N - 1, narrow ? 'PC' : working ? 'product complex' : 'product end of path', -8, 'end');
+  const ends = [lab(0, narrow ? 'RC' : working ? 'reactant complex' : 'reactant end of path', 18, 'start'),
+                lab(N - 1, narrow ? 'PC' : working ? 'product complex' : 'product end of path', -8, 'end')];
+  // line labels (zero, product) must not cover a path-end label, a reference-line label or each other. Each is
+  // first put above its line at the end away from the curve; if that covers another label, the diagram is redrawn
+  // with room below the lowest line, and the label goes to the first free place of: above / below its line at that
+  // end, below / above it at the other end (2026-11-27: the one-ion labels of the tertiary shift and cyanide).
+  const meets = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height - 3 && b.y < a.y + a.height - 3;
+  const inside = (a) => a.y >= D.mt - 2 && a.y + a.height <= H - D.mb + 1;
+  const fixed = [...ends, topText, ...refTexts];
+  for (const [node, e] of [[zText, 0], [plText, ep]]) {
+    const pa = awayFrom(e), pb = pa.a === 'end' ? { x: D.ml + 4, a: 'start' } : { x: W - D.mr - 4, a: 'end' };
+    const cands = roomBelow ? [[pa, -4], [pa, 12], [pb, 12], [pb, -4]] : [[pa, -4]];
+    let ok = false;
+    for (const [q, dy] of cands) {
+      node.setAttribute('x', q.x); node.setAttribute('y', ys(e) + dy); node.setAttribute('text-anchor', q.a);
+      const b = node.getBBox();
+      if (inside(b) && !fixed.some((m) => meets(b, m.getBBox()))) { ok = true; break; }
+    }
+    if (!ok) {
+      if (!roomBelow) return drawDiagram(true);
+      node.setAttribute('x', pa.x); node.setAttribute('y', ys(e) - 4); node.setAttribute('text-anchor', pa.a);
+    }
+    fixed.push(node);
+  }
   mline = add('line', { class: 'mline' });
   marker = add('circle', { r: 6.5, class: 'marker' });
   placeMarker();

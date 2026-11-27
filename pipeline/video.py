@@ -170,17 +170,15 @@ def _inset_background(M, curve, w_px=700, h_px=300):
     for r in refs:              # e.g. a lower conformer that does not reach this path (J. Picione 2026-11-23)
         ax.axhline(r["E_kJ"], color="#7a8696", lw=1, ls=(0, (4, 3)))
     lo, hi = min([np.nanmin(E), ep] + [r["E_kJ"] for r in refs]), max(np.nanmax(E), 0)
-    ax.set_ylim(lo - 0.12 * (hi - lo), hi + 0.25 * (hi - lo))
     ax.set_xlim(s[0], s[-1])
     # line labels (2026-11-25 fix list: the cyanide labels crossed the curve): each label goes at the first of its
     # candidate places (either end of its line, above or below it) where its box clears the curve and the labels
-    # already placed; the place used before comes first.
-    fig.canvas.draw()
+    # already placed and stays inside the plot (2026-11-27: a label below the lowest line ran into the s-axis
+    # numbers); the place used before comes first. If a label has no such place, the plot gets more room below
+    # its lowest line and every label is placed again.
     rend = fig.canvas.get_renderer()
-    curve_px = ax.transData.transform(np.column_stack([s[ok], E[ok]]))
-    placed = []
 
-    def label(y, txt, prefer):
+    def label(y, txt, prefer, placed, texts, curve_px, axbb, last):
         cands = {"right_above": (s[-1], "right", "bottom", +1), "right_below": (s[-1], "right", "top", -1),
                  "left_above": (s[0], "left", "bottom", +1), "left_below": (s[0], "left", "top", -1)}
         dy = 0.012 * (hi - lo) + 1.5
@@ -193,22 +191,41 @@ def _inset_background(M, curve, w_px=700, h_px=300):
             hit = bool(((curve_px[:, 0] >= bb.x0) & (curve_px[:, 0] <= bb.x1) &
                         (curve_px[:, 1] >= bb.y0) & (curve_px[:, 1] <= bb.y1)).any())
             hit = hit or any(bb.overlaps(o) for o in placed)
+            hit = hit or bb.y0 < axbb.y0 or bb.y1 > axbb.y1
             if not hit:
                 placed.append(bb)
+                texts.append(t_)
                 if first is not None:
                     first.remove()
-                return
+                return True
             if first is None:
                 first = t_                  # kept if no place clears
             else:
                 t_.remove()
         placed.append(first.get_window_extent(rend))
-        print(f"WARNING inset label '{txt}' crosses the curve at every candidate place")
+        texts.append(first)
+        if last:
+            print(f"WARNING inset label '{txt}' crosses the curve or the axis at every candidate place")
+        return False
 
-    label(0.0, zl, "right_above")
-    label(ep, M.get("product_label", "separated products"), "left_above")
-    for r in refs:
-        label(r["E_kJ"], r["label"], "right_below")
+    # product line on the zero line (one ion, degenerate shift): the zero label at the reactant end and the
+    # product label at the product end, both below the line, which the curve stays above
+    same = abs(ep) < 0.03 * (hi - lo)
+    lines = ([(0.0, zl, "left_below" if same else "right_above"),
+              (ep, M.get("product_label", "separated products"), "right_below" if same else "left_above")]
+             + [(r["E_kJ"], r["label"], "right_below") for r in refs])
+    rooms = (0.12, 0.3, 0.5)
+    for room_below in rooms:
+        ax.set_ylim(lo - room_below * (hi - lo), hi + 0.25 * (hi - lo))
+        fig.canvas.draw()
+        curve_px = ax.transData.transform(np.column_stack([s[ok], E[ok]]))
+        axbb = ax.get_window_extent(rend)
+        placed, texts = [], []
+        last = room_below == rooms[-1]
+        if all([label(y, t, p, placed, texts, curve_px, axbb, last) for y, t, p in lines]) or last:
+            break
+        for t_ in texts:
+            t_.remove()
     top = int(np.nanargmax(E))
     ax.annotate((f"{'TS' if top == M['ts_frame'] else 'highest point'} {E[top]:.1f} kJ/mol "
                  f"({E[top] / 4.184:.1f} kcal/mol)").replace("-", "−"), (s[top], E[top]),

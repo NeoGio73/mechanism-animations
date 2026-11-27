@@ -485,28 +485,9 @@ waters (n = 0). The test shows the size of the effect, not a corrected value.
 | B3LYP/ma-def2-TZVP | +45.8 (+11.0) | +43.8 (+10.5) | +35.6 (+8.5) | +27.0 (+6.4) | +16.4 (+3.9) |
 | Measured | +10.5 (+2.5) | | | | |
 
-- **Why the n = 3 values changed (retry, 2026-11-27 01:42–01:47).** A check of the unusable arrangements from the
-  outputs on disk showed that the kept cyanide·(H₂O)3 (CCC) was the lowest of the four in electronic energy but not in
-  free energy: the two arrangements with water on both ends of cyanide, NNC and NCC, lay 7.2 and 5.7 kJ/mol below it
-  but each still had one imaginary frequency (85i and 108i cm⁻¹). His rules, fixed before the run: one more attempt
-  each, started 0.1 Å along the remaining mode with the same level and keywords; a true minimum joins the usable set
-  and the lowest usable free energy is the reference; if neither is a minimum, CCC stays and the n = 3 values are lower
-  bounds; no energy from a structure with an imaginary mode is used.
-  - NNC became a true minimum (lowest frequency 17.4 cm⁻¹; 114 s). It lies
-    7.8 kJ/mol (1.9 kcal/mol) below CCC in working-level free energy and
-    0.7 kJ/mol above it in electronic energy, and is now the n = 3 reactant. Single points on it:
-    16 s, 123 s and 9 s.
-  - NCC kept an imaginary frequency (33.2 cm⁻¹; 103 s) and is not used. It
-    would lie +2.4 kJ/mol above NNC in free energy.
-  - The n = 3 barrier rises by 11.5 kJ/mol and ΔrG by
-    11.5 kJ/mol at DLPNO-CCSD(T): more than the 7 kJ/mol estimated from the working level, because
-    at DLPNO-CCSD(T) NNC also lies 3.0 kJ/mol below CCC in electronic energy. The last column of each table keeps the earlier
-    n = 3 values (reference CCC).
-- **Reading:** ΔrG falls steadily with n at every level (DLPNO-CCSD(T): +36.4, +33.2, +24.7, +14.7 kJ/mol; measured
-  +10.5 kJ/mol), as expected if the continuum under-solvates the alkoxide oxygen (every kept alkoxide has all its
-  waters on O, H···O 1.48–1.61 Å). The barrier does not fall: at DLPNO-CCSD(T) it is 6.1, 6.5 and 5.7 kJ/mol above
-  n = 0 with one, two and three waters, away from the measured 69.6 kJ/mol. All kept transition states are the
-  reaction's (308i, 294i and 315i cm⁻¹; overlap 0.99 with the bare TS mode).
+- **Retry of two n = 3 arrangements (2026-11-27 01:42–01:47; his rules, fixed before the run):** one more optimization each of cyanide·(H₂O)3 NNC and NCC, started 0.1 Å along the remaining imaginary mode, same level and keywords (Opt Freq), no second attempt; a true minimum joins the usable set and the lowest usable free energy is the reference; no energy from a structure with an imaginary mode is used. NNC became a true minimum (lowest frequency 17.4 cm⁻¹); NCC kept an imaginary frequency (33.2i cm⁻¹) and is not used.
+  The earlier n = 3 reference, cyanide·(H₂O)3 CCC (last column), was replaced because NNC, which still had an imaginary frequency (85i cm⁻¹) after its first optimization, became a true minimum (lowest frequency 17.4 cm⁻¹) after one more optimization with the same settings and lies 7.8 kJ/mol (1.9 kcal/mol) below CCC in working-level free energy.
+- **Reading.** At DLPNO-CCSD(T)/ma-def2-TZVP the added waters raise the barrier by 5.7 to 6.5 kJ/mol (1.4 to 1.6 kcal/mol) at every n (6.1, 6.5 and 5.7 kJ/mol for n = 1, 2, 3), further from the measured 69.6 kJ/mol, and lower the reaction free energy by 3.2, 11.7 and 21.7 kJ/mol (0.8, 2.8 and 5.2 kcal/mol) for n = 1, 2, 3, to +14.7 kJ/mol at n = 3, still above the measured +10.5 kJ/mol and not yet levelled off. Every kept alkoxide has all its waters on O (H···O 1.48–1.61 Å), and all kept transition states are the reaction's (308i, 294i and 315i cm⁻¹; overlap 0.99 with the bare TS mode).
 - **Arrangements not used (22 of 25 usable):** ts·(H₂O)1 with water on N (not a transition state: it moved back to an
   acetone + cyanide·water complex, C···C 3.30 Å, 14i cm⁻¹, overlap 0.06 with the reaction mode); cyanide·(H₂O)2 CC
   (82i cm⁻¹; 4.2 kJ/mol above the kept NC in E and 4.7 kJ/mol in G); cyanide·(H₂O)3 NCC (33i cm⁻¹ after the retry).

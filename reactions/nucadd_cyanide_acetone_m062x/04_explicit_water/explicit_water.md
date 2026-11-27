@@ -20,12 +20,14 @@ Sensitivity test only: every other number in this summary stays on SMD water wit
 | B3LYP/ma-def2-TZVP | +45.8 (+11.0) | +43.8 (+10.5) | +35.6 (+8.5) | +27.0 (+6.4) | +16.4 (+3.9) |
 | Measured | +10.5 (+2.5) | | | | |
 
+**Reading.** At DLPNO-CCSD(T)/ma-def2-TZVP the added waters raise the barrier by 5.7 to 6.5 kJ/mol (1.4 to 1.6 kcal/mol) at every n (6.1, 6.5 and 5.7 kJ/mol for n = 1, 2, 3), further from the measured 69.6 kJ/mol, and lower the reaction free energy by 3.2, 11.7 and 21.7 kJ/mol (0.8, 2.8 and 5.2 kcal/mol) for n = 1, 2, 3, to +14.7 kJ/mol at n = 3, still above the measured +10.5 kJ/mol and not yet levelled off.
+
 **Retry of two cyanide·(H₂O)3 arrangements** (J. Picione 2026-11-27, fixed before the run: one attempt each, started 0.1 Å along the remaining imaginary mode, same level and keywords (Opt Freq); no second attempt, no change of settings. A true minimum joins the usable set and the n = 3 reactant is again the lowest working-level G of all usable arrangements; single points on any new kept structure and the n = 3 rows rebuilt. If neither is a minimum, CCC stays and the n = 3 values are lower bounds; no energy from a structure with an imaginary mode is used.)
 
 - cyanide_w3_NNC: was 85i cm⁻¹; after the retry a true minimum, usable.
 - cyanide_w3_NCC: was 108i cm⁻¹; after the retry still not a minimum (33i cm⁻¹), not used.
 
-The n = 3 reactant is now cyanide·(H₂O)3 NNC, the lowest working-level free energy of all usable arrangements; it replaces CCC, which was kept only because the two arrangements with water on both ends of cyanide still had an imaginary frequency. The last column keeps the earlier n = 3 values.
+The earlier n = 3 reference, cyanide·(H₂O)3 CCC (last column), was replaced because NNC, which still had an imaginary frequency (85i cm⁻¹) after its first optimization, became a true minimum (lowest frequency 17.4 cm⁻¹) after one more optimization with the same settings and lies 7.8 kJ/mol (1.9 kcal/mol) below CCC in working-level free energy.
 
 **Lowest structures and their hydrogen bonds** (H···X and O(water)···X, Å):
 
