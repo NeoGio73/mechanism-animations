@@ -541,13 +541,37 @@ def write_md(rx: Reaction, res: dict) -> None:
          "Cluster-continuum model: n = 1, 2, 3 explicit waters, the same n on both sides (CN⁻·(H₂O)n + acetone → "
          "TS·(H₂O)n → alkoxide·(H₂O)n), all in SMD water; lowest-G arrangement for each species and n (working level); "
          "single points on those at the other levels with working-level G − E; 298.15 K, 1 M. kJ/mol (kcal/mol).", ""]
+    rt = res.get("retry")
+    old = {r["level"]: r for r in rt["before"]["rows"]} if rt else {}
+    old_ref = rt["before"]["kept"]["cyanide_w3"].split("_")[-1] if rt else ""
+    changed = bool(rt) and rt.get("kept_cyanide_w3") != rt["before"]["kept"]["cyanide_w3"]
     for key, title, meas in [("dG_TS_1M_kJ", "ΔG‡ from separated reactants", 69.6), ("dG_rxn_1M_kJ", "ΔrG", 10.5)]:
-        L += [f"**{title}:**", "", "| Level | n = 0 (production) | n = 1 | n = 2 | n = 3 |", "|---|---|---|---|---|"]
+        fm = g if key == "dG_TS_1M_kJ" else f
+        hd = "| Level | n = 0 (production) | n = 1 | n = 2 | n = 3 |" + (f" n = 3, earlier reference ({old_ref}) |"
+                                                                          if changed else "")
+        L += [f"**{title}:**", "", hd, "|---|---|---|---|---|" + ("---|" if changed else "")]
         for r in res["rows"]:
-            L.append(f"| {_lv(r['level'])} | " + " | ".join(
-                (g if key == "dG_TS_1M_kJ" else f)(r[k][key] if r.get(k) else None)
-                for k in ("n0", "n1", "n2", "n3")) + " |")
-        L += [f"| Measured | {(g if key == 'dG_TS_1M_kJ' else f)(meas)} | | | |", ""]
+            L.append(f"| {_lv(r['level'])} | " + " | ".join(fm(r[k][key] if r.get(k) else None)
+                                                          for k in ("n0", "n1", "n2", "n3")) + " |"
+                     + (f" {fm(old[r['level']]['n3'][key])} |" if changed else ""))
+        L += [f"| Measured | {fm(meas)} | | | |" + (" |" if changed else ""), ""]
+    if rt:
+        o_new = {k: res["opt"][k] for k in RETRY}
+        L += ["**Retry of two cyanide·(H₂O)3 arrangements** (" + rt["rules"] + ")", ""]
+        for k, o in o_new.items():
+            b = rt["before"]["opt"][k]
+            st = ("a true minimum, usable" if o.get("usable") else
+                  f"still not a minimum ({', '.join(f'{-x:.0f}i' for x in o.get('imaginary_cm') or [])} cm⁻¹), not used")
+            L.append(f"- {k}: was {abs(b['imaginary_cm'][0]):.0f}i cm⁻¹; after the retry {st}.")
+        if changed:
+            L += ["", f"The n = 3 reactant is now cyanide·(H₂O)3 {rt['kept_cyanide_w3'].split('_')[-1]}, the lowest "
+                  f"working-level free energy of all usable arrangements; it replaces {old_ref}, which was kept "
+                  "only because the two arrangements with water on both ends of cyanide still had an imaginary "
+                  "frequency. The last column keeps the earlier n = 3 values."]
+        elif rt.get("neither_minimum"):
+            L += ["", "Neither became a minimum: the n = 3 values are lower bounds (the two unusable arrangements lie "
+                  "5.7–7.2 kJ/mol below the kept one in working-level free energy)."]
+        L.append("")
     L += ["**Lowest structures and their hydrogen bonds** (H···X and O(water)···X, Å):", "",
           "| Structure | Kept arrangement | Water → acceptor: H···X / O···X |", "|---|---|---|"]
     for k, v in res["kept"].items():
@@ -560,12 +584,104 @@ def write_md(rx: Reaction, res: dict) -> None:
             m = o["mode"]
             extra = f" ({m['freq_cm']:.0f}i cm⁻¹, overlap with the bare TS mode {m['overlap_with_bare_mode']:.2f})"
         L.append(f"| {k.replace('_w', '·(H₂O)')} | {o['arr']}{extra} | {c} |")
+    if res.get("lowest_freqs"):
+        L += ["", "**Lowest frequency of every structure** (read by script from each final .hess; negative = "
+              "imaginary), cm⁻¹:", "", "| Structure | Job | Lowest frequency | Imaginary |", "|---|---|---|---|"]
+        L += [f"| {k} | {v['job']} | {v['lowest_cm']:.1f} | {v['n_imaginary']} |"
+              for k, v in sorted(res["lowest_freqs"].items())]
     L += ["", f"Arrangements tried: {len(res['opt'])}; usable: {sum(1 for r in res['opt'].values() if r.get('usable'))}. "
           f"Script `pipeline/explicit_water.py`; jobs in `{SUB}/`."]
     fd = rx.root / SUB / "findings.md"
     if fd.exists():
         L += ["", fd.read_text(encoding="utf-8").strip()]
     (rx.root / SUB / "explicit_water.md").write_text("\n".join(L) + "\n", encoding="utf-8")
+
+
+# ------------------------------------------------------------------ one retry (J. Picione, 2026-11-27)
+RETRY = ["cyanide_w3_NNC", "cyanide_w3_NCC"]
+RETRY_RULES = ("J. Picione 2026-11-27, fixed before the run: one attempt each, started 0.1 Å along the remaining "
+               "imaginary mode, same level and keywords (Opt Freq); no second attempt, no change of settings. A true "
+               "minimum joins the usable set and the n = 3 reactant is again the lowest working-level G of all usable "
+               "arrangements; single points on any new kept structure and the n = 3 rows rebuilt. If neither is a "
+               "minimum, CCC stays and the n = 3 values are lower bounds; no energy from a structure with an imaginary "
+               "mode is used.")
+
+
+def lowest_freqs(rx: Reaction, res: dict) -> dict:
+    """Lowest frequency of every optimized structure, read from its .hess (negative = imaginary)."""
+    out = {}
+    for k, o in res["opt"].items():
+        h = orca.read_hess(rx.root / o["dir"] / f"{o['job']}.hess")
+        f = sorted(float(x) for x in h["freqs"] if abs(x) > 1e-6)   # translations/rotations are written as 0
+        out[k] = {"job": o["job"], "lowest_cm": round(f[0], 1), "n_imaginary": sum(1 for x in f if x < 0)}
+    return out
+
+
+def retry(rx: Reaction) -> None:
+    import copy
+    out_json = rx.root / SUB / "explicit_water.json"
+    res = _read_json(out_json)
+    if "retry" in res:
+        raise SystemExit("retry already run (one attempt only, J. Picione 2026-11-27)")
+    res["retry"] = {"rules": RETRY_RULES, "started": time.strftime("%Y-%m-%d %H:%M"),
+                    "before": {"opt": {k: copy.deepcopy(res["opt"][k]) for k in RETRY},
+                               "kept": copy.deepcopy(res["kept"]), "rows": copy.deepcopy(res["rows"]),
+                               "sp_cyanide_w3": {lv: copy.deepcopy(d["cyanide_w3"]) for lv, d in res["sp"].items()}}}
+    _write_json(out_json, res)
+    print(f"{time.strftime('%Y-%m-%d %H:%M')} retry of {', '.join(RETRY)}: {RETRY_RULES}", flush=True)
+
+    def one(name):
+        o = res["opt"][name]
+        wd = rx.root / o["dir"]
+        h = orca.read_hess(wd / f"{o['job']}.hess")
+        k = int(np.argmin(h["freqs"]))
+        v = h["modes"][:, k].reshape(-1, 3)
+        g = read_xyz(wd / f"{o['job']}.xyz")
+        g = Geometry(g.symbols, g.coords + 0.1 * v / np.linalg.norm(v, axis=1).max())
+        name2 = f"{name}_retry"
+        r = orca.run(wd, name2, _opt_input(rx, o["species"], g), rx.log,
+                     note=f"retry (J. Picione 2026-11-27): {o['job']} kept {h['freqs'][k]:.1f} cm-1; displaced 0.1 Å "
+                          "along that mode, same keywords; one attempt")
+        ok = bool(r.ok and r.opt_converged is not False and not r.stopped)
+        row = dict(o, job=name2, wall_s=o["wall_s"] + r.wall_s, ok=ok, retry_wall_s=r.wall_s)
+        if ok:
+            row.update(E_eh=r.energy_eh, G_eh=r.gibbs_eh, imaginary_cm=r.imaginary, usable=not r.imaginary)
+        else:
+            row.update(usable=False)
+            for x in ("E_eh", "G_eh", "imaginary_cm"):
+                row.pop(x, None)
+        return row
+
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        for row in ex.map(one, RETRY):
+            res["opt"][row["name"]] = row
+            _write_json(out_json, res)
+            print(f"{time.strftime('%H:%M')} {row['job']}: {row['retry_wall_s']:.0f} s, ok {row['ok']}, imaginary "
+                  f"{row.get('imaginary_cm')}, usable {row['usable']}", flush=True)
+    rows = [r for r in res["opt"].values() if r["species"] == "cyanide" and r["n"] == 3 and r.get("usable")]
+    best = min(rows, key=lambda r: r["G_eh"])["name"]
+    res["retry"]["kept_cyanide_w3"] = best
+    if best != res["kept"]["cyanide_w3"]:
+        res["kept"]["cyanide_w3"] = best
+        o = res["opt"][best]
+        for lv in rx.cfg["diagnostic_levels"]:      # new folder per arrangement: the CCC single points stay as they are
+            g = read_xyz(rx.root / o["dir"] / f"{o['job']}.xyz")
+            key = f"cyanide_w3_{o['arr']}"
+            wd = rx.d(f"{SUB}/sp/{lv['label']}/{key}")
+            inp = orca.make_input(f'{lv["method"]} CPCM({rx.cfg["solvent"]})', g, -1, 1, blocks=rx.solvent_block,
+                                  nprocs=rx.cfg["nprocs"], maxcore_mb=rx.cfg["maxcore_mb"])
+            r = orca.run(wd, key, inp, rx.log, note=f"retry (J. Picione 2026-11-27): {lv['label']} single point on {o['job']}")
+            if not r.ok or r.stopped:
+                raise orca.OrcaError(f"{key} {lv['label']} failed; see {r.out}")
+            res["sp"][lv["label"]]["cyanide_w3"] = {"E_eh": r.energy_eh, "wall_s": r.wall_s, "job": f"sp/{lv['label']}/{key}"}
+            _write_json(out_json, res)
+            print(f"{time.strftime('%H:%M')} {lv['label']} {key}: {r.wall_s:.0f} s", flush=True)
+    res["retry"]["neither_minimum"] = not any(res["opt"][k]["usable"] for k in RETRY)   # rule 3: lower bounds
+    analyse(rx, res)
+    res["lowest_freqs"] = lowest_freqs(rx, res)
+    res["retry"]["ended"] = time.strftime("%Y-%m-%d %H:%M")
+    _write_json(out_json, res)
+    print(f"{time.strftime('%Y-%m-%d %H:%M')} retry done; kept cyanide_w3 = {best}; nothing else starts", flush=True)
 
 
 def main() -> None:
@@ -581,6 +697,10 @@ def main() -> None:
         run(rx, "--now" in a, opt("--not-before"), opt("--hard-stop"))
     elif cmd == "md":
         write_md(rx, _read_json(rx.root / SUB / "explicit_water.json"))
+    elif cmd == "retry":
+        retry(rx)
+    elif cmd == "freqs":
+        print(json.dumps(lowest_freqs(rx, _read_json(rx.root / SUB / "explicit_water.json")), indent=1))
 
 
 if __name__ == "__main__":

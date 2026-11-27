@@ -458,47 +458,88 @@ waters (n = 0). The test shows the size of the effect, not a corrected value.
 
 - **Model (cluster-continuum):** one to three water molecules around the ions, the same number on both sides,
   CN⁻·(H₂O)n + acetone → TS·(H₂O)n → alkoxide·(H₂O)n, all in SMD water. 25 starting arrangements (water on C or N of
-  cyanide; on O or N of the TS and alkoxide), optimized with frequencies at M06-2X-D3(0)/ma-def2-SVP; for each
-  species and n the usable arrangement lowest in free energy is kept. Single points on the kept structures at
-  M06-2X/ma-def2-TZVP, DLPNO-CCSD(T)/ma-def2-TZVP and B3LYP-D3(BJ)/ma-def2-TZVP, each with the working-level G − E.
-  298.15 K, 1 M. Run 2026-11-26 07:00–21:34, about 28 h of job time (`pipeline/explicit_water.py`).
+  cyanide; on O or N of the TS and alkoxide), optimized with frequencies at M06-2X-D3(0)/ma-def2-SVP; a minimum that
+  stopped with an imaginary frequency was displaced 0.1 Å along it and reoptimized once. For each species and n the
+  usable arrangement lowest in free energy is kept. Single points on the kept structures at M06-2X/ma-def2-TZVP,
+  DLPNO-CCSD(T)/ma-def2-TZVP and B3LYP-D3(BJ)/ma-def2-TZVP, each with the working-level G − E. 298.15 K, 1 M. Run
+  2026-11-26 07:00–21:34, about 28 h of job time, plus the retry below (`pipeline/explicit_water.py`).
 - **Results, kJ/mol (kcal/mol), zero = separated reactants:**
 
 **ΔG‡ from separated reactants:**
 
-| Level | n = 0 (production) | n = 1 | n = 2 | n = 3 |
-|---|---|---|---|---|
-| M06-2X/ma-def2-SVP (working level) | 67.4 (16.1) | 73.5 (17.6) | 71.0 (17.0) | 62.4 (14.9) |
-| M06-2X/ma-def2-TZVP | 72.1 (17.2) | 77.0 (18.4) | 74.2 (17.7) | 67.1 (16.0) |
-| DLPNO-CCSD(T)/ma-def2-TZVP | 79.3 (19.0) | 85.4 (20.4) | 85.8 (20.5) | 73.5 (17.6) |
-| B3LYP/ma-def2-TZVP | 76.6 (18.3) | 84.2 (20.1) | 84.5 (20.2) | 72.4 (17.3) |
-| Measured | 69.6 (16.6) | | | |
+| Level | n = 0 (production) | n = 1 | n = 2 | n = 3 | n = 3, earlier reference (CCC) |
+|---|---|---|---|---|---|
+| M06-2X/ma-def2-SVP (working level) | 67.4 (16.1) | 73.5 (17.6) | 71.0 (17.0) | 70.2 (16.8) | 62.4 (14.9) |
+| M06-2X/ma-def2-TZVP | 72.1 (17.2) | 77.0 (18.4) | 74.2 (17.7) | 74.5 (17.8) | 67.1 (16.0) |
+| DLPNO-CCSD(T)/ma-def2-TZVP | 79.3 (19.0) | 85.4 (20.4) | 85.8 (20.5) | 85.0 (20.3) | 73.5 (17.6) |
+| B3LYP/ma-def2-TZVP | 76.6 (18.3) | 84.2 (20.1) | 84.5 (20.2) | 82.9 (19.8) | 72.4 (17.3) |
+| Measured | 69.6 (16.6) | | | | |
 
 **ΔrG:**
 
-| Level | n = 0 (production) | n = 1 | n = 2 | n = 3 |
-|---|---|---|---|---|
-| M06-2X/ma-def2-SVP (working level) | +26.3 (+6.3) | +20.4 (+4.9) | +10.9 (+2.6) | −7.7 (−1.8) |
-| M06-2X/ma-def2-TZVP | +33.0 (+7.9) | +27.6 (+6.6) | +19.3 (+4.6) | +2.9 (+0.7) |
-| DLPNO-CCSD(T)/ma-def2-TZVP | +36.4 (+8.7) | +33.2 (+7.9) | +24.7 (+5.9) | +3.2 (+0.8) |
-| B3LYP/ma-def2-TZVP | +45.8 (+11.0) | +43.8 (+10.5) | +35.6 (+8.5) | +16.4 (+3.9) |
-| Measured | +10.5 (+2.5) | | | |
+| Level | n = 0 (production) | n = 1 | n = 2 | n = 3 | n = 3, earlier reference (CCC) |
+|---|---|---|---|---|---|
+| M06-2X/ma-def2-SVP (working level) | +26.3 (+6.3) | +20.4 (+4.9) | +10.9 (+2.6) | +0.2 (+0.0) | −7.7 (−1.8) |
+| M06-2X/ma-def2-TZVP | +33.0 (+7.9) | +27.6 (+6.6) | +19.3 (+4.6) | +10.3 (+2.5) | +2.9 (+0.7) |
+| DLPNO-CCSD(T)/ma-def2-TZVP | +36.4 (+8.7) | +33.2 (+7.9) | +24.7 (+5.9) | +14.7 (+3.5) | +3.2 (+0.8) |
+| B3LYP/ma-def2-TZVP | +45.8 (+11.0) | +43.8 (+10.5) | +35.6 (+8.5) | +27.0 (+6.4) | +16.4 (+3.9) |
+| Measured | +10.5 (+2.5) | | | | |
 
-- **Reading:** ΔrG falls steadily with n at every level (DLPNO-CCSD(T): +36.4 → +3.2 kJ/mol; measured +10.5 kJ/mol),
-  as expected if the continuum under-solvates the alkoxide oxygen (every kept alkoxide has all its waters on O,
-  H···O 1.48–1.61 Å). The barrier does not settle: at DLPNO-CCSD(T) it rises by 6.1 and 6.5 kJ/mol (1.5 and
-  1.6 kcal/mol) with one and two waters and falls by 5.8 kJ/mol (1.4 kcal/mol) with three. All kept transition states
-  are the reaction's (308i, 294i and 315i cm⁻¹; overlap 0.99 with the bare TS mode).
-- **Arrangements not used (21 of 25 usable):**
-  - ts·(H₂O)1, water on N: not a transition state. It moved back to a loose complex of acetone and cyanide·water (C···C 3.30 Å) with a residual 14i cm⁻¹ mode, overlap 0.06 with the reaction mode.
-  - cyanide·(H₂O)2, both waters on C: one imaginary frequency left (82i cm⁻¹, 96 % on the free O–H hydrogen of one water, a rotation of that water). It lies 4.2 kJ/mol (1.0 kcal/mol) above the kept arrangement in electronic energy and 4.7 kJ/mol (1.1 kcal/mol) above it in free energy, so it would not have been kept.
-  - cyanide·(H₂O)3, two waters on N and one on C: one imaginary frequency left (85i cm⁻¹, 90 % on the free O–H hydrogen of a water on N). +0.9 kJ/mol (+0.2 kcal/mol) in electronic energy and −7.2 kJ/mol (−1.7 kcal/mol) in free energy against the kept arrangement (working level).
-  - cyanide·(H₂O)3, one water on N and two on C: one imaginary frequency left (108i cm⁻¹, 96 % on the free O–H hydrogen of a water on C). +0.7 kJ/mol (+0.2 kcal/mol) in electronic energy and −5.7 kJ/mol (−1.4 kcal/mol) in free energy against the kept arrangement (working level).
-- **Check of the n = 3 reference (from the outputs on disk, no new job; J. Picione, 2026-11-27):** the kept
-  cyanide·(H₂O)3 is the lowest of the four arrangements in electronic energy, but not in free energy: the two
-  unusable arrangements with water on both ends of cyanide lie 7.2 and 5.7 kJ/mol (1.7 and 1.4 kcal/mol) below it.
-  Their free energies are approximate (ORCA leaves the imaginary mode out of the thermal correction). If one of them
-  is the true lowest, the n = 3 reactant is too high by up to about 7 kJ/mol and the n = 3 ΔG‡ and ΔrG are both too
-  low by about as much. **Open:** whether to re-optimize these two (his decision).
-- **Files:** `reactions/nucadd_cyanide_acetone_m062x/04_explicit_water/explicit_water.md` and `.json`; per-job
-  outputs in `04_explicit_water/opt/` and `sp/`.
+- **Why the n = 3 values changed (retry, 2026-11-27 01:42–01:47).** A check of the unusable arrangements from the
+  outputs on disk showed that the kept cyanide·(H₂O)3 (CCC) was the lowest of the four in electronic energy but not in
+  free energy: the two arrangements with water on both ends of cyanide, NNC and NCC, lay 7.2 and 5.7 kJ/mol below it
+  but each still had one imaginary frequency (85i and 108i cm⁻¹). His rules, fixed before the run: one more attempt
+  each, started 0.1 Å along the remaining mode with the same level and keywords; a true minimum joins the usable set
+  and the lowest usable free energy is the reference; if neither is a minimum, CCC stays and the n = 3 values are lower
+  bounds; no energy from a structure with an imaginary mode is used.
+  - NNC became a true minimum (lowest frequency 17.4 cm⁻¹; 114 s). It lies
+    7.8 kJ/mol (1.9 kcal/mol) below CCC in working-level free energy and
+    0.7 kJ/mol above it in electronic energy, and is now the n = 3 reactant. Single points on it:
+    16 s, 123 s and 9 s.
+  - NCC kept an imaginary frequency (33.2 cm⁻¹; 103 s) and is not used. It
+    would lie +2.4 kJ/mol above NNC in free energy.
+  - The n = 3 barrier rises by 11.5 kJ/mol and ΔrG by
+    11.5 kJ/mol at DLPNO-CCSD(T): more than the 7 kJ/mol estimated from the working level, because
+    at DLPNO-CCSD(T) NNC also lies 3.0 kJ/mol below CCC in electronic energy. The last column of each table keeps the earlier
+    n = 3 values (reference CCC).
+- **Reading:** ΔrG falls steadily with n at every level (DLPNO-CCSD(T): +36.4, +33.2, +24.7, +14.7 kJ/mol; measured
+  +10.5 kJ/mol), as expected if the continuum under-solvates the alkoxide oxygen (every kept alkoxide has all its
+  waters on O, H···O 1.48–1.61 Å). The barrier does not fall: at DLPNO-CCSD(T) it is 6.1, 6.5 and 5.7 kJ/mol above
+  n = 0 with one, two and three waters, away from the measured 69.6 kJ/mol. All kept transition states are the
+  reaction's (308i, 294i and 315i cm⁻¹; overlap 0.99 with the bare TS mode).
+- **Arrangements not used (22 of 25 usable):** ts·(H₂O)1 with water on N (not a transition state: it moved back to an
+  acetone + cyanide·water complex, C···C 3.30 Å, 14i cm⁻¹, overlap 0.06 with the reaction mode); cyanide·(H₂O)2 CC
+  (82i cm⁻¹; 4.2 kJ/mol above the kept NC in E and 4.7 kJ/mol in G); cyanide·(H₂O)3 NCC (33i cm⁻¹ after the retry).
+
+**Lowest frequency of every structure** (read by script from each final .hess; negative = imaginary), cm⁻¹:
+
+| Structure | Job | Lowest frequency | Imaginary |
+|---|---|---|---|
+| alkoxide_w1_N | alkoxide_w1_N_min | 26.7 | 0 |
+| alkoxide_w1_O | alkoxide_w1_O | 50.9 | 0 |
+| alkoxide_w2_NN | alkoxide_w2_NN | 24.7 | 0 |
+| alkoxide_w2_ON | alkoxide_w2_ON | 25.1 | 0 |
+| alkoxide_w2_OO | alkoxide_w2_OO_min | 11.8 | 0 |
+| alkoxide_w3_ONN | alkoxide_w3_ONN | 28.5 | 0 |
+| alkoxide_w3_OON | alkoxide_w3_OON | 21.1 | 0 |
+| alkoxide_w3_OOO | alkoxide_w3_OOO_min | 24.7 | 0 |
+| cyanide_w1_C | cyanide_w1_C | 80.7 | 0 |
+| cyanide_w1_N | cyanide_w1_N | 57.9 | 0 |
+| cyanide_w2_CC | cyanide_w2_CC_min | −82.0 | 1 |
+| cyanide_w2_NC | cyanide_w2_NC | 19.0 | 0 |
+| cyanide_w2_NN | cyanide_w2_NN_min | 23.5 | 0 |
+| cyanide_w3_CCC | cyanide_w3_CCC | 53.9 | 0 |
+| cyanide_w3_NCC | cyanide_w3_NCC_retry | −33.2 | 1 |
+| cyanide_w3_NNC | cyanide_w3_NNC_retry | 17.4 | 0 |
+| cyanide_w3_NNN | cyanide_w3_NNN | 65.7 | 0 |
+| ts_w1_N | ts_w1_N | −13.7 | 1 |
+| ts_w1_O | ts_w1_O | −308.0 | 1 |
+| ts_w2_NN | ts_w2_NN | −342.8 | 1 |
+| ts_w2_ON | ts_w2_ON | −352.8 | 1 |
+| ts_w2_OO | ts_w2_OO | −294.1 | 1 |
+| ts_w3_ONN | ts_w3_ONN | −357.5 | 1 |
+| ts_w3_OON | ts_w3_OON | −315.3 | 1 |
+| ts_w3_OOO | ts_w3_OOO | −270.7 | 1 |
+
+- **Files:** `reactions/nucadd_cyanide_acetone_m062x/04_explicit_water/explicit_water.md` and `.json` (the earlier
+  values under `retry.before`); per-job outputs in `04_explicit_water/opt/` and `sp/`.
