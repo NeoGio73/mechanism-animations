@@ -332,7 +332,7 @@ def card(rx: Reaction) -> None:
               f"- `05_render/{rx.cfg['id']}.mp4`: rendered video, energy inset at "
               f"{'the working level' if man.get('default_curve', 'working') == 'working' else man['default_curve'].replace('_', '/')}"
               f" (`{rx.cfg['id']}_<level>.mp4`: same video with the other energy curves)",
-              f"- `web/viewer/index.html?r={rx.cfg['id']}`: interactive viewer",
+              f"- `web/viewer/index.html?r={rx.root.name}`: interactive viewer (this folder's data)",
               "- `run_log.md`: every ORCA job, wall time, and reruns", "",
               "Content CC-BY 4.0; code MIT. Computed with ORCA 6.1.1.", ""]
     if notes.get("layout") == "split":      # one-page card + card_details.md (J. Picione, 2026-11-26; E2 first)
@@ -580,7 +580,7 @@ def _write_split(rx, notes, ts, meta, man, tr, diag, changing, min_ovl, cm, auto
             "- `03_orbitals/tracking_log.md`: orbital matching along the path",
             f"- `05_render/{rx.cfg['id']}.mp4`: rendered video, energy inset at {cc_name} "
             f"(`{rx.cfg['id']}_<level>.mp4`: the same video with the other energy curves)",
-            f"- `web/viewer/index.html?r={rx.cfg['id']}`: interactive viewer",
+            f"- `web/viewer/index.html?r={rx.root.name}`: interactive viewer (this folder's data)",
             "- `run_log.md`: every ORCA job and rerun", "",
             "Content CC-BY 4.0; code MIT. Computed with ORCA 6.1.1.", ""]
     (r / "card.md").write_text(_true_minus("\n".join(card)), encoding="utf-8")

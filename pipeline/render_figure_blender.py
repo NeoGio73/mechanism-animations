@@ -131,6 +131,8 @@ def hex_rgb(h):
 
 
 ORBS = [o for o in M["orbitals"] if o["kind"] == S.get("orbital_kind", "localized")]
+if S.get("orbital_keys"):              # e.g. ["lumo"] only (paper figures, J. Picione 2026-11-27)
+    ORBS = [o for o in ORBS if o["key"] in S["orbital_keys"]]
 LOBE_MATS = {o["key"]: (material(f"{o['key']}_pos", hex_rgb(o.get("colors", ["#2f6db5", "#e08a1e"])[0]), 0.3, ORB_ALPHA),
                         material(f"{o['key']}_neg", hex_rgb(o.get("colors", ["#2f6db5", "#e08a1e"])[1]), 0.3, ORB_ALPHA))
              for o in ORBS}
@@ -324,6 +326,9 @@ if "newman" in by_view:
         x0, x1, y0, y1 = frame_extent(newman_basis(f), [f], cen, S.get("newman_radius_A", 4.0))
         sc = max(sc, 2 * max(-x0, x1), 2 * max(-y0, y1) * W / H)
     setup["newman"] = {"scale": sc}
+# the same camera as an earlier call (paper figures: rows rendered in separate calls keep one scale)
+for v, st in (S.get("setup") or {}).items():
+    setup[v] = st
 
 
 def aim(p):
@@ -364,5 +369,6 @@ for p in panels:
                        "atom_radius_A": [ELEM[s][1] for s in M["symbols"]],
                        "partial_bonds": [[b["i"], b["j"]] for b in bonds if b["partial"]]}
     print(f"RENDERED {p['name']} frame {p['frame']} ({p['view']})", flush=True)
+proj["_setup"] = setup
 (ODIR / "projection.json").write_text(json.dumps(proj, indent=1), encoding="utf-8")
 print("FIGURE_RENDER_DONE", flush=True)

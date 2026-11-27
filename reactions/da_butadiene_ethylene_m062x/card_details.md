@@ -107,7 +107,7 @@ Experiment (gas phase): C₂H₄ + 1,3-butadiene → cyclohexene, second order, 
 - `02_irc/energy_profile.png`: energy profile
 - `03_orbitals/tracking_log.md`: orbital matching along the path
 - `05_render/da_butadiene_ethylene.mp4`: rendered video, energy inset at DLPNO-CCSD(T)/ma-def2-TZVP (`da_butadiene_ethylene_<level>.mp4`: the same video with the other energy curves)
-- `web/viewer/index.html?r=da_butadiene_ethylene`: interactive viewer
+- `web/viewer/index.html?r=da_butadiene_ethylene_m062x`: interactive viewer (this folder's data)
 - `run_log.md`: every ORCA job and rerun
 
 Content CC-BY 4.0; code MIT. Computed with ORCA 6.1.1.

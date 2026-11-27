@@ -56,7 +56,7 @@ At M06-2X/ma-def2-SVP (DefGrid3; the working level for the two cation reactions)
 - `02_irc/energy_profile.png`: energy profile
 - `03_orbitals/tracking_log.md`: orbital matching along the path
 - `05_render/hshift_2_3_dimethyl_2_butyl.mp4`: rendered video, energy inset at DLPNO-CCSD(T)/ma-def2-TZVP (`hshift_2_3_dimethyl_2_butyl_<level>.mp4`: the same video with the other energy curves)
-- `web/viewer/index.html?r=hshift_2_3_dimethyl_2_butyl`: interactive viewer
+- `web/viewer/index.html?r=hshift_2_3_dimethyl_2_butyl_m062x`: interactive viewer (this folder's data)
 - `run_log.md`: every ORCA job and rerun
 
 Content CC-BY 4.0; code MIT. Computed with ORCA 6.1.1.

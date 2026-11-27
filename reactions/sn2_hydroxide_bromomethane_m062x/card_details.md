@@ -48,7 +48,7 @@ Experiment: k₂(HO⁻ + CH₃Br, water) measured at six temperatures, 292.69–
 - `02_irc/energy_profile.png`: energy profile
 - `03_orbitals/tracking_log.md`: orbital matching along the path
 - `05_render/sn2_hydroxide_bromomethane.mp4`: rendered video, energy inset at DLPNO-CCSD(T)/ma-def2-TZVP (`sn2_hydroxide_bromomethane_<level>.mp4`: the same video with the other energy curves)
-- `web/viewer/index.html?r=sn2_hydroxide_bromomethane`: interactive viewer
+- `web/viewer/index.html?r=sn2_hydroxide_bromomethane_m062x`: interactive viewer (this folder's data)
 - `run_log.md`: every ORCA job and rerun
 
 Content CC-BY 4.0; code MIT. Computed with ORCA 6.1.1.

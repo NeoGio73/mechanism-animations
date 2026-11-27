@@ -1,0 +1,1 @@
+Screenshot of the interactive viewer (web/viewer/index.html?r=sn2_hydroxide_bromomethane_m062x), SN2, hydroxide + bromomethane, opened at the TS (IRC frame 153), default orbitals on, energy diagram and orbital switches as the page shows them. Headless Chrome with software WebGL, 1920 × 1120 CSS px at 1.169× = 2244 px wide (190 mm at 300 dpi).

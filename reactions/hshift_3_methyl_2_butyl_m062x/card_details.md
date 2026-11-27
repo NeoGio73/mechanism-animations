@@ -35,7 +35,7 @@ No measured value on this card. The 3-methyl-2-butyl cation has not been observe
 - `02_irc/energy_profile.png`: energy profile
 - `03_orbitals/tracking_log.md`: orbital matching along the path
 - `05_render/hshift_3_methyl_2_butyl.mp4`: rendered video, energy inset at DLPNO-CCSD(T)/ma-def2-TZVP (`hshift_3_methyl_2_butyl_<level>.mp4`: the same video with the other energy curves)
-- `web/viewer/index.html?r=hshift_3_methyl_2_butyl`: interactive viewer
+- `web/viewer/index.html?r=hshift_3_methyl_2_butyl_m062x`: interactive viewer (this folder's data)
 - `run_log.md`: every ORCA job and rerun
 
 Content CC-BY 4.0; code MIT. Computed with ORCA 6.1.1.

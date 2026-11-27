@@ -868,3 +868,7 @@ Every ORCA job, its wall time, and what changed when a job failed. Times are wal
 ## 2026-11-26 15:20 — one-page card and card_details.md (J. Picione, 2026-11-26)
 
 `card.md` (one page) and `card_details.md` rebuilt by `pipeline/card.py` from data on disk, idle priority, one thread (no ORCA job). Applies J. Picione's 2026-11-26 decision after reading the E2 sample: true minus signs; "What this is" in his wording; the coupled-cluster comparison line in his E2 pattern; at most six plain-word limitations; no dates, names or history on either page (history stays in card_notes.toml and here); no number changed. Comparison row: gas-phase Ea from the conformer mixture (03_gas_phase/conformers.json), toluene ΔG‡ computed only; arrow direction, six mirror frames and the viewer's mirror switch in plain words. Gas-phase section copied into card_details.md with history removed by exact replacements (card_notes.toml details_edit). Moved to card_details.md: gas-phase details, reactant complex, product-side stop, canonical HOMO note.
+
+## 2026-11-27 02:05 — paper figure: meshes without the display mirror frames (J. Picione, 2026-11-27)
+
+No ORCA job. For the manuscript figure's "as computed" panels (IRC frames 188 and 189), `build_meshes(..., out_sub="05_render/paper_figure/meshes_computed", display_mirror=False)`: the same meshes as 04_meshes except that no frame shows the display-only mirror image. 04_meshes (viewer, video) not touched.

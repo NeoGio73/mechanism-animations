@@ -61,7 +61,7 @@ Experiment: 2-bromopropane + 1 M sodium ethoxide (1 N NaOEt) in dry ethanol, 25.
 - `02_irc/energy_profile.png`: energy profile
 - `03_orbitals/tracking_log.md`: orbital matching along the path
 - `05_render/e2_ethoxide_2_bromopropane.mp4`: rendered video, energy inset at DLPNO-CCSD(T)/ma-def2-TZVP (`e2_ethoxide_2_bromopropane_<level>.mp4`: the same video with the other energy curves)
-- `web/viewer/index.html?r=e2_ethoxide_2_bromopropane`: interactive viewer
+- `web/viewer/index.html?r=e2_ethoxide_2_bromopropane_m062x`: interactive viewer (this folder's data)
 - `run_log.md`: every ORCA job and rerun
 
 Content CC-BY 4.0; code MIT. Computed with ORCA 6.1.1.

@@ -1501,3 +1501,7 @@ One-molecule card: barriers from the anti form (the zero) and from the eclipsed 
 ## 2026-11-26 15:20 — one-page card and card_details.md (J. Picione, 2026-11-26)
 
 `card.md` (one page) and `card_details.md` rebuilt by `pipeline/card.py` from data on disk, idle priority, one thread (no ORCA job). Applies J. Picione's 2026-11-26 decision after reading the E2 sample: true minus signs; "What this is" in his wording; the coupled-cluster comparison line in his E2 pattern; at most six plain-word limitations; no dates, names or history on either page (history stays in card_notes.toml and here); no number changed. No measured value (2-butyl limit as context in card_details.md only); one barrier per form; the "also found by tracking" row and the two approved lines verbatim.
+
+## 2026-11-27 01:50 — video re-rendered (J. Picione, 2026-11-27)
+
+No ORCA job. The four videos were rendered 2026-11-25 16:39, before the orbital labels changed (2026-11-26); the render fingerprint and the manifest showed the three legend labels differ from the viewer data, nothing else. `pipeline reactions/hshift_3_methyl_2_butyl_m062x video` (hidden, GPU), 01:50:28–01:54:48; legend now as in the viewer. The other five videos match the current viewer data (fingerprint and manifest identical; Diels–Alder differs only in the viewer's mirror-toggle block, off by default, which the video does not show).

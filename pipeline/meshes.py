@@ -228,7 +228,10 @@ def mirror_data(rx: Reaction, frames, keep, ts_frame: int, orbitals: list[dict])
                     "reflecting the computed orbital surfaces; no new calculation."))}
 
 
-def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) -> None:
+def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900, out_sub: str = "04_meshes",
+                 display_mirror: bool = True) -> None:
+    """out_sub / display_mirror=False (J. Picione, 2026-11-27): a separate copy for the paper figure's "as computed"
+    Diels–Alder panels, without the display-only mirror frames; the viewer data in 04_meshes are not touched."""
     iso = iso if iso is not None else rx.cfg.get("isovalue", 0.05)
     # atom-only mode (J. Picione, 2026-11-23): before the IBO step has run on a path there is no tracking file; the
     # viewer data then carry structure and energy curves only, with an empty orbital list, to check framing early
@@ -305,7 +308,7 @@ def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) ->
     # active orbitals that continues the previous frame; only if both of his tests passed
     mc_path = rx.root / "03_orbitals" / "mirror_continuity.json"
     mc = _read_json(mc_path) if mc_path.exists() else None
-    mirror_frames = set(mc["mirror_frames"]) if mc and mc.get("passes") else set()
+    mirror_frames = set(mc["mirror_frames"]) if mc and mc.get("passes") and display_mirror else set()
     mirror_ids = set(mc["active"]) if mirror_frames else set()
 
     def values(k, o):
@@ -347,7 +350,7 @@ def build_meshes(rx: Reaction, iso: float | None = None, max_tris: int = 900) ->
               f"retrying with {new}")
         max_tris = new
         buf, index, sizes = encode(max_tris)
-    od = rx.d("04_meshes")
+    od = rx.d(out_sub)
     (od / "meshes.bin").write_bytes(buf.getvalue())
     ts = _read_json(rx.root / "01_ts" / "ts.json")
     manifest = {
