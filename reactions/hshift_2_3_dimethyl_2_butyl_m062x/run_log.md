@@ -2816,3 +2816,7 @@ No ORCA job.
 - Video: `pipeline <rx> video` (hidden, GPU) 05:14:19–05:18:05 (3 min 46 s), then, after the inset label placement was fixed (labels kept inside the plot; with the product line on the zero line, the zero label goes at the reactant end and the product label at the product end), `video_composite` from the same frames 05:24:19–05:25:08 (no GPU). The other four videos' insets are pixel-identical under the new placement code, so they were not touched.
 - Figure still `docs/paper_figures/hshift_2_3_dimethyl_2_butyl.png` rebuilt from the same panel renders (labels from the data; product line now drawn).
 - `02_irc/endpoints.json`: a `note` field in `product_complex` saying that the computed half ends at the bridged form (tested by `end_check.md`) and the open cation is the end of the full degenerate path through the mirror half, the mirror image of the reactant end by construction. No value changed. Point closed in `docs/results/paper_tables.md`.
+
+## 2026-11-27 06:50 — the 108 forward frames of the angle check (J. Picione, 2026-11-27)
+
+No ORCA job. They are computed forward steps 21–128 from the TS, past the bridged structure (reached at step 7), on the stretch where the computed side runs back toward an open cation with H on C3; the displayed path uses forward steps 1–7 only. Details in `docs/results/paper_questions_2026-11-27.md`.

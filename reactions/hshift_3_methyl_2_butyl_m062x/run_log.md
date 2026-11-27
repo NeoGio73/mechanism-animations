@@ -1505,3 +1505,7 @@ One-molecule card: barriers from the anti form (the zero) and from the eclipsed 
 ## 2026-11-27 01:50 — video re-rendered (J. Picione, 2026-11-27)
 
 No ORCA job. The four videos were rendered 2026-11-25 16:39, before the orbital labels changed (2026-11-26); the render fingerprint and the manifest showed the three legend labels differ from the viewer data, nothing else. `pipeline reactions/hshift_3_methyl_2_butyl_m062x video` (hidden, GPU), 01:50:28–01:54:48; legend now as in the viewer. The other five videos match the current viewer data (fingerprint and manifest identical; Diels–Alder differs only in the viewer's mirror-toggle block, off by default, which the video does not show).
+
+## 2026-11-27 06:50 — reverse step and ts_anti_rotation answers (J. Picione, 2026-11-27)
+
+No ORCA job. Answers in `docs/results/paper_questions_2026-11-27.md`: ts_anti_rotation sides were followed by 0.10 Å displacement along the imaginary mode and Opt Freq, not an IRC; H–C2–C3–H 127.2°. Reverse ΔH‡ / ΔG‡ from tertiary_irc to the animated path's TS at four levels from the existing outputs (DLPNO-CCSD(T): 53.2 / 59.5 kJ/mol).

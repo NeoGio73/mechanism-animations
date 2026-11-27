@@ -872,3 +872,7 @@ Every ORCA job, its wall time, and what changed when a job failed. Times are wal
 ## 2026-11-27 02:05 — paper figure: meshes without the display mirror frames (J. Picione, 2026-11-27)
 
 No ORCA job. For the manuscript figure's "as computed" panels (IRC frames 188 and 189), `build_meshes(..., out_sub="05_render/paper_figure/meshes_computed", display_mirror=False)`: the same meshes as 04_meshes except that no frame shows the display-only mirror image. 04_meshes (viewer, video) not touched.
+
+## 2026-11-27 06:50 — display rotation described (J. Picione, 2026-11-27)
+
+No ORCA job. The σ/π display rotation (IBO 6 with partner IBO 5, IRC frames 0–139) is described in `docs/results/paper_questions_2026-11-27.md`: on this path the reactant-end pair is σ + π with the tracked orbital the σ; the rotation shows the π partner. docs/protocol.md gives the pilot's numbers.
