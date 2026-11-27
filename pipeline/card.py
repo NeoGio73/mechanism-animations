@@ -363,7 +363,7 @@ def _sgn(x: float) -> str:
     return f"{x:+.1f} kJ/mol ({k:+.2f} kcal/mol)" if 0 < abs(k) < 0.05 else f"{x:+.1f} kJ/mol ({k:+.1f} kcal/mol)"
 
 
-def _reverse_measured(notes: dict, cc: dict) -> dict:
+def _reverse_measured(notes: dict, cc: dict, diag: dict | None = None) -> dict:
     """Measured value for the reverse direction (card_notes.toml [reverse_measured]; J. Picione, 2026-11-27): the
     Arrhenius parameters as printed, converted at T by pipeline/measured.py; the computed reverse ΔH‡ and ΔG‡ at the
     default level from pipeline/results_summary.py (TS of the path shown minus the product-end minimum, working-level
@@ -401,7 +401,12 @@ def _reverse_measured(notes: dict, cc: dict) -> dict:
         det += [lit["text"].format(**{k: kpm(v * 4.184) for k, v in lit.get("kcal", {}).items()}), ""]
     if m.get("context_text"):
         det += [m["context_text"], ""]
-    return {"card": card, "details": det, "measured": x, "computed": {"dH_kJ": hc, "dG_kJ": gc, "dS_J_molK": dS_c}}
+    lt = None
+    if m.get("levels_text") and diag:
+        g = [r["dG_rev_kJ"] for r in diag["rows"]]
+        lt = m["levels_text"].replace("{spread}", f"{max(g) - min(g):.1f} kJ/mol")
+        det += [lt, ""]
+    return {"card": card, "details": det, "levels_text": lt, "measured": x, "computed": {"dH_kJ": hc, "dG_kJ": gc, "dS_J_molK": dS_c}}
 
 
 def _pm(v: float, e: float) -> str:
@@ -494,7 +499,9 @@ def _write_split(rx, notes, ts, meta, man, tr, diag, changing, min_ovl, cm, auto
                 f"{ctx['z_nm']} |"]
     else:
         raise ValueError(f"summary kind {kind!r}")
-    rv = _reverse_measured(notes, cc) if notes.get("reverse_measured") else None
+    rv = _reverse_measured(notes, cc, diag) if notes.get("reverse_measured") else None
+    if rv:
+        lim = [x.replace("{reverse_levels_text}", rv["levels_text"]) for x in lim]
     if rv:
         summ += [f"| Measured value | {rv['card']} |"]
     summ += [f"| {row['label']} | {row['text']} |" for row in notes.get("summary_rows", [])]

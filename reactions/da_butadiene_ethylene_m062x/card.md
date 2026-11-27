@@ -14,12 +14,11 @@
 
 ## Limitations
 
-1. The measurement is in the gas phase at 760–921 K, so the comparison uses separate gas-phase calculations. The path, orbitals and toluene energies shown are in a continuum solvent (SMD toluene), with no toluene molecules; for these two non-polar molecules the solvent changes the barrier little (coupled-cluster ΔE‡ 98.4 kJ/mol in the gas phase, 96.7 kJ/mol in toluene).
-2. The coupled-cluster Ea is 0.2 kJ/mol (0.05 kcal/mol) below the measured value. That agreement should not be over-read: the geometries and thermal corrections come from M06-2X, the measured value is uncertain by ± 3.4 kJ/mol, and counting the butadiene conformer mixture alone moves Ea by 3.7 kJ/mol (118.6 kJ/mol from s-trans butadiene only). M06-2X/ma-def2-TZVP on the same geometries gives 102.1 kJ/mol (24.4 kcal/mol).
-3. The rate is not reproduced as well as Ea: the computed pre-exponential factor is 0.17 times the measured one, so the computed rate at 840 K is 0.17 times the measured rate. The remaining error is almost entirely in the entropy of activation.
-4. The path starts from s-cis butadiene, the form that reacts; the energies are measured from s-trans butadiene, the more stable form, so they include the cost of turning s-trans into s-cis.
-5. The path ends at the boat form of cyclohexene, which keeps the mirror symmetry of the transition state. The reaction energies use the more stable half-chair, 23.0 kJ/mol (5.5 kcal/mol) lower (M06-2X/ma-def2-SVP, electronic).
-6. The ethylene π orbital shown before s = −2.0 bohr·amu½ is a display choice. The two orbitals of the C5=C6 double bond can be mixed freely, and followed frame to frame it is the σ orbital, not the π orbital, that ends as the new C1–C6 bond.
+1. The measurement is in the gas phase at 760–921 K, so the comparison uses separate gas-phase calculations. The path, orbitals and toluene energies shown are in a continuum solvent (SMD toluene), with no toluene molecules; for these two non-polar molecules the solvent changes the barrier little.
+2. The coupled-cluster Ea is 0.2 kJ/mol (0.05 kcal/mol) below the measured value. That agreement should not be over-read: the geometries and thermal corrections come from M06-2X, the measured value is uncertain by ± 3.4 kJ/mol, and counting the butadiene conformer mixture alone moves Ea by 3.7 kJ/mol (118.6 kJ/mol from s-trans butadiene only).
+3. The rate is not reproduced as well as Ea: the computed pre-exponential factor is 0.17 times the measured one, an error almost entirely in the entropy of activation.
+4. The path runs from s-cis butadiene to the boat form of cyclohexene, the forms the reaction passes through. The energies are measured from the more stable forms, s-trans butadiene and half-chair cyclohexene (23.0 kJ/mol lower than the boat), so they include the cost of turning s-trans into s-cis.
+5. The ethylene π orbital shown before s = −2.0 bohr·amu½ is a display choice. The two orbitals of the C5=C6 double bond can be mixed freely, and followed frame to frame it is the σ orbital, not the π orbital, that ends as the new C1–C6 bond.
 
 Energies at every level, how the measured value was derived, and technical notes: `card_details.md`.
 

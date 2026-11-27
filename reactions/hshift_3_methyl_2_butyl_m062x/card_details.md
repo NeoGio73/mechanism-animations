@@ -35,6 +35,8 @@ Farcasiu and Norton (J. Org. Chem. 1997, 62, 5374) found the same two bridged mi
 
 For context only, not as a comparison: for the 1,2-hydride shift in the 2-butyl cation (a different, degenerate shift between two secondary carbons), Saunders and Kates give an upper limit, ΔG‡ < 10 kJ/mol (2.4 kcal/mol), from the absence of ¹³C NMR line broadening at −140 °C (M. Saunders and M. R. Kates, J. Am. Chem. Soc. 1978, 100, 7082–7083; reviewed in Saunders and Jiménez-Vázquez 1991).
 
+No rate has been measured for this direction. The reverse-direction comparison (Measured value row) does not decide between these levels: all four agree on the reverse barrier within 4.3 kJ/mol, and they differ in how stable they make the secondary cation.
+
 ## Path and orbitals
 
 - IRC frames: 407; reaction coordinate s from −9.57 to 10.81 bohr·amu½ (TS at s = 0).

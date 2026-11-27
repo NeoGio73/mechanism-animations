@@ -18,7 +18,7 @@
 
 1. Two forms of the secondary cation are minima at this level, anti and eclipsed, and both are partly methyl-bridged. A third arrangement, with C3–H in line with the empty orbital on C2, is not a minimum: it goes downhill to the tertiary cation. The path shown starts from the eclipsed form. The anti form is 2.8 kJ/mol (0.7 kcal/mol) lower in free energy at the working level and has its own, higher rotation barrier (18.6 against 11.1 kJ/mol at DLPNO-CCSD(T)/ma-def2-TZVP, 298 K).
 2. The solvent is a continuum (SMD dichloromethane), a polar, non-nucleophilic stand-in for the superacid solutions in which such cations are studied; there are no solvent molecules.
-3. The barrier depends strongly on the level of theory: for the path shown ΔG‡ is 11.1 kJ/mol at DLPNO-CCSD(T)/ma-def2-TZVP, 15.1 kJ/mol at M06-2X/ma-def2-TZVP and −1.6 kJ/mol at B3LYP/ma-def2-TZVP. With no measured value, none of these can be checked against experiment.
+3. The barrier depends strongly on the level of theory: for the path shown ΔG‡ is 11.1 kJ/mol at DLPNO-CCSD(T)/ma-def2-TZVP, 15.1 kJ/mol at M06-2X/ma-def2-TZVP and −1.6 kJ/mol at B3LYP/ma-def2-TZVP. No rate has been measured for this direction. The reverse-direction comparison (Measured value row) does not decide between these levels: all four agree on the reverse barrier within 4.3 kJ/mol, and they differ in how stable they make the secondary cation.
 
 Energies at every level, how the measured value was derived, and technical notes: `card_details.md`.
 
