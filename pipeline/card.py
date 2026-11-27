@@ -402,7 +402,7 @@ def _write_split(rx, notes, ts, meta, man, tr, diag, changing, min_ovl, cm, auto
     lim = notes.get("card_limitations", [])
     if len(lim) > 6:
         raise ValueError("card_limitations: at most six on the one-page card")
-    mtxt = lambda key, val: (f"; measured {fmt_kj(ms[key])}, {ms.get(key.replace('kJ', 'label'), ms['label'])}; "
+    mtxt = lambda key, val, fm=fmt_kj: (f"; measured {fm(ms[key])}, {ms.get(key.replace('kJ', 'label'), ms['label'])}; "
                              f"computed − measured {_sgn(val - ms[key])}"
                              if ms.get(key) is not None else "; no measured value")
     course = notes.get("course_mapping", "")
@@ -418,8 +418,9 @@ def _write_split(rx, notes, ts, meta, man, tr, diag, changing, min_ovl, cm, auto
         zero = notes.get("summary_zero", "from separated reactants, 298 K, 1 M")
         summ = [f"| Free energy of activation, ΔG‡ ({zero}) | **{fmt_kj(cc['dG_TS_vs_separated_1M_kJ'])}** at "
                 f"{cc_name}{mtxt('dG_TS_kJ', cc['dG_TS_vs_separated_1M_kJ'])} |",
-                f"| Reaction free energy, ΔrG ({zero}) | {fmt_kj(cc['dG_reaction_1M_kJ'])} at {cc_name}"
-                f"{mtxt('dG_reaction_kJ', cc['dG_reaction_1M_kJ'])} |"]
+                # ΔrG always with its sign (+36.4, +10.5; J. Picione, 2026-11-27)
+                f"| Reaction free energy, ΔrG ({zero}) | {_sgn(cc['dG_reaction_1M_kJ'])} at {cc_name}"
+                f"{mtxt('dG_reaction_kJ', cc['dG_reaction_1M_kJ'], _sgn)} |"]
     elif kind == "gas":
         conf = _read_json(r / "03_gas_phase/conformers.json")
         g = next(x for x in conf["rows"] if x["level"] == dflt)["mixture"]
@@ -478,6 +479,8 @@ def _write_split(rx, notes, ts, meta, man, tr, diag, changing, min_ovl, cm, auto
                       lab.get(row["level"], row["level"].replace("_", "/"))
                       + (" (default curve)" if row["level"] == dflt else ""))
     f = lambda x: fmt_kj(x) if x is not None else "—"
+    # reaction energies with their sign (J. Picione, 2026-11-27); an exact 0.0 (degenerate shift) stays unsigned
+    fs = lambda x: "—" if x is None else fmt_kj(x) if abs(x) < 0.05 else _sgn(x)
     det = [f"# Card details: {rx.cfg['title']}", "",
            f"## Energies at every level (same {work} geometries, SMD {sol})", ""]
     if kind == "own":
@@ -486,24 +489,24 @@ def _write_split(rx, notes, ts, meta, man, tr, diag, changing, min_ovl, cm, auto
                 f"{o_nm} | Reaction energy ΔrE, from {z_nm} | Reaction free energy ΔrG (298 K) |",
                 "|---|---|---|---|---|---|---|"]
         det += ["| " + " | ".join([nm(row), fmt_kj(row["dE_TS_vs_complex_kJ"]), fmt_kj(row["dG_TS_vs_complex_kJ"]),
-                                   fmt_kj(row["own_dE"]), fmt_kj(row["own_dG"]), fmt_kj(row["dE_reaction_kJ"]),
-                                   fmt_kj(row["dG_reaction_1M_kJ"])]) + " |" for row in rows]
+                                   fmt_kj(row["own_dE"]), fmt_kj(row["own_dG"]), fs(row["dE_reaction_kJ"]),
+                                   fs(row["dG_reaction_1M_kJ"])]) + " |" for row in rows]
     elif one:
         z_nm, s_nm = ctx["z_nm"], ctx["s_nm"]
         det += [f"| Level | ΔE‡ from {z_nm} | ΔE‡ from {s_nm} | Reaction energy ΔrE | ΔG‡ from {z_nm} (298 K) "
                 f"| ΔG‡ from {s_nm} (298 K) | Reaction free energy ΔrG (298 K) |", "|---|---|---|---|---|---|---|"]
         det += ["| " + " | ".join([nm(row), fmt_kj(row["dE_TS_vs_separated_kJ"]), fmt_kj(row["dE_TS_vs_complex_kJ"]),
-                                   fmt_kj(row["dE_reaction_kJ"]), f(row["dG_TS_vs_separated_1M_kJ"]),
-                                   f(row["dG_TS_vs_complex_kJ"]), f(row["dG_reaction_1M_kJ"])]) + " |" for row in rows]
+                                   fs(row["dE_reaction_kJ"]), f(row["dG_TS_vs_separated_1M_kJ"]),
+                                   f(row["dG_TS_vs_complex_kJ"]), fs(row["dG_reaction_1M_kJ"])]) + " |" for row in rows]
     else:
         det += ["| Level | ΔE‡ from separated reactants | ΔE‡ from the reactant complex | Reaction energy ΔrE "
                 "| ΔG‡ from separated reactants (298 K, 1 M) | ΔG‡ from the reactant complex (298 K) "
                 "| Reaction free energy ΔrG (298 K, 1 M) |", "|---|---|---|---|---|---|---|"]
         det += ["| " + " | ".join([nm(row), fmt_kj(row["dE_TS_vs_separated_kJ"]), fmt_kj(row["dE_TS_vs_complex_kJ"]),
-                                   fmt_kj(row["dE_reaction_kJ"]), f(row["dG_TS_vs_separated_1M_kJ"]),
-                                   f(row["dG_TS_vs_complex_kJ"]), f(row["dG_reaction_1M_kJ"])]) + " |" for row in rows]
+                                   fs(row["dE_reaction_kJ"]), f(row["dG_TS_vs_separated_1M_kJ"]),
+                                   f(row["dG_TS_vs_complex_kJ"]), fs(row["dG_reaction_1M_kJ"])]) + " |" for row in rows]
         if kind == "two" and ms.get("dG_TS_kJ") is not None:
-            det.append(f"| **Measured** | — | — | — | {f(ms.get('dG_TS_kJ'))} | — | {f(ms.get('dG_reaction_kJ'))} |")
+            det.append(f"| **Measured** | — | — | — | {f(ms.get('dG_TS_kJ'))} | — | {fs(ms.get('dG_reaction_kJ'))} |")
     det += ["", (f"ΔG adds the {work} thermal corrections (298.15 K, quasi-RRHO) to each level's electronic energies; "
                  "there is one molecule throughout, so no standard-state correction applies." if one else
                  f"ΔG adds the {work} thermal corrections (298.15 K, quasi-RRHO) to each level's electronic energies, "
@@ -555,6 +558,9 @@ def _write_split(rx, notes, ts, meta, man, tr, diag, changing, min_ovl, cm, auto
         det += ["## The measured value: source and derivation", "", notes["experimental_details"], ""]
     if notes.get("context_details"):
         det += ["## Measured value", "", notes["context_details"], ""]
+    # extra sections from files next to the data (e.g. the explicit-water test; J. Picione, 2026-11-27)
+    for sec in notes.get("details_sections", []):
+        det += [f"## {sec['title']}", "", (r / sec["file"]).read_text(encoding="utf-8").strip(), ""]
     rot = _display_rotation_text(rx)
     det += ["## Path and orbitals", "",
             f"- IRC frames: {meta['n_frames']}; reaction coordinate s from {meta['s_min']:.2f} to {meta['s_max']:.2f} "

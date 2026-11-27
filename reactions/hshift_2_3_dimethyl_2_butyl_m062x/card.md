@@ -16,7 +16,7 @@
 ## Limitations
 
 1. The measurement is in a superacid solution, which the solvent model cannot describe; dichloromethane (SMD, a continuum with no solvent molecules) is used as a polar, non-nucleophilic stand-in.
-2. The coupled-cluster ΔG‡ at 135 K is 3.1 kJ/mol (0.7 kcal/mol) above the measured value, a factor of about 16 in rate, because RT is only 1.12 kJ/mol at 135 K. That agreement should not be over-read: the solvent is a continuum standing in for a superacid, the geometries and thermal corrections come from M06-2X, and the choice of solvation scheme alone moves this barrier by about 0.3 kJ/mol. M06-2X/ma-def2-TZVP on the same geometries gives 17.1 kJ/mol (4.1 kcal/mol).
+2. The coupled-cluster ΔG‡ at 135 K is 3.1 kJ/mol (0.7 kcal/mol) above the measured value, a factor of about 16 in rate, because RT is only 1.12 kJ/mol at 135 K. That difference should not be over-read either: the solvent is a continuum standing in for a superacid, the geometries and thermal corrections come from M06-2X, and the choice of solvation scheme alone moves this barrier by about 0.3 kJ/mol. M06-2X/ma-def2-TZVP on the same geometries gives 17.1 kJ/mol (4.1 kcal/mol).
 3. Tunnelling of the moving hydrogen is not included. It is probably small here, because the top of the barrier is flat and wide: the Wigner estimate at 135 K is a factor of about 1.06 (a rough indicator only).
 4. Only half of the path is computed: from the open cation to the symmetric hydrogen-bridged structure. The second half is its mirror image (the two carbons exchange roles); those frames are labelled as mirror images in the viewer and are not computed points.
 

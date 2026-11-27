@@ -2804,3 +2804,7 @@ One-molecule card: barriers from `dimethylbutyl_cation` and from the reactant-en
 ## 2026-11-26 15:20 — one-page card and card_details.md (J. Picione, 2026-11-26)
 
 `card.md` (one page) and `card_details.md` rebuilt by `pipeline/card.py` from data on disk, idle priority, one thread (no ORCA job). Applies J. Picione's 2026-11-26 decision after reading the E2 sample: true minus signs; "What this is" in his wording; the coupled-cluster comparison line in his E2 pattern; at most six plain-word limitations; no dates, names or history on either page (history stays in card_notes.toml and here); no number changed. Comparison at 135 K from the lowest cation conformer (01_ts/rotamer_zero.json), with the flat-top sentence; 135 K table at every level in card_details.md (differences +4.1 and +13.4 kJ/mol are new arithmetic). Moved to card_details.md: bridged structure indistinguishable from the TS.
+
+## 2026-11-27 01:40 — card wording (J. Picione, 2026-11-27)
+
+No ORCA job. `card.md` rebuilt: limitation 2 "That agreement should not be over-read" became "That difference should not be over-read either". No number changed.

@@ -450,3 +450,55 @@ path), but tracking found three changing orbitals and none of them was checked a
   calculation. Tracking finds no delocalized orbital and no other change at any frame.
 - **Files:** `docs/results/hshift_hyperconjugation.md`; `reactions/hshift_*_m062x/03_orbitals/hyperconjugation.json`,
   `tracking.json` and `tracking_log.md`.
+
+## 15. Cyanide + acetone: explicit-water sensitivity test, n = 1–3 (J. Picione, 2026-11-27)
+
+Not a correction: no production number changes. Every table, card and video stays on SMD water without explicit
+waters (n = 0). The test shows the size of the effect, not a corrected value.
+
+- **Model (cluster-continuum):** one to three water molecules around the ions, the same number on both sides,
+  CN⁻·(H₂O)n + acetone → TS·(H₂O)n → alkoxide·(H₂O)n, all in SMD water. 25 starting arrangements (water on C or N of
+  cyanide; on O or N of the TS and alkoxide), optimized with frequencies at M06-2X-D3(0)/ma-def2-SVP; for each
+  species and n the usable arrangement lowest in free energy is kept. Single points on the kept structures at
+  M06-2X/ma-def2-TZVP, DLPNO-CCSD(T)/ma-def2-TZVP and B3LYP-D3(BJ)/ma-def2-TZVP, each with the working-level G − E.
+  298.15 K, 1 M. Run 2026-11-26 07:00–21:34, about 28 h of job time (`pipeline/explicit_water.py`).
+- **Results, kJ/mol (kcal/mol), zero = separated reactants:**
+
+**ΔG‡ from separated reactants:**
+
+| Level | n = 0 (production) | n = 1 | n = 2 | n = 3 |
+|---|---|---|---|---|
+| M06-2X/ma-def2-SVP (working level) | 67.4 (16.1) | 73.5 (17.6) | 71.0 (17.0) | 62.4 (14.9) |
+| M06-2X/ma-def2-TZVP | 72.1 (17.2) | 77.0 (18.4) | 74.2 (17.7) | 67.1 (16.0) |
+| DLPNO-CCSD(T)/ma-def2-TZVP | 79.3 (19.0) | 85.4 (20.4) | 85.8 (20.5) | 73.5 (17.6) |
+| B3LYP/ma-def2-TZVP | 76.6 (18.3) | 84.2 (20.1) | 84.5 (20.2) | 72.4 (17.3) |
+| Measured | 69.6 (16.6) | | | |
+
+**ΔrG:**
+
+| Level | n = 0 (production) | n = 1 | n = 2 | n = 3 |
+|---|---|---|---|---|
+| M06-2X/ma-def2-SVP (working level) | +26.3 (+6.3) | +20.4 (+4.9) | +10.9 (+2.6) | −7.7 (−1.8) |
+| M06-2X/ma-def2-TZVP | +33.0 (+7.9) | +27.6 (+6.6) | +19.3 (+4.6) | +2.9 (+0.7) |
+| DLPNO-CCSD(T)/ma-def2-TZVP | +36.4 (+8.7) | +33.2 (+7.9) | +24.7 (+5.9) | +3.2 (+0.8) |
+| B3LYP/ma-def2-TZVP | +45.8 (+11.0) | +43.8 (+10.5) | +35.6 (+8.5) | +16.4 (+3.9) |
+| Measured | +10.5 (+2.5) | | | |
+
+- **Reading:** ΔrG falls steadily with n at every level (DLPNO-CCSD(T): +36.4 → +3.2 kJ/mol; measured +10.5 kJ/mol),
+  as expected if the continuum under-solvates the alkoxide oxygen (every kept alkoxide has all its waters on O,
+  H···O 1.48–1.61 Å). The barrier does not settle: at DLPNO-CCSD(T) it rises by 6.1 and 6.5 kJ/mol (1.5 and
+  1.6 kcal/mol) with one and two waters and falls by 5.8 kJ/mol (1.4 kcal/mol) with three. All kept transition states
+  are the reaction's (308i, 294i and 315i cm⁻¹; overlap 0.99 with the bare TS mode).
+- **Arrangements not used (21 of 25 usable):**
+  - ts·(H₂O)1, water on N: not a transition state. It moved back to a loose complex of acetone and cyanide·water (C···C 3.30 Å) with a residual 14i cm⁻¹ mode, overlap 0.06 with the reaction mode.
+  - cyanide·(H₂O)2, both waters on C: one imaginary frequency left (82i cm⁻¹, 96 % on the free O–H hydrogen of one water, a rotation of that water). It lies 4.2 kJ/mol (1.0 kcal/mol) above the kept arrangement in electronic energy and 4.7 kJ/mol (1.1 kcal/mol) above it in free energy, so it would not have been kept.
+  - cyanide·(H₂O)3, two waters on N and one on C: one imaginary frequency left (85i cm⁻¹, 90 % on the free O–H hydrogen of a water on N). +0.9 kJ/mol (+0.2 kcal/mol) in electronic energy and −7.2 kJ/mol (−1.7 kcal/mol) in free energy against the kept arrangement (working level).
+  - cyanide·(H₂O)3, one water on N and two on C: one imaginary frequency left (108i cm⁻¹, 96 % on the free O–H hydrogen of a water on C). +0.7 kJ/mol (+0.2 kcal/mol) in electronic energy and −5.7 kJ/mol (−1.4 kcal/mol) in free energy against the kept arrangement (working level).
+- **Check of the n = 3 reference (from the outputs on disk, no new job; J. Picione, 2026-11-27):** the kept
+  cyanide·(H₂O)3 is the lowest of the four arrangements in electronic energy, but not in free energy: the two
+  unusable arrangements with water on both ends of cyanide lie 7.2 and 5.7 kJ/mol (1.7 and 1.4 kcal/mol) below it.
+  Their free energies are approximate (ORCA leaves the imaginary mode out of the thermal correction). If one of them
+  is the true lowest, the n = 3 reactant is too high by up to about 7 kJ/mol and the n = 3 ΔG‡ and ΔrG are both too
+  low by about as much. **Open:** whether to re-optimize these two (his decision).
+- **Files:** `reactions/nucadd_cyanide_acetone_m062x/04_explicit_water/explicit_water.md` and `.json`; per-job
+  outputs in `04_explicit_water/opt/` and `sp/`.
