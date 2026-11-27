@@ -460,8 +460,8 @@ def _write_split(rx, notes, ts, meta, man, tr, diag, changing, min_ovl, cm, auto
                  f"curve in the viewer and video): {cc_name} single points on those geometries, SMD {sol}; thermal "
                  f"corrections from {work} frequencies.")
     if kind == "gas":
-        level_txt += (f" Comparison with the gas-phase measurement: separate gas-phase geometries and frequencies at "
-                      f"{work}, {cc_name} single points.")
+        # short form on the one-page card (J. Picione, 2026-11-27); the method is in card_details.md
+        level_txt += " Comparison with the gas-phase measurement: separate gas-phase calculations at the same levels."
     # ---------------------------------------------------------------- summary rows
     if kind == "two":
         zero = notes.get("summary_zero", "from separated reactants, 298 K, 1 M")
