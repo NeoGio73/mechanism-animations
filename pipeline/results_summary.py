@@ -183,7 +183,8 @@ def main(rxname: str, out: str) -> None:
              "dE_cx_sep": rel(cx, sep), "dG_cx_sep": rel(cx, sep) + corr("G_minus_E_kJ", cx, sep) - dn_ts * CONV_1M,
              "dE_pc_sep": rel(pc, sep),
              "dG_pc_sep": rel(pc, sep) + corr("G_minus_E_kJ", pc, sep) - dn_ts * CONV_1M,
-             "dE_rev": rel(ts, rev), "dG_rev": rel(ts, rev) + corr("G_minus_E_kJ", ts, rev)}
+             "dE_rev": rel(ts, rev), "dH_rev": rel(ts, rev) + corr("H_minus_E_kJ", ts, rev),
+             "dG_rev": rel(ts, rev) + corr("G_minus_E_kJ", ts, rev)}
         return q
     Q = {lv: quantities(lv) for _, lv, _ in LEVELS}
     # for other checks on the same reference states and thermal corrections (pipeline/smd_scheme_report.py): add an

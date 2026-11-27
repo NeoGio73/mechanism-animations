@@ -464,6 +464,9 @@ At the join (`pipeline/mirror_path.py`):
   `bridged_c2`, the DCM level-test structure: C2–H 1.3207 Å, C3–H 1.3202 Å, all frequencies real.
 - If the side carries on past it toward the other open cation, by more than 0.05 Å in C3–H − C2–H, those
   frames are not used as IRC points.
+  - In the production run (2026-11-27 reading) the side carried on past the bridged structure toward an open
+    cation with the hydrogen on C3, the same carbon as at the reactant end, not toward the other open cation.
+    Forward steps 8–129 are not used either way (`docs/results/paper_tables.md`, angle-check notes).
 - The second half is the mirror image of the computed half under the C2 ⇄ C3 swap. The reference is
   symmetric under the swap to 0.0002 Å. Every mirror frame is labelled as such: "frame_source" in
   `irc_path.json`, "source" in the viewer data, the viewer readout, and the card.
@@ -1006,14 +1009,22 @@ orbitals is at least 0.99 (lowest 0.993 and 0.990); nor does the cyanide + aceto
 (lowest 0.992).
 
 Display rotation of bent bonds (decided by J. Picione, 2026-11-10; first use: Diels–Alder): where
-IBO localization gives an isolated double bond as two bent bonds (for ethylene at the Diels–Alder
-reactant end, two non-equivalent ones, s-character 0.18 and 0.24), the pair is rotated within itself,
+IBO localization gives an isolated double bond as two bent bonds, the pair is rotated within itself,
 for display only, into the σ + π pair that spans the same two orbitals, and the π orbital is shown.
 This applies from the reactant end at every frame where the computed orbital is more than 0.5° from
 that split (π = the pair's combination with the least s-character), so the rotated frames join the
-unrotated ones smoothly (Diels–Alder: IRC frames 0–47, join overlap 0.9998); a rotation inside an
-occupied pair changes no energy or density, and the unrotated orbitals stay in the data files
-(`03_orbitals/display_rotation.json` records the frames, angles and overlaps).
+unrotated ones smoothly; a rotation inside an occupied pair changes no energy or density, and the
+unrotated orbitals stay in the data files (`03_orbitals/display_rotation.json` records the frames,
+angles and overlaps).
+- Production path (M06-2X-D3(0)/ma-def2-SVP, SMD toluene; numbers read 2026-11-27): at the reactant
+  end the C5=C6 pair is already a σ and a π orbital (s-character 0.43 and 0.00), and the tracked
+  orbital is the σ one. The two mix into bent bonds only around IRC frames 70–110 (both orbitals above
+  0.10 s-character, the bent-bond label, at frames 82–94). The π-like combination of the pair is shown
+  in IRC frames 0–139 (86.8° from the tracked orbital at frame 0, 0.5° at frame 139), join overlap
+  0.99998. On this path the rotation therefore shows the π partner instead of the tracked σ orbital
+  (card limitation 6).
+- Pilot path (the pilot's numbers, kept for the record): ethylene at the reactant end as two
+  non-equivalent bent bonds, s-character 0.18 and 0.24; rotated frames 0–47, join overlap 0.9998.
 
 Arrow direction in pericyclic reactions (decided by J. Picione, 2026-11-10): in a pericyclic
 reaction the clockwise and counter-clockwise curved-arrow drawings are mirror images of the

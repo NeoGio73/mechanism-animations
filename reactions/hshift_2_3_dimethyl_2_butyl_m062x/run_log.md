@@ -2820,3 +2820,7 @@ No ORCA job.
 ## 2026-11-27 06:50 — the 108 forward frames of the angle check (J. Picione, 2026-11-27)
 
 No ORCA job. They are computed forward steps 21–128 from the TS, past the bridged structure (reached at step 7), on the stretch where the computed side runs back toward an open cation with H on C3; the displayed path uses forward steps 1–7 only. Details in `docs/results/paper_questions_2026-11-27.md`.
+
+## 2026-11-27 15:03 — angle-check row cut to the shown path (J. Picione, 2026-11-27)
+
+No ORCA job. `docs/results/paper_tables.md`: the tertiary row now counts only frames on the shown path (open side: near zone, 21 frames, and 242 beyond; bridged side: forward steps 1–6, median 40.2°, 90th percentile 65.0°; no beyond-zone entry, the product half being the mirror image). Note added: forward steps 8–129 are kept in `02_irc/true_irc/forward/path.xyz` and are not part of the path; they run back toward an open cation with H on C3 (the reactant-end carbon), step 129 4.08 kJ/mol above `open_cation`, RMSD 0.738 Å to it and 0.835 Å to its mirror image (best atom mapping; 1.496 Å with the numbering unchanged); C3–H in line with the empty orbital (H–C3–C2–CH₃ 93°/−86°, against 150°/−31° in `open_cation`), so not the same rotamer; the side ended by the stopping rule (last bond event step 33, then 20 steps below 0.05 kJ/mol), no optimization from it. Comment in reaction.toml and a dated line in docs/protocol.md corrected (the plan said "toward the other open cation").

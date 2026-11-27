@@ -5,10 +5,12 @@ Free-text fields that need the chemist (course mapping, extra limitations) are r
 from __future__ import annotations
 
 import json
+import math
 import tomllib
 from pathlib import Path
 
 from .steps import Reaction, _read_json, level_name
+
 from .units import KJ_TO_KCAL, fmt_kj
 
 
@@ -128,7 +130,8 @@ def _one_molecule(rx: Reaction) -> dict | None:
     rows = [{"level": d["level"], "dE_TS_vs_separated_kJ": Q[key(d["level"])]["dE_sep"],
              "dE_TS_vs_complex_kJ": Q[key(d["level"])]["dE_cx"], "dE_reaction_kJ": Q[key(d["level"])]["dEr"],
              "dG_TS_vs_separated_1M_kJ": Q[key(d["level"])]["dG_sep"],
-             "dG_TS_vs_complex_kJ": Q[key(d["level"])]["dG_cx"], "dG_reaction_1M_kJ": Q[key(d["level"])]["dGr"]}
+             "dG_TS_vs_complex_kJ": Q[key(d["level"])]["dG_cx"], "dG_reaction_1M_kJ": Q[key(d["level"])]["dGr"],
+             "dH_rev_kJ": Q[key(d["level"])]["dH_rev"], "dG_rev_kJ": Q[key(d["level"])]["dG_rev"]}
             for d in diag["rows"]]
     # a conformer with its own TS (pipeline/own_barrier.py): the barrier of the path shown is measured from the form
     # the path starts from, and that conformer's barrier through its own TS is given beside it; the TS shown measured
@@ -360,6 +363,47 @@ def _sgn(x: float) -> str:
     return f"{x:+.1f} kJ/mol ({k:+.2f} kcal/mol)" if 0 < abs(k) < 0.05 else f"{x:+.1f} kJ/mol ({k:+.1f} kcal/mol)"
 
 
+def _reverse_measured(notes: dict, cc: dict) -> dict:
+    """Measured value for the reverse direction (card_notes.toml [reverse_measured]; J. Picione, 2026-11-27): the
+    Arrhenius parameters as printed, converted at T by pipeline/measured.py; the computed reverse ΔH‡ and ΔG‡ at the
+    default level from pipeline/results_summary.py (TS of the path shown minus the product-end minimum, working-level
+    thermal corrections). Returns the one-page row text and the card_details lines."""
+    from .measured import arrhenius_to_activation
+    m = notes["reverse_measured"]
+    x = arrhenius_to_activation(m["Ea_kcal"], m["log10_A"], m.get("T_K", 298.15), m.get("Ea_err_kcal"),
+                                m.get("log10_A_err"))
+    gc, hc = cc["dG_rev_kJ"], cc["dH_rev_kJ"]
+    lvl = m["level_name"]
+    T = x["T_K"]
+    dS_c = (hc - gc) / T * 1000.0
+    card = (f"{m['forward_text']} For the reverse direction, {m['from_text']}: computed {fmt_kj(gc)} at {lvl}; "
+            f"measured {fmt_kj(x['dG_kJ'])} at {T:.0f} K, {m['method_text']}; computed − measured "
+            f"{_sgn(gc - x['dG_kJ'])}.")
+    t0, t1 = m["T_range_C"]
+    kpm = lambda v: f"{v:.1f} kJ/mol ({v * KJ_TO_KCAL:.1f} kcal/mol)"
+    det = [m["forward_text"], "",
+           f"For the reverse direction, {m['from_text']}: {m['source']} {m['measured_text']}, Ea = "
+           f"{m['Ea_kcal']:.1f} ± {m['Ea_err_kcal']:.1f} kcal/mol and log A = {m['log10_A']:.1f} ± "
+           f"{m['log10_A_err']:.1f}, from rate constants between {t0:.1f} and {t1:.1f} °C. At {T:.2f} K these give "
+           f"k = {x['k_s']:.0f} s⁻¹, a free energy of activation ΔG‡ = {kpm(x['dG_kJ'])}, an activation enthalpy "
+           f"ΔH‡ = Ea − RT = {kpm(x['dH_kJ'])} and an entropy of activation ΔS‡ = {x['dS_J_molK']:.1f} ± "
+           f"{x['dS_err_J_molK']:.0f} J/(mol·K) (Eyring equation, transmission coefficient 1).", "",
+           f"| Reverse step, {m['from_text']}, {T:.2f} K | ΔH‡ | ΔG‡ |", "|---|---|---|",
+           f"| Computed, {lvl} ({m['zero_text']}) | {fmt_kj(hc)} | {fmt_kj(gc)} |",
+           f"| Measured | {fmt_kj(x['dH_kJ'])} | {fmt_kj(x['dG_kJ'])} |",
+           f"| Computed − measured | {_sgn(hc - x['dH_kJ'])} | {_sgn(gc - x['dG_kJ'])} |", "",
+           f"The two errors partly cancel: the computed enthalpy of activation is {abs(hc - x['dH_kJ']):.1f} kJ/mol too "
+           f"low, and the computed entropy of activation, {dS_c:.0f} J/(mol·K), is more negative than the measured "
+           f"{x['dS_J_molK']:.1f} ± {x['dS_err_J_molK']:.0f} J/(mol·K), so the entropy term −TΔS‡ adds "
+           f"{abs(dS_c - x['dS_J_molK']) * T / 1000.0:.1f} kJ/mol more to the computed ΔG‡ than to the measured one.", "",
+           "Limits of this comparison:", "", *[f"- {s}" for s in m["limits"]], ""]
+    for lit in m.get("literature", []):
+        det += [lit["text"].format(**{k: kpm(v * 4.184) for k, v in lit.get("kcal", {}).items()}), ""]
+    if m.get("context_text"):
+        det += [m["context_text"], ""]
+    return {"card": card, "details": det, "measured": x, "computed": {"dH_kJ": hc, "dG_kJ": gc, "dS_J_molK": dS_c}}
+
+
 def _pm(v: float, e: float) -> str:
     return f"{v:.1f} ± {e:.1f} kJ/mol ({v * KJ_TO_KCAL:.1f} ± {e * KJ_TO_KCAL:.1f} kcal/mol)"
 
@@ -450,6 +494,9 @@ def _write_split(rx, notes, ts, meta, man, tr, diag, changing, min_ovl, cm, auto
                 f"{ctx['z_nm']} |"]
     else:
         raise ValueError(f"summary kind {kind!r}")
+    rv = _reverse_measured(notes, cc) if notes.get("reverse_measured") else None
+    if rv:
+        summ += [f"| Measured value | {rv['card']} |"]
     summ += [f"| {row['label']} | {row['text']} |" for row in notes.get("summary_rows", [])]
     orb_card = (orb_base + (". Localized orbitals (IBOs), followed frame to frame" if orb_base.endswith(")") else
                             " (localized orbitals, IBOs, followed frame to frame)")
@@ -469,6 +516,7 @@ def _write_split(rx, notes, ts, meta, man, tr, diag, changing, min_ovl, cm, auto
         "## Limitations", "",
         *[f"{i}. {x}" for i, x in enumerate(lim, 1)], "",
         "Energies at every level, " + ("how the measured value was derived, " if notes.get("experimental_details")
+                                       or notes.get("reverse_measured")
                                        else "the context for the missing measured value, "
                                        if notes.get("context_details") else "")
         + "and technical notes: `card_details.md`.", "",
@@ -556,7 +604,23 @@ def _write_split(rx, notes, ts, meta, man, tr, diag, changing, min_ovl, cm, auto
                                                                                  notes), ""]
     if notes.get("experimental_details"):
         det += ["## The measured value: source and derivation", "", notes["experimental_details"], ""]
-    if notes.get("context_details"):
+    for xm in notes.get("other_measurements", []):   # further measurements, card_details only (J. Picione, 2026-11-27)
+        from .measured import eyring_dG
+        k = xm["k_overall_L_mol_s"] * xm["fraction"]
+        g = eyring_dG(k, xm.get("T_K", 298.15))
+        gc = cc["dG_TS_vs_separated_1M_kJ"]
+        sup = str.maketrans("-0123456789", "⁻⁰¹²³⁴⁵⁶⁷⁸⁹")
+        sci = lambda v: (f"{v / 10 ** math.floor(math.log10(v)):.2f} × 10"
+                         + str(math.floor(math.log10(v))).translate(sup))
+        det += [f"## {xm['title']}", "",
+                f"{xm['source']}: overall rate constant {sci(xm['k_overall_L_mol_s'])} L/(mol·s), "
+                f"{xm['fraction_label']} {xm['fraction']:.3f}, elimination rate constant {sci(k)} L/(mol·s), which is "
+                f"ΔG‡ = {fmt_kj(g)} at {xm.get('T_K', 298.15):.2f} K (Eyring, 1 M standard state); computed − measured "
+                f"{_sgn(gc - g)} against it ({cc_name}, {fmt_kj(gc)}). " + xm.get("note", "")
+                + (f" {xm['card_keeps']}" if xm.get("card_keeps") else ""), ""]
+    if rv:
+        det += ["## Measured value", "", *rv["details"]]
+    elif notes.get("context_details"):
         det += ["## Measured value", "", notes["context_details"], ""]
     # extra sections from files next to the data (e.g. the explicit-water test; J. Picione, 2026-11-27)
     for sec in notes.get("details_sections", []):
@@ -655,8 +719,30 @@ def _path_quality(rx: Reaction) -> str:
     return card_text(quality(rx))
 
 
+def _s2(x: float) -> str:
+    return f"{0.0 if abs(x) < 0.005 else x:.2f}"
+
+
+def rotation_ranges(d: dict) -> dict:
+    """From 03_orbitals/display_rotation.json: what the pair is at frame 0, and where it mixes.
+    bent: frames where both orbitals are above PI_MAX_S s-character (the bent-bond label, orbital_steps);
+    change: frames between 5 % and 95 % of the shown orbital's s-character change over the recorded frames."""
+    from .orbital_steps import PI_MAX_S
+    F = d["frames"]
+    bent = [f["frame"] for f in F if min(f["s_character_shown"], f["s_character_partner"]) > PI_MAX_S]
+    s0, s1 = F[0]["s_character_shown"], F[-1]["s_character_shown"]
+    lo, hi = sorted((s0 + 0.05 * (s1 - s0), s0 + 0.95 * (s1 - s0)))
+    ch = [f["frame"] for f in F if lo <= f["s_character_shown"] <= hi]
+    f0 = F[0]
+    return {"pi_max_s": PI_MAX_S, "bent": bent, "change": ch,
+            "frame0_bent": min(f0["s_character_shown"], f0["s_character_partner"]) > PI_MAX_S,
+            "frame0_shown_is_sigma": f0["s_character_shown"] > PI_MAX_S >= f0["s_character_partner"]}
+
+
 def _display_rotation_text(rx: Reaction) -> str | None:
-    """One sentence on the display-only σ/π rotation (orbital_steps.orbital_display), or None."""
+    """One sentence on the display-only σ/π rotation (orbital_steps.orbital_display), or None.
+    Wording from the data (J. Picione, 2026-11-27: on the production Diels–Alder path the pair at the reactant end
+    is σ + π, the tracked orbital the σ one; bent bonds only on the way)."""
     p = rx.root / "03_orbitals" / "display_rotation.json"
     if not p.exists():
         return None
@@ -664,16 +750,28 @@ def _display_rotation_text(rx: Reaction) -> str | None:
     sym = json.loads((rx.root / "04_meshes" / "manifest.json").read_text(encoding="utf-8"))["symbols"]
     a, b = d["atoms"]
     bond = f"{sym[a]}{a + 1}={sym[b]}{b + 1}"
-    f0, fr = d["frames"][0], d["rotated_frames"]
-    return (f"Near the reactant end the IBO localization gave the isolated {bond} double bond as two "
-            f"bent bonds, not equivalent (s-character {f0['s_character_shown']:.2f} and "
-            f"{f0['s_character_partner']:.2f} at IRC frame 0); for display only, the pair was rotated "
-            f"within itself into the σ + π pair that spans the same two orbitals, and the π orbital is "
-            f"shown, in IRC frames {fr[0]}–{fr[-1]} (where the computed orbital is more than "
-            f"{d['max_angle_deg']:g}° from that split; {f0['bend_angle_deg']:.0f}° at frame 0), joining "
-            f"the unrotated frames with overlap {d['overlap_across_join']:.4f}; a rotation inside an "
-            f"occupied pair changes no energy or density, and the unrotated orbitals are kept in the "
-            f"data files (`03_orbitals/display_rotation.json`)")
+    fr = d["rotated_frames"]
+    byf = {f["frame"]: f for f in d["frames"]}
+    f0, fl = byf[fr[0]], byf[fr[-1]]
+    r = rotation_ranges(d)
+    tail = (f"for display only, the π-like combination of the pair (its combination with the least s-character) "
+            f"is shown in IRC frames {fr[0]}–{fr[-1]}, where the tracked orbital is more than {d['max_angle_deg']:g}° "
+            f"from it ({f0['bend_angle_deg']:.1f}° at frame {fr[0]}, {fl['bend_angle_deg']:.1f}° at frame {fr[-1]}), "
+            f"joining the unrotated frames with overlap {d['overlap_across_join']:.5f}; a rotation inside an "
+            f"occupied pair changes no energy or density, and the unrotated orbitals are kept in the data files "
+            f"(`03_orbitals/display_rotation.json`)")
+    if r["frame0_shown_is_sigma"]:
+        c, bt = r["change"], r["bent"]
+        c0, c1 = round(c[0], -1), round(c[-1], -1)
+        bent = (f" (both orbitals above {r['pi_max_s']:.2f} s-character, the bent-bond label, at frames "
+                f"{bt[0]}–{bt[-1]})" if bt else "")
+        return (f"At the reactant end the IBO localization gives the {bond} pair as a σ and a π orbital "
+                f"(s-character {_s2(f0['s_character_shown'])} and {_s2(f0['s_character_partner'])} at IRC frame "
+                f"{fr[0]}), and the tracked orbital is the σ one; the two mix into bent bonds only on the way, "
+                f"around IRC frames {c0:.0f}–{c1:.0f}{bent}; " + tail)
+    return (f"Near the reactant end the IBO localization gave the {bond} double bond as two bent bonds, not "
+            f"equivalent (s-character {_s2(f0['s_character_shown'])} and {_s2(f0['s_character_partner'])} at IRC "
+            f"frame {fr[0]}); " + tail)
 
 
 def _level(method: str) -> str:

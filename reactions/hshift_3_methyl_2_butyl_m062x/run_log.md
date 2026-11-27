@@ -1509,3 +1509,7 @@ No ORCA job. The four videos were rendered 2026-11-25 16:39, before the orbital 
 ## 2026-11-27 06:50 — reverse step and ts_anti_rotation answers (J. Picione, 2026-11-27)
 
 No ORCA job. Answers in `docs/results/paper_questions_2026-11-27.md`: ts_anti_rotation sides were followed by 0.10 Å displacement along the imaginary mode and Opt Freq, not an IRC; H–C2–C3–H 127.2°. Reverse ΔH‡ / ΔG‡ from tertiary_irc to the animated path's TS at four levels from the existing outputs (DLPNO-CCSD(T): 53.2 / 59.5 kJ/mol).
+
+## 2026-11-27 15:03 — measured value for the reverse direction on the card (J. Picione, 2026-11-27)
+
+No ORCA job. card_notes.toml `[reverse_measured]` (Saunders and Hagen 1968: Ea 15.3 ± 0.2 kcal/mol, log A 13.2 ± 0.2, −15.8 to 58.0 °C) replaces the summary row "None: ...". `pipeline/measured.py` converts it at 298.15 K (k 96.6 s⁻¹, ΔG‡ 61.69, ΔH‡ 61.54 kJ/mol, ΔS‡ −0.53 ± 3.8 J/(mol·K)); `pipeline/card.py` `_reverse_measured` writes the one-page row and the card_details section with the computed reverse ΔH‡ / ΔG‡ from `pipeline/results_summary.py` (new key dH_rev; DLPNO-CCSD(T) 53.21 / 59.46 kJ/mol), the three limits, the Farcasiu and Norton line and the 2-butyl context line. card.md and card_details.md rebuilt; card prints on one page. Limitation 3 still says "With no measured value": not changed, for J. Picione.

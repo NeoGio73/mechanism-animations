@@ -19,6 +19,7 @@
 3. The rate is not reproduced as well as Ea: the computed pre-exponential factor is 0.17 times the measured one, so the computed rate at 840 K is 0.17 times the measured rate. The remaining error is almost entirely in the entropy of activation.
 4. The path starts from s-cis butadiene, the form that reacts; the energies are measured from s-trans butadiene, the more stable form, so they include the cost of turning s-trans into s-cis.
 5. The path ends at the boat form of cyclohexene, which keeps the mirror symmetry of the transition state. The reaction energies use the more stable half-chair, 23.0 kJ/mol (5.5 kcal/mol) lower (M06-2X/ma-def2-SVP, electronic).
+6. The ethylene π orbital shown before s = −2.0 bohr·amu½ is a display choice. The two orbitals of the C5=C6 double bond can be mixed freely, and followed frame to frame it is the σ orbital, not the π orbital, that ends as the new C1–C6 bond.
 
 Energies at every level, how the measured value was derived, and technical notes: `card_details.md`.
 

@@ -13,7 +13,27 @@
 
 ## Measured value
 
-No measured value on this card. The 3-methyl-2-butyl cation has not been observed: it rearranges too fast. For context only, not as a comparison: for the 1,2-hydride shift in the 2-butyl cation (a different, degenerate shift between two secondary carbons), Saunders and Kates give an upper limit, ΔG‡ < 10 kJ/mol (2.4 kcal/mol), from the absence of ¹³C NMR line broadening at −140 °C (M. Saunders and M. R. Kates, J. Am. Chem. Soc. 1978, 100, 7082–7083; reviewed in Saunders and Jiménez-Vázquez 1991).
+None for this direction: the 3-methyl-2-butyl cation has not been observed directly.
+
+For the reverse direction, from the tertiary cation: M. Saunders and E. L. Hagen (J. Am. Chem. Soc. 1968, 90, 2436) measured the NMR methyl exchange in the 2-methyl-2-butyl cation in SbF₅/SO₂ClF, Ea = 15.3 ± 0.2 kcal/mol and log A = 13.2 ± 0.2, from rate constants between −15.8 and 58.0 °C. At 298.15 K these give k = 97 s⁻¹, a free energy of activation ΔG‡ = 61.7 kJ/mol (14.7 kcal/mol), an activation enthalpy ΔH‡ = Ea − RT = 61.5 kJ/mol (14.7 kcal/mol) and an entropy of activation ΔS‡ = −0.5 ± 4 J/(mol·K) (Eyring equation, transmission coefficient 1).
+
+| Reverse step, from the tertiary cation, 298.15 K | ΔH‡ | ΔG‡ |
+|---|---|---|
+| Computed, DLPNO-CCSD(T)/ma-def2-TZVP (zero: the tertiary cation the path reaches) | 53.2 kJ/mol (12.7 kcal/mol) | 59.5 kJ/mol (14.2 kcal/mol) |
+| Measured | 61.5 kJ/mol (14.7 kcal/mol) | 61.7 kJ/mol (14.7 kcal/mol) |
+| Computed − measured | −8.3 kJ/mol (−2.0 kcal/mol) | −2.2 kJ/mol (−0.5 kcal/mol) |
+
+The two errors partly cancel: the computed enthalpy of activation is 8.3 kJ/mol too low, and the computed entropy of activation, −21 J/(mol·K), is more negative than the measured −0.5 ± 4 J/(mol·K), so the entropy term −TΔS‡ adds 6.1 kJ/mol more to the computed ΔG‡ than to the measured one.
+
+Limits of this comparison:
+
+- The measurement is in a superacid medium; the calculation uses dichloromethane (SMD) as a stand-in.
+- Statistical factors of order 2 between the NMR exchange rate and the elementary step are not worked out.
+- The methyl shift was computed for the anti form only.
+
+Farcasiu and Norton (J. Org. Chem. 1997, 62, 5374) found the same two bridged minima in the gas phase (their cis ion is our eclipsed form, their trans ion our anti form) and a barrier of 13.8 kJ/mol (3.3 kcal/mol) from the cis ion.
+
+For context only, not as a comparison: for the 1,2-hydride shift in the 2-butyl cation (a different, degenerate shift between two secondary carbons), Saunders and Kates give an upper limit, ΔG‡ < 10 kJ/mol (2.4 kcal/mol), from the absence of ¹³C NMR line broadening at −140 °C (M. Saunders and M. R. Kates, J. Am. Chem. Soc. 1978, 100, 7082–7083; reviewed in Saunders and Jiménez-Vázquez 1991).
 
 ## Path and orbitals
 

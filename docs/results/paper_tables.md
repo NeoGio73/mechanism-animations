@@ -105,7 +105,7 @@ Every input also has `%pal nprocs 4 end` (except as noted in Table 1), `%maxcore
 | SN2 | passes | 20.4° (frame 152, beyond zone) / 5.7° (frame 1) | reactant complex: +0.10 kJ/mol, 0.08 Å; opt +0.04 kJ/mol, 0.06 Å heavy atoms. The C–O distance differs by 0.12 Å, so the optimized structure became the official end | product complex: +0.23 kJ/mol, 0.03 Å; opt +0.01 kJ/mol, 0.002 Å: same minimum |
 | E2 | passes | 8.5° (frame 129) / 2.6° (frame 264) | reactant complex: +0.90 kJ/mol, 0.32 Å; opt −0.27 kJ/mol, 0.23 Å. The official end is the reached minimum; the last frame is +1.17 kJ/mol and 0.20 Å from it | product complex: +4.73 kJ/mol, 0.53 Å; opt −0.28 kJ/mol, 0.15 Å. The official end is the reached minimum; the last frame is +5.01 kJ/mol and 0.40 Å from it |
 | CN⁻ + acetone | passes | 11.4° (frame 157) / 15.1° (frame 76, beyond zone) | reactant complex: +0.94 kJ/mol, 0.25 Å; opt −0.07 kJ/mol, 0.11 Å: same minimum | product complex: −0.03 kJ/mol, 0.003 Å; opt −0.03 kJ/mol, 0.003 Å: same minimum |
-| Tertiary 1,2-H shift | flagged: the near-TS zone fails (median / 90th percentile 9.6° / 39.3° backward, 25.2° / 44.8° forward); beyond \|s\| = 1 the backward (open) side fails the median narrowly, 5.74° / 10.18° (242 frames), and the forward side passes, 4.27° / 8.38° (108 frames) | 54.2° (frame 1) / 75.4° (frame 1) | open cation: +1.47 kJ/mol, 0.26 Å; opt −0.06 kJ/mol, 0.009 Å: same minimum | bridged form: −0.003 kJ/mol, 0.004 Å; opt −0.002 kJ/mol, 0.001 Å: same minimum |
+| Tertiary 1,2-H shift | flagged: the near-TS zone fails (median / 90th percentile 9.6° / 39.3° on the open side, 21 frames; 40.2° / 65.0° on the bridged side, steps 1–6, 75.4° down to 26.2°); beyond \|s\| = 1 the open side fails the median narrowly, 5.74° / 10.18° (242 frames). The bridged side has no frame beyond \|s\| = 1 on the path, and the product half is the mirror image of the open side, so neither has an entry of its own | 54.2° (frame 1) / 75.4° (frame 1) | open cation: +1.47 kJ/mol, 0.26 Å; opt −0.06 kJ/mol, 0.009 Å: same minimum | bridged form: −0.003 kJ/mol, 0.004 Å; opt −0.002 kJ/mol, 0.001 Å: same minimum |
 | Secondary 1,2-H shift | flagged: the near-TS zone fails (7.6° / 25.4° backward, 10.6° / 25.4° forward) | 61.9° (frame 1) / 66.9° (frame 1) | eclipsed form: −0.10 kJ/mol, 0.23 Å; opt −0.10 kJ/mol, 0.06 Å. Outside the energy limit, so the optimized structure became the official end | tertiary cation: +0.19 kJ/mol, 0.43 Å; opt +0.18 kJ/mol, 0.13 Å. The optimized structure became the official end |
 | Diels–Alder | passes | 17.2° (frame 177) / 39.8° (frame 119) | reactant complex: +0.33 kJ/mol, 0.18 Å; opt −0.30 kJ/mol, 0.25 Å. The optimized structure became the official end | product (cyclohexene): +0.01 kJ/mol, 0.002 Å; opt +0.004 kJ/mol, 0.001 Å: same minimum |
 
@@ -129,6 +129,13 @@ Every input also has `%pal nprocs 4 end` (except as noted in Table 1), `%maxcore
   - Diels–Alder product side: frames 120–121 from the TS (2 frames, up to 89.1°) are left out.
   - The tertiary backward side has none left out: its 242 frames beyond |s| = 1 run to the side's last interior frame
     and include all 151 continued frames.
+- **Tertiary, frames on the shown path only (J. Picione, 2026-11-27):** the bridged side of the path is computed
+  forward steps 0–7 (the cut at the bridged structure, `pipeline/mirror_path.py`). The row counts its steps 1–6; step
+  7's angle needs step 8 and is not counted. Angles from `02_irc/true_irc/angles.json` (forward frames 1–6).
+  - Forward steps 8–129 are kept on disk (`02_irc/true_irc/forward/path.xyz`) and are not part of the path. Past the
+    bridged structure they run back down toward an open cation with the hydrogen on C3, the same carbon as at the
+    reactant end (step 129: C2–H 1.93 Å, C3–H 1.125 Å, 4.08 kJ/mol above the open-cation minimum). The side ended by
+    the stopping rule at step 129, not at a minimum, and no optimization was run from it.
 - **Exceptions recorded in `irc_meta.json`:**
   - Tertiary, backward side: not ended by the stopping rule. It was accepted where the comparison runs were stopped
     (2026-11-16).

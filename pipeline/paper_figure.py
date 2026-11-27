@@ -335,6 +335,23 @@ def caption(rx, M, rows, out: Path) -> None:
                  "active orbitals, which continues the previous frame (display-only; the reflected set spans the computed "
                  "orbitals, smallest singular value of the 3×17 overlap ≥ 0.99982 at frames 179–199). (g), (h) as "
                  "computed, without that display substitution.")
+    rot = rx.root / "03_orbitals" / "display_rotation.json"
+    if rot.exists():                     # display-only σ/π rotation (card.py _display_rotation_text; 2026-11-27)
+        d = _read_json(rot)
+        fr = set(d["rotated_frames"])
+        hit = [p["letter"] for row in rows for p in row if _irc_no(M, p["frame"]) in fr]
+        if hit:
+            a, b = d["atoms"]
+            sym = M["symbols"]
+            lab = next((o["label"] for o in orbs if o.get("tracked_id") == d["shown_tracked_id"]), "the tracked orbital")
+            pan = " and ".join(f"({x})" for x in hit) if len(hit) <= 2 else ", ".join(f"({x})" for x in hit)
+            byf = {f["frame"]: f for f in d["frames"]}
+            ang = [f"{byf[_irc_no(M, p['frame'])]['bend_angle_deg']:.1f}° at frame {_irc_no(M, p['frame'])}"
+                   for row in rows for p in row if _irc_no(M, p["frame"]) in fr]
+            ang = " and ".join(ang) if len(ang) == 2 else ", ".join(ang)
+            L.append(f"Panels {pan}: {lab} is drawn as the π-like combination of the {sym[a]}{a + 1}={sym[b]}{b + 1} "
+                     f"pair (display rotation, IRC frames {min(fr)}–{max(fr)}), not as the computed orbital; the two differ "
+                     f"by {ang}. The rotation changes no energy or density (card_details.md, display rotation).")
     if rid == "hshift_2_3_dimethyl_2_butyl":
         L.append("Panels (e)–(h): the canonical lowest unoccupied orbital (LUMO), not an IBO, at the same frames as "
                  "(a)–(d).")

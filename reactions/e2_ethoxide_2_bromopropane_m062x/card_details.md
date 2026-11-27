@@ -37,6 +37,10 @@ The barrier quoted first is the one at the working-level transition state (IRC f
 
 Experiment: 2-bromopropane + 1 M sodium ethoxide (1 N NaOEt) in dry ethanol, 25.0 °C (M. L. Dhar, E. D. Hughes and C. K. Ingold, J. Chem. Soc. 1948, 2058–2065, doi:10.1039/JR9480002058; Mechanism of elimination reactions, Part X). Table I: overall second-order 10⁵k₂ = 0.295 L mol⁻¹ s⁻¹ (k₂ = 2.95 × 10⁻⁶), corrected for solvent expansion, with 80.3 % olefin (two determinations, 82.7 and 78.0 %), the rest SN2 ether. Table VII's 10⁶k₂ = 2.88 is the uncorrected mean of a single run and is not used. Table II: 10⁵k(E2) = 0.237 L mol⁻¹ s⁻¹, i.e. k(E2) = 2.37 × 10⁻⁶ L mol⁻¹ s⁻¹. Caveats stated in the paper: the first-order (solvolysis) processes contribute up to 2–3 % of the rate, and the olefin proportions are good to within 3 %, with a correction for loss of the volatile propene. See also E. D. Hughes, C. K. Ingold, S. Masterman and B. J. McNulty, J. Chem. Soc. 1940, 899–912, doi:10.1039/JR9400000899 (Part V), and M. L. Dhar, E. D. Hughes, C. K. Ingold, A. M. M. Mandour, G. A. Maw and L. I. Woolf, J. Chem. Soc. 1948, 2093, doi:10.1039/JR9480002093 (Part XVI). Eyring at 298.15 K (1 M standard state): k(E2) = 2.37 × 10⁻⁶ L mol⁻¹ s⁻¹ gives ΔG‡(E2) = 105.1 kJ/mol (25.1 kcal/mol); the SN2 share (0.58 × 10⁻⁶ L mol⁻¹ s⁻¹) gives ΔG‡(SN2) = 108.6 kJ/mol (26.0 kcal/mol). The two pathways differ by only about 3.5 kJ/mol (0.8 kcal/mol), which is why a secondary bromide with ethoxide gives mostly, not only, alkene.
 
+## A second measurement
+
+V. J. Shiner, Jr., J. Am. Chem. Soc. 1952, 74, 5285: overall rate constant 2.82 × 10⁻⁶ L/(mol·s), olefin fraction 0.625, elimination rate constant 1.76 × 10⁻⁶ L/(mol·s), which is ΔG‡ = 105.9 kJ/mol (25.3 kcal/mol) at 298.15 K (Eyring, 1 M standard state); computed − measured −6.2 kJ/mol (−1.5 kcal/mol) against it (DLPNO-CCSD(T)/ma-def2-TZVP, 99.6 kJ/mol (23.8 kcal/mol)). Deuterium on the beta carbons slows the elimination by a factor of 6.7 per hydrogen. The card keeps Dhar, Hughes and Ingold as its measured value.
+
 ## Path and orbitals
 
 - IRC frames: 532; reaction coordinate s from −6.59 to 19.95 bohr·amu½ (TS at s = 0).

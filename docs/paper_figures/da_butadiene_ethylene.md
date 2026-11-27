@@ -4,4 +4,6 @@ Panel (b), before the TS: the reactant-side frame whose default-level energy is 
 
 Panels (e)–(h): IRC frames 188 and 189, the step where the computed localization switches. (e), (f) as displayed in the viewer and video: at frame 188 the display shows the mirror image of the computed active orbitals, which continues the previous frame (display-only; the reflected set spans the computed orbitals, smallest singular value of the 3×17 overlap ≥ 0.99982 at frames 179–199). (g), (h) as computed, without that display substitution.
 
+Panels (a) and (b): π(C5=C6) → σ(C1–C6) is drawn as the π-like combination of the C5=C6 pair (display rotation, IRC frames 0–139), not as the computed orbital; the two differ by 86.8° at frame 0 and 1.9° at frame 134. The rotation changes no energy or density (card_details.md, display rotation).
+
 File: da_butadiene_ethylene.png, 2244 × 1895 px = 190 mm wide at 300 dpi. Rendered with Blender (EEVEE), orthographic camera; composite with matplotlib (pipeline/paper_figure.py).
