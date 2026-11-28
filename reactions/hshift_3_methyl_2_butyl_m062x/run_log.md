@@ -2482,3 +2482,5 @@ No ORCA job. card_details.md (Farcasiu and Norton note, from card_notes.toml): t
 ## 2026-11-28 01:25 — stall watchdog stopped (J. Picione, 2026-11-28)
 
 No ORCA job. The stall watchdog (`pipeline.stall_watchdog`, pids 32464 and 31464, running since 2026-11-22 13:37) was stopped at J. Picione's request: the queue is empty and no further calculation is planned for this project. Line added to `docs/stall_log.md`. If a job is ever queued again, the watchdog is restarted then, on his instruction.
+
+Correction 2026-11-28 01:29: the restart guard restarted the watchdog at 01:25:54 (pids 70572 and 58816; `docs/guard_log.md`). At J. Picione's word it was stopped again at 01:29:36, and the guard held it at 01:29:37 (`docs/GUARD_HOLD`: stopped twice within one hour, not restarted). The guard is unchanged and runs to 2026-12-02 12:00. No watchdog process runs.
