@@ -472,7 +472,10 @@ def main(rxname: str, out: str) -> None:
         w("")
         if uni and own:
             w(f"**Barrier of `{own['name']}` through its own TS (`{own['ts_key']}`, {abs(own['imaginary_cm'][0]):.1f}i "
-              f"cm⁻¹, `{own['ts_folder']}`; confirmed to connect `{own['name']}` with the {pnm}), zero = "
+              f"cm⁻¹, `{own['ts_folder']}`; "
+              + (f"connects `{own['name']}` with the {pnm}: {own['irc']}; the optimizations displaced 0.10 Å both "
+                 f"ways along the imaginary mode agree (`01_stationary/rotation_ts.md`)" if own.get("irc")
+                 else f"confirmed to connect `{own['name']}` with the {pnm}") + "), zero = "
               f"`{own['name']}`, 298.15 K:**")
             w("")
             w("| Level | ΔE‡ | ΔH‡ | ΔG‡ |")
@@ -710,6 +713,15 @@ def main(rxname: str, out: str) -> None:
     if sides:
         w("- **Path (IRC) gradient jobs, working level:** " + "; ".join(sides) + ". The Hessian jobs and the TS and end-"
           "minimum optimizations are not counted.")
+        w("")
+    irc_rel = next((c["own_ts"].get("irc") for c in rx.cfg.get("zero_conformers", []) if c.get("own_ts")), None)
+    if irc_rel:                                  # a separate check, never added to the path (J. Picione, 2026-11-28)
+        ic = json.loads((R / irc_rel).read_text(encoding="utf-8"))
+        idir = (R / irc_rel).parent
+        n_g = {s: len(list((idir / s).glob("g*/j.out"))) for s in ("backward", "forward")}
+        w(f"- **Separate check, not part of the path or its total:** IRC from `{own['ts_key'] if own else '?'}` "
+          f"(`{Path(irc_rel).parent.as_posix()}`), {ic['job_time_h']:.2f} h of job time, {ic['nprocs']} cores: "
+          f"{n_g['backward']} + {n_g['forward']} gradient jobs (backward + forward) and one Opt Freq at each end.")
         w("")
     # ---- 9+. extra sections (summary_notes.toml: extra_sections = [{title, file}], file relative to the reaction
     # folder, written by that check's own script; copied in verbatim)

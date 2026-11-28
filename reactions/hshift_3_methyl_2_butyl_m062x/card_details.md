@@ -31,7 +31,7 @@ Limits of this comparison:
 - Statistical factors of order 2 between the NMR exchange rate and the elementary step are not worked out.
 - The methyl shift was computed for the anti form only.
 
-Farcasiu and Norton (J. Org. Chem. 1997, 62, 5374) found the same two bridged minima in the gas phase (their cis ion is our eclipsed form, their trans ion our anti form) and a barrier of 13.8 kJ/mol (3.3 kcal/mol) from the cis ion.
+Farcasiu and Norton (J. Org. Chem. 1997, 62, 5374) found the same two bridged minima in the gas phase (their cis ion is our eclipsed form, their trans ion our anti form) and a barrier of 13.8 kJ/mol (3.3 kcal/mol) from the cis ion. In their calculation the trans ion reaches the tertiary cation only through the cis ion. Here an IRC from the anti form's transition state ends at secondary_anti on one side (158 points; optimized end within 0.001 Å and 0.17 kJ/mol) and at tertiary_irc on the other (172 points; within 0.006 Å and 0.10 kJ/mol), with no imaginary frequency at either end (`02_irc/ts_anti_rotation_irc/result.md`). The difference from their result therefore lies in the surfaces, MP2 in the gas phase against M06-2X with SMD dichloromethane, and not in how the path was followed.
 
 For context only, not as a comparison: for the 1,2-hydride shift in the 2-butyl cation (a different, degenerate shift between two secondary carbons), Saunders and Kates give an upper limit, ΔG‡ < 10 kJ/mol (2.4 kcal/mol), from the absence of ¹³C NMR line broadening at −140 °C (M. Saunders and M. R. Kates, J. Am. Chem. Soc. 1978, 100, 7082–7083; reviewed in Saunders and Jiménez-Vázquez 1991).
 

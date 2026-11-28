@@ -1,6 +1,6 @@
 # Results summary: 1,2-Hydride shift, 3-methyl-2-butyl cation → 2-methyl-2-butyl cation
 
-`CH₃CH⁺CH(CH₃)₂ → CH₃CH₂C⁺(CH₃)₂`, in dichloromethane (SMD), 298.15 K. Reaction folder `reactions/hshift_3_methyl_2_butyl_m062x`. Written 2026-11-26 11:34 by `pipeline/results_summary.py` from the finished jobs; no new calculation.
+`CH₃CH⁺CH(CH₃)₂ → CH₃CH₂C⁺(CH₃)₂`, in dichloromethane (SMD), 298.15 K. Reaction folder `reactions/hshift_3_methyl_2_butyl_m062x`. Written 2026-11-27 22:32 by `pipeline/results_summary.py` from the finished jobs; no new calculation.
 
 **Units and zeros.** Energies in kJ/mol with kcal/mol in brackets. Every number names its zero. The reaction has one molecule throughout, so there are no separated reactants, and every step keeps the number of molecules, so no standard-state term applies. The zero is the lowest-free-energy conformer of the secondary cation (`secondary_anti`, working-level G; rule of J. Picione, 2026-11-19, the same as for separated species), not the form the path reaches. The path starts from the secondary cation as the path reaches it (`secondary_eclip_irc`, frame 0), which lies above the zero by +2.77 (+0.66) kJ/mol in G (working level) and, in E, by M06-2X/ma-def2-SVP +3.06 (+0.73) kJ/mol; M06-2X/ma-def2-TZVP +2.41 (+0.58) kJ/mol; B3LYP/ma-def2-TZVP +2.32 (+0.55) kJ/mol; DLPNO-CCSD(T)/ma-def2-TZVP +3.16 (+0.76) kJ/mol. Barriers from the secondary cation as the path reaches it (`secondary_eclip_irc`, frame 0) are given as well. The `secondary_anti` form does not reach the TS of the path shown; it has its own TS (`ts_anti_rotation`), so its barrier is given through that TS, and the TS shown measured from `secondary_anti` is an energy difference, not the barrier of any path (J. Picione, 2026-11-26; section 3). ΔE is electronic. ΔH and ΔG add the M06-2X/ma-def2-SVP thermal correction (quasi-RRHO, Grimme 2012, 100 cm⁻¹) to the electronic energy of the level named. ΔH needs no standard-state term.
 
@@ -70,7 +70,7 @@ All at M06-2X/ma-def2-SVP geometries. Electronic energies at the level named; Δ
 | B3LYP/ma-def2-TZVP | 1.4 (0.3) | -5.3 (-1.3) | -1.6 (-0.4) |
 | DLPNO-CCSD(T)/ma-def2-TZVP | 14.1 (3.4) | 7.4 (1.8) | 11.1 (2.7) |
 
-**Barrier of `secondary_anti` through its own TS (`ts_anti_rotation`, 162.4i cm⁻¹, `01_stationary/ts_anti_rotation`; confirmed to connect `secondary_anti` with the tertiary cation), zero = `secondary_anti`, 298.15 K:**
+**Barrier of `secondary_anti` through its own TS (`ts_anti_rotation`, 162.4i cm⁻¹, `01_stationary/ts_anti_rotation`; connects `secondary_anti` with the tertiary cation: an IRC from this TS ends at `secondary_anti` on one side (158 points; optimized end within 0.001 Å and 0.17 kJ/mol) and at `tertiary_irc` on the other (172 points; optimized end within 0.006 Å and 0.10 kJ/mol), with no imaginary frequency at either end (`02_irc/ts_anti_rotation_irc/result.md`); the optimizations displaced 0.10 Å both ways along the imaginary mode agree (`01_stationary/rotation_ts.md`)), zero = `secondary_anti`, 298.15 K:**
 
 | Level | ΔE‡ | ΔH‡ | ΔG‡ |
 |---|---|---|---|
@@ -155,3 +155,5 @@ ORCA job time (TOTAL RUN TIME in each output), 4 cores per job; several jobs ran
 | DLPNO-CCSD(T)/ma-def2-TZVP | 309 | 29.2 | 336 | 347 | 419 (frame 166) | 2026-11-18 23:16 | 2026-11-21 22:20 |
 
 - **Path (IRC) gradient jobs, working level:** reactant side (backward): 622 gradient jobs, 4.6 h job time (folders `backward`, `backward_part1`); product side (forward): 621 gradient jobs, 4.8 h job time (folders `forward`). The Hessian jobs and the TS and end-minimum optimizations are not counted.
+
+- **Separate check, not part of the path or its total:** IRC from `ts_anti_rotation` (`02_irc/ts_anti_rotation_irc`), 6.11 h of job time, 4 cores: 461 + 483 gradient jobs (backward + forward) and one Opt Freq at each end.

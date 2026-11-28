@@ -22,7 +22,7 @@ cell names its source in the notes below its table.
 | E2, EtO⁻ + 2-bromopropane | 0.35 h | 18.86 h (1239 jobs) | 9.78 h, 532 frames | 6.08 h, 532 frames | 149.61 h, 507 frames | 4.48 h, 532 frames | 15.9 min |
 | CN⁻ + acetone | 0.15 h | 10.11 h (659 jobs) | 2.41 h, 253 frames | 1.18 h, 253 frames | 26.31 h, 227 frames | 1.07 h, 253 frames | 7.2 min |
 | Tertiary 1,2-H shift | 0.59 h | 26.08 h (1891 jobs); earlier attempts 8.76 h (785 jobs) | 8.85 h, 543 frames | 2.30 h, 272 computed + 271 mirror | 46.56 h, 245 computed + 244 mirror | 3.64 h, 543 frames | 10.3 min |
-| Secondary 1,2-H shift | 0.23 h | 11.34 h (1389 jobs) | 4.11 h, 407 frames | 1.88 h, 407 frames | 29.21 h, 309 frames | 1.86 h, 407 frames | 12.3 min + 4.3 min re-render |
+| Secondary 1,2-H shift | 0.23 h | 11.34 h (1389 jobs); separate check 6.11 h (946 jobs), not counted | 4.11 h, 407 frames | 1.88 h, 407 frames | 29.21 h, 309 frames | 1.86 h, 407 frames | 12.3 min + 4.3 min re-render |
 | Diels–Alder | 0.24 h | 13.65 h (759 jobs) | 3.80 h, 302 frames | 1.79 h, 302 frames | 61.21 h, 275 frames | 1.53 h, 302 frames | 10.0 min |
 
 **Notes, column by column:**
@@ -32,6 +32,9 @@ cell names its source in the notes below its table.
   - All `02_irc/true_irc` job rows in `run_log.md`: the EnGrad steps of the IRC plus the Opt Freq end checks
     (0.04–1.28 h of each total).
   - Tertiary shift: the rerun attempts in `02_irc/attempts` are listed separately and were not used for the path.
+  - Secondary shift, separate check (J. Picione, 2026-11-28): the IRC from the anti form's rotation TS
+    (`02_irc/ts_anti_rotation_irc`, 2026-11-27; 944 gradient jobs and one Opt Freq at each end, 4 cores), 6.11 h of
+    job time. It is not part of the path shown and is not in the path column or the total.
 - **Single points:**
   - Source: `02_irc/path_sp/run_log_path_sp.md`; frame counts from `02_irc/energies_<level>.json` (`n_computed`).
   - The "TOTAL RUN TIME" lines in the ORCA outputs sum 0.3–4 % lower.
@@ -53,7 +56,7 @@ cell names its source in the notes below its table.
   - Secondary shift: the 2026-11-25 run (12.3 min), plus the video-only re-render of 2026-11-27 for the new orbital
     labels (4.3 min).
   - Diels–Alder: the second run of 2026-11-25 (mirror display frames); the first run took 9.9 min.
-- **Totals:** summed over the columns above (rendering and the tertiary attempts not counted), the six reactions took
+- **Totals:** summed over the columns above (rendering, the tertiary attempts and the secondary separate check not counted), the six reactions took
   28.9, 189.2, 41.2, 88.0, 48.6 and 82.2 h of job time, in table order. DLPNO-CCSD(T) is 48–79 % of each total;
   E2's 149.6 h is the largest single item.
 

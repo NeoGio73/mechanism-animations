@@ -59,6 +59,8 @@ GAS_TS = ROOT / "reactions/hshift_3_methyl_2_butyl/01_check/rotation/M06-2X/anti
 GAS_HESS = GAS_TS.with_suffix(".hess")
 ST = RX / "01_stationary"
 OUT_JSON, OUT_MD = ST / "rotation_ts.json", ST / "rotation_ts.md"
+NOTE_2026_11_26 = ('*Note added 2026-11-26 (J. Picione\'s decision): the four "production TS" rows are energy differences only. `secondary_anti` does not reach the production TS, so they are not the barrier of any path. The anti form\'s barrier is the `ts_anti_rotation` rows; the barrier of the path shown is measured from the eclipsed form (ΔG‡ 11.1 kJ/mol, 2.7 kcal/mol, at DLPNO-CCSD(T)/ma-def2-TZVP, 298 K).*')   # added by hand on 2026-11-26, kept by the writer since 2026-11-28
+IRC_JSON = {"ts_anti_rotation": "02_irc/ts_anti_rotation_irc/result.json"}   # 00_inputs/irc_ts_anti_rotation.py
 TS_BLOCK = "%geom Calc_Hess true Recalc_Hess 5 MaxIter 100 end"
 ECLIP_DIH = -161.9
 N_SCAN = 18
@@ -274,6 +276,11 @@ def write_report(res, refs):
                      f"**{'confirmed' if v['confirmed'] else 'NOT confirmed'}**")
         if v.get("result"):
             L.append(f"- **{v['result']}**")
+        irc = IRC_JSON.get(k)
+        if irc and (RX / irc).exists():          # J. Picione, 2026-11-28: the IRC is the main evidence
+            from pipeline.own_barrier import irc_sentence
+            L.append(f"- **IRC (main evidence for the connection):** {irc_sentence(RX / irc, irc)}. The plus and minus "
+                     f"sides above (TS displaced {STEP_A:.2f} Å along the imaginary mode, then Opt Freq) agree with it.")
         L.append("")
     for a in res.get("scans", []):
         L += [f"## Relaxed scan, arm {a['arm']} ({a['from_deg']}° → {a['to_deg']}°)",
@@ -283,7 +290,7 @@ def write_report(res, refs):
             L.append(f"| {p['point']} | {p['C1_C2_C3_H_deg']} | {e:+.1f} | {p['C3_H_A']} | {p['C2_H_A']} | {p['H_on']} |")
         L += ["", f"- Hydride moved to C2 at point: {a['hydride_shifted_at_point']}; highest point {a['max_point']} "
               f"(interior: {a['interior_max']}); TS guess: {'yes' if a['guess'] else 'no'}", ""]
-    L += ["## ΔG‡ and ΔE‡ from secondary_anti", "",
+    L += ["## ΔG‡ and ΔE‡ from secondary_anti", "", NOTE_2026_11_26, "",
           "| TS | Level | ΔE‡ | ΔG‡ |", "|---|---|---|---|"]
     for row in res["barriers_from_secondary_anti"]:
         for lb, v in row.items():
@@ -374,5 +381,8 @@ if __name__ == "__main__":
         run_methyl()
     elif cmd == "check":
         check()
+    elif cmd == "report":                      # no ORCA job: rewrite rotation_ts.md from rotation_ts.json
+        _rx = Reaction.load(RX)
+        write_report(json.loads(OUT_JSON.read_text(encoding="utf-8")), references(_rx))
     else:
         sys.exit(__doc__)

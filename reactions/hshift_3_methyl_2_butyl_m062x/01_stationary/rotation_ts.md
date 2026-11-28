@@ -9,6 +9,7 @@ Working level M06-2X-D3(0)/ma-def2-SVP, SMD dichloromethane; G at 298.15 K (ORCA
 - plus side: reached secondary_anti; {'C3_H_A': 1.094, 'C2_H_A': 2.124, 'C1_C2_C3_H_deg': -1.3, 'H_on': 'C3 (secondary)'}; secondary_anti RMSD 0.001 Å, ΔE +0.00 kJ/mol; secondary_eclip_irc RMSD 1.084 Å, ΔE -3.05 kJ/mol; tertiary_irc RMSD 0.784 Å, ΔE +39.39 kJ/mol
 - minus side: reached tertiary_irc; {'C3_H_A': 1.995, 'C2_H_A': 1.116, 'C1_C2_C3_H_deg': -122.4, 'H_on': 'C2 (tertiary)'}; secondary_anti RMSD 0.783 Å, ΔE -39.50 kJ/mol; secondary_eclip_irc RMSD 0.948 Å, ΔE -42.55 kJ/mol; tertiary_irc RMSD 0.007 Å, ΔE -0.11 kJ/mol
 - Connects ['secondary_anti', 'tertiary_irc']; wanted ['secondary_anti', 'tertiary_irc']: **confirmed**
+- **IRC (main evidence for the connection):** an IRC from this TS ends at `secondary_anti` on one side (158 points; optimized end within 0.001 Å and 0.17 kJ/mol) and at `tertiary_irc` on the other (172 points; optimized end within 0.006 Å and 0.10 kJ/mol), with no imaginary frequency at either end (`02_irc/ts_anti_rotation_irc/result.md`). The plus and minus sides above (TS displaced 0.10 Å along the imaginary mode, then Opt Freq) agree with it.
 
 ## ts_anti_eclip_pos
 - Start: highest point 15 of scan arm pos
