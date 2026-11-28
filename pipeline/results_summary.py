@@ -715,7 +715,7 @@ def main(rxname: str, out: str) -> None:
           "minimum optimizations are not counted.")
         w("")
     irc_rel = next((c["own_ts"].get("irc") for c in rx.cfg.get("zero_conformers", []) if c.get("own_ts")), None)
-    if irc_rel:                                  # a separate check, never added to the path (J. Picione, 2026-11-28)
+    if irc_rel:                                  # a separate check, never added to the path (J. Picione, 2026-11-27)
         ic = json.loads((R / irc_rel).read_text(encoding="utf-8"))
         idir = (R / irc_rel).parent
         n_g = {s: len(list((idir / s).glob("g*/j.out"))) for s in ("backward", "forward")}

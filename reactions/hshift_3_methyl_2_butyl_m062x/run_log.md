@@ -2473,6 +2473,8 @@ One attempt, `00_inputs/irc_ts_anti_rotation.py` (production pysisyphus GS metho
 - Backward: own stopping rule, 158 points, 461 gradients, 2.93 h; last frame −24.80 kJ/mol vs the TS. Opt Freq (`end_backward`): no imaginary frequency; secondary_anti, core RMSD 0.001 Å, ΔE +0.17 kJ/mol.
 - Reading by the rule fixed before the run: secondary_anti + tertiary_irc, the present description stands. Same pair as the 0.10 Å displaced optimizations. Nothing on the card or tables changed; no single points at other levels. Details in `02_irc/ts_anti_rotation_irc/result.md`.
 
-## 2026-11-27 22:40 — ts_anti_rotation IRC cited in the texts (J. Picione, 2026-11-28)
+## 2026-11-27 22:33 — ts_anti_rotation IRC cited in the texts (J. Picione, 2026-11-27)
 
 No ORCA job. card_details.md (Farcasiu and Norton note, from card_notes.toml): the IRC's two ends added, and the difference from their result placed in the surfaces (MP2, gas phase, against M06-2X, SMD dichloromethane), not in how the path was followed. Results summary and `01_stationary/rotation_ts.md`: the IRC (`02_irc/ts_anti_rotation_irc/result.md`) is the main evidence that ts_anti_rotation connects secondary_anti with the tertiary cation; the 0.10 Å displaced optimizations agree (reaction.toml own_ts `irc`, pipeline/own_barrier.irc_sentence; rotation_ts_m062x.py `report`, files only, rotation_ts.json unchanged). Wall time: the IRC's 6.11 h (946 jobs) is a separate check, not in the 48.6 h total (docs/results/paper_tables.md, results summary). card.md unchanged (no statement out of date; one page). The other five cards were rebuilt and are unchanged. No numbers changed; renders and viewer not regenerated.
+
+(Date corrected 2026-11-27 22:35: the request is of 2026-11-27, not 2026-11-28 as first written here and in commit d075fb9.)

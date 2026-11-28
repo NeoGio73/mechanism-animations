@@ -32,7 +32,7 @@ cell names its source in the notes below its table.
   - All `02_irc/true_irc` job rows in `run_log.md`: the EnGrad steps of the IRC plus the Opt Freq end checks
     (0.04–1.28 h of each total).
   - Tertiary shift: the rerun attempts in `02_irc/attempts` are listed separately and were not used for the path.
-  - Secondary shift, separate check (J. Picione, 2026-11-28): the IRC from the anti form's rotation TS
+  - Secondary shift, separate check (J. Picione, 2026-11-27): the IRC from the anti form's rotation TS
     (`02_irc/ts_anti_rotation_irc`, 2026-11-27; 944 gradient jobs and one Opt Freq at each end, 4 cores), 6.11 h of
     job time. It is not part of the path shown and is not in the path column or the total.
 - **Single points:**

@@ -7,7 +7,7 @@ gives each form's own barrier instead.
 
 reaction.toml, under the [[zero_conformers]] entry:  own_ts = {result = "01_stationary/rotation_ts.json",
 key = "ts_anti_rotation"}. The TS entry must be confirmed (it connects the conformer with the product).
-Optional irc = "<result.json of an IRC from that TS>" (J. Picione, 2026-11-28: the IRC is the main evidence for the
+Optional irc = "<result.json of an IRC from that TS>" (J. Picione, 2026-11-27: the IRC is the main evidence for the
 connection, the displaced optimizations of rotation_ts.json agree with it); `irc_sentence` words it from that file.
 
 `own_barriers(rx)` -> {name, ts_key, ts_folder, rows: {level: {dE, dH, dG}}}, level None = working level; ΔH and ΔG

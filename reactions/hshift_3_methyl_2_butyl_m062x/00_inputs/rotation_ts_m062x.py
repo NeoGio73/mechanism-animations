@@ -59,7 +59,7 @@ GAS_TS = ROOT / "reactions/hshift_3_methyl_2_butyl/01_check/rotation/M06-2X/anti
 GAS_HESS = GAS_TS.with_suffix(".hess")
 ST = RX / "01_stationary"
 OUT_JSON, OUT_MD = ST / "rotation_ts.json", ST / "rotation_ts.md"
-NOTE_2026_11_26 = ('*Note added 2026-11-26 (J. Picione\'s decision): the four "production TS" rows are energy differences only. `secondary_anti` does not reach the production TS, so they are not the barrier of any path. The anti form\'s barrier is the `ts_anti_rotation` rows; the barrier of the path shown is measured from the eclipsed form (ΔG‡ 11.1 kJ/mol, 2.7 kcal/mol, at DLPNO-CCSD(T)/ma-def2-TZVP, 298 K).*')   # added by hand on 2026-11-26, kept by the writer since 2026-11-28
+NOTE_2026_11_26 = ('*Note added 2026-11-26 (J. Picione\'s decision): the four "production TS" rows are energy differences only. `secondary_anti` does not reach the production TS, so they are not the barrier of any path. The anti form\'s barrier is the `ts_anti_rotation` rows; the barrier of the path shown is measured from the eclipsed form (ΔG‡ 11.1 kJ/mol, 2.7 kcal/mol, at DLPNO-CCSD(T)/ma-def2-TZVP, 298 K).*')   # added by hand on 2026-11-26, kept by the writer since 2026-11-27
 IRC_JSON = {"ts_anti_rotation": "02_irc/ts_anti_rotation_irc/result.json"}   # 00_inputs/irc_ts_anti_rotation.py
 TS_BLOCK = "%geom Calc_Hess true Recalc_Hess 5 MaxIter 100 end"
 ECLIP_DIH = -161.9
@@ -277,7 +277,7 @@ def write_report(res, refs):
         if v.get("result"):
             L.append(f"- **{v['result']}**")
         irc = IRC_JSON.get(k)
-        if irc and (RX / irc).exists():          # J. Picione, 2026-11-28: the IRC is the main evidence
+        if irc and (RX / irc).exists():          # J. Picione, 2026-11-27: the IRC is the main evidence
             from pipeline.own_barrier import irc_sentence
             L.append(f"- **IRC (main evidence for the connection):** {irc_sentence(RX / irc, irc)}. The plus and minus "
                      f"sides above (TS displaced {STEP_A:.2f} Å along the imaginary mode, then Opt Freq) agree with it.")
