@@ -6,3 +6,4 @@
 - 2026-11-18 09:07  cleared: jobs starting again
 - 2026-11-18 12:50  STALL: 9 job(s) queued, 4 of 8 cores free, no ORCA job started since 12:40 (10 min). Head of queue: __main__ reactions/e2_ethoxide_2_bromopropane_m062x from_stationary: e2_ethoxide_2_bromopropane_m062x/02_irc/path_sp/B3LYP_ma-def2-TZVP/f164/f
 - 2026-11-18 12:51  cleared: jobs starting again
+- 2026-11-28 01:25  stall watchdog stopped (pids 32464 and 31464, running since 2026-11-22 13:37) at J. Picione's request of 2026-11-28: the queue is empty and no further calculation is planned for this project. If a job is ever queued again, it is restarted then, on his instruction.
